@@ -1,6 +1,6 @@
 ThisBuild / scalaVersion := "3.3.3"
 ThisBuild / organization := "course.heroes"
-ThisBuild / version := "0.1.0"
+ThisBuild / version := "0.1.1"
 lazy val root = (project in file(".")).settings(
   name := "procrastination-heroes",
   libraryDependencies ++= Seq(

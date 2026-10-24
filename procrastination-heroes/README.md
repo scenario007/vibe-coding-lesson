@@ -20,6 +20,8 @@
 - 网页：http://127.0.0.1:5173
 - 后端健康检查：http://127.0.0.1:8088/api/health
 
+显示“准备好了”后可关闭启动窗口，前后端会继续在后台运行。请等这条提示出现后再打开网页；若进程启动失败，启动器会提示对应日志位置。重复双击会复用本项目已经运行的服务。
+
 也可以在项目目录运行：
 
 ```bash
@@ -62,6 +64,9 @@ python3 scripts/integration_test.py
 # 生产构建后的前后端 API 名称一致性
 node scripts/check_api_names.mjs
 
+# 启动器回归：真实终端关闭后，隔离端口上的前端应持续运行
+python3 scripts/launcher_test.py
+
 # 可选：额外调用一次真实模型，验证 AI 计划与奖励结构
 python3 scripts/integration_test.py --ai
 ```
@@ -88,6 +93,8 @@ backend/src/main/scala/services/
 ```
 
 架构、规则映射与实现范围见 [docs/architecture.md](docs/architecture.md)，实际验证记录见 [docs/verification.md](docs/verification.md)。
+
+v0.1.1 修复了关闭启动窗口后前端退出、网页无法连接的问题，详见 [修复与回归记录](docs/startup-v0.1.1.md)。
 
 ## 本机演示账号
 

@@ -49,9 +49,13 @@ def spawn(name,args,cwd,env):
     if pidfile.exists() and alive(int(pidfile.read_text())) and owned(int(pidfile.read_text()),name):
         print(name+' 已在运行。');return
     log=(STATE/(name+'.log')).open('ab')
-    proc=subprocess.Popen(args,cwd=cwd,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+    # Vite treats a terminal's input ending as a shutdown request, even in a
+    # separate process session. Background services must not inherit that input.
+    child_env={**env,'CI':'true'} if name=='frontend' else env
+    proc=subprocess.Popen(args,cwd=cwd,env=child_env,stdin=subprocess.DEVNULL,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
     pidfile.write_text(str(proc.pid));log.close()
     print(name+' 启动中；日志位于 .local/'+name+'.log')
+    return proc
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('command',choices=['start','stop','database','check'],default='start',nargs='?');args=parser.parse_args();env=environment()
     if args.command=='check':
@@ -69,14 +73,19 @@ def main():
         print('本项目服务已停止；数据保留。');return
     database(env)
     if args.command=='database':return
-    spawn('backend',['sbt','-batch','run'],ROOT/'backend',env)
-    spawn('frontend',['npm','run','dev'],ROOT/'frontend',env)
+    processes=[
+        ('backend',spawn('backend',['sbt','-batch','run'],ROOT/'backend',env)),
+        ('frontend',spawn('frontend',['npm','run','dev'],ROOT/'frontend',env))
+    ]
     print('正在等待应用就绪（首次编译会稍久）…')
     for _ in range(180):
+        for name,proc in processes:
+            if proc is not None and proc.poll() is not None:
+                print(name+' 启动失败；请查看 .local/'+name+'.log');sys.exit(1)
         try:
             with urllib.request.urlopen('http://127.0.0.1:8088/api/health',timeout=1) as response:pass
             with urllib.request.urlopen('http://127.0.0.1:5173',timeout=1) as response:pass
-            print('准备好了：http://127.0.0.1:5173');return
+            print('准备好了：http://127.0.0.1:5173（服务已在后台运行，可以关闭启动窗口）');return
         except Exception:time.sleep(1)
     print('启动尚未完成，请查看 .local/backend.log 和 .local/frontend.log。');sys.exit(1)
 if __name__=='__main__':main()

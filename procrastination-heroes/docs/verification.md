@@ -1,5 +1,7 @@
 # 首版实现与验证记录
 
+后续修复：2026-10-25 发布 v0.1.1，补充真实终端关闭回归并修复前端退出问题，详见 [启动器修复记录](startup-v0.1.1.md)。以下保留首版验证历史。
+
 验证日期：2026-10-24。本项目使用 React / TypeScript / Tailwind / Vite、Scala 3 / Cats Effect / http4s / Circe 和 PostgreSQL，实现 10 类页面及 30 个前端公开 API。课程原始材料和示例未被修改。
 
 ## 构建与自动检查

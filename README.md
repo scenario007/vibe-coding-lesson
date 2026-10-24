@@ -1,6 +1,6 @@
 # Vibe Coding 课程项目
 
-当前项目：[拖延勇者协会](procrastination-heroes/README.md)，首版 v0.1.0。
+当前项目：[拖延勇者协会](procrastination-heroes/README.md)，当前版本 v0.1.1，首版标签 v0.1.0。
 
 GitHub 仓库：[scenario007/vibe-coding-lesson](https://github.com/scenario007/vibe-coding-lesson)。
 

@@ -1,0 +1,10 @@
+export type RewardSymbol =
+  | 'lamp'
+  | 'leaf'
+  | 'star'
+  | 'book'
+  | 'camera'
+  | 'mountain'
+  | 'moon'
+  | 'flower'
+  | 'cloud'

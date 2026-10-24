@@ -1,0 +1,18 @@
+# Generated source archives are local delivery artifacts.
+/*-source.zip
+.DS_Store
+
+# Local credentials and runtime data, at any project depth.
+.env
+.env.*
+!.env.example
+.local/
+node_modules/
+dist/
+target/
+.bsp/
+.metals/
+__pycache__/
+*.pyc
+*.tsbuildinfo
+*.log

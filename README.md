@@ -2,6 +2,8 @@
 
 当前项目：[拖延勇者协会](procrastination-heroes/README.md)，首版 v0.1.0。
 
+GitHub 仓库：[scenario007/vibe-coding-lesson](https://github.com/scenario007/vibe-coding-lesson)。
+
 让 AI 将目标拆成可执行的阶段、设计任务专属纪念物，用每次进展积累成长并装饰自己的小屋。包含 10 类页面及真实的 Scala / PostgreSQL 后端。
 
 - [启动、配置与演示说明](procrastination-heroes/README.md)

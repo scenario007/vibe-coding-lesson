@@ -1,0 +1,53 @@
+{
+  "source": "tokenhub_student_quickstart.txt",
+  "sourceSha256": "5d0d57da81e708cb0f72a8e5467bdc4f92782572932bfffecb59f26ab6d33970",
+  "checkedAt": "2026-10-25",
+  "baseUrl": "https://tokenhub.tencentmaas.com/v1",
+  "models": [
+    {
+      "id": "deepseek-v4.1-flash",
+      "kind": "text",
+      "endpoint": "/v1/chat/completions"
+    },
+    {
+      "id": "minimax-speech-2.8-hd",
+      "kind": "speech",
+      "endpoint": "/v1/wand/minimax-tts/sync_tts"
+    },
+    {
+      "id": "wand-dubbing-clone-v2",
+      "kind": "dubbing",
+      "endpoint": "/v1/wand/dubbing/async_generation"
+    },
+    {
+      "id": "minimax-music-v3.0",
+      "kind": "music",
+      "endpoint": "/v1/wand/minimax-music/generation"
+    },
+    {
+      "id": "kinfra-vl-embedding-8b",
+      "kind": "embedding",
+      "endpoint": "/v1/embeddings/multimodal"
+    },
+    {
+      "id": "hy-video-v1.5",
+      "kind": "video",
+      "endpoint": "/v1/wand/hunyuan-video/generation"
+    },
+    {
+      "id": "kling-video-v3",
+      "kind": "video",
+      "endpoint": "/v1/wand/kling/text-to-video"
+    },
+    {
+      "id": "hy-world2-scene",
+      "kind": "scene3d",
+      "endpoint": "/v1/wand/hunyuan-video/world2-scene"
+    },
+    {
+      "id": "hy-world2-panorama",
+      "kind": "panorama",
+      "endpoint": "/v1/wand/hunyuan-image/world2-panorama"
+    }
+  ]
+}

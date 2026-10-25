@@ -86,6 +86,17 @@ def main():
     if not Decimal('0') < args.budget_cny <= Decimal('10'):
         raise SystemExit('本轮授权上限为 10 元，预算必须在 0–10 元之间。')
     names = list(PROMPTS) if args.only == 'all' else [args.only]
+    # The classroom's provisioned model list is narrower than /v1/models.
+    course = json.loads((ROOT / 'config/tokenhub-course-models.json').read_text())
+    allowed = {item['id'] for item in course['models']}
+    if MODEL not in allowed:
+        message = ('BLOCKED: 当前角色图集适配器的模型未列入课程 TXT 开放清单；'
+                   '课程图像能力为 hy-world2-panorama（360° 全景），不支持按普通透明图集参数调用。'
+                   '未读取密钥、未预留费用、未发送请求。')
+        if args.generate:
+            raise SystemExit(message)
+        print(message)
+        return
     if not args.generate:
         print(f'DRY RUN: {MODEL}; {len(names)} requests; reference estimate CNY {PRICE * len(names)}; no API request.')
         return

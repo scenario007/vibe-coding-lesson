@@ -18,7 +18,7 @@ export default function QuestWorkbench() {
   const onSaved = (data: QuestDetail) => setState({ status: 'ready', data })
   return (
     <>
-      <Link to="/quests" className="mb-5 inline-flex items-center gap-2 text-[11px] text-[#8b9c77]">
+      <Link to="/quests" className="mb-5 inline-flex items-center gap-2 text-[11px] text-[#716449]">
         <ArrowLeft className="size-3.5" />
         回到任务大厅
       </Link>

@@ -23,8 +23,8 @@ export default function Growth() {
     <>
       <PageTitle
         eyebrow="EVERY LITTLE STEP COUNTS"
-        title="成长档案"
-        description="有些变化很安静，但回头看，你已经走了这么远。"
+        title="勇者手账"
+        description="此处存放证据：你确实开过工，也确实打赢过几场小仗。"
       />
       <div className="mb-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
         {[
@@ -34,13 +34,13 @@ export default function Growth() {
           { label: '专属纪念物', value: data.rewards.length, unit: '件', Icon: Trophy },
         ].map(({ label, value, unit, Icon }) => (
           <Card key={label}>
-            <div className="flex justify-between text-[11px] text-[#98a58a]">
+            <div className="flex justify-between text-[11px] text-[#716449]">
               {label}
-              <Icon className="size-4 text-[#aabd96]" />
+              <Icon className="size-4 text-[#8a785d]" />
             </div>
-            <p className="mt-4 font-serif text-3xl font-bold text-[#728d5a]">
+            <p className="mt-4 font-serif text-3xl font-bold text-[#716449]">
               {value}
-              <span className="ml-2 text-[10px] font-normal text-[#a6b094]">{unit}</span>
+              <span className="ml-2 text-[10px] font-normal text-[#8a785d]">{unit}</span>
             </p>
           </Card>
         ))}

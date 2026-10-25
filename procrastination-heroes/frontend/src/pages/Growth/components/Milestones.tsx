@@ -4,9 +4,9 @@ import type { RewardEvent } from '@/objects/economy/RewardEvent'
 import { Sparkles } from 'lucide-react'
 export function Milestones({ data, events }: { data: DashboardResponse; events: RewardEvent[] }) {
   return (
-    <Card className="bg-[#eff4e5]">
-      <Sparkles className="mb-4 size-6 text-[#9bb67e]" />
-      <h2 className="font-serif text-xl font-bold text-[#6f8c54]">你的小小里程碑</h2>
+    <Card className="bg-[#eadcc1]">
+      <Sparkles className="mb-4 size-6 text-[#716449]" />
+      <h2 className="font-serif text-xl font-bold text-[#716449]">你的小小里程碑</h2>
       <div className="mt-5 space-y-3">
         {[
           { label: '勇敢开场', description: '创建第一项任务', done: data.quests.length > 0 },
@@ -19,8 +19,8 @@ export function Milestones({ data, events }: { data: DashboardResponse; events: 
           >
             <Emblem symbol="star" palette={m.done ? 'gold' : 'sage'} size="small" />
             <div>
-              <p className="text-xs font-medium text-[#8a9d70]">{m.label}</p>
-              <p className="mt-1 text-[9px] text-[#a9b595]">
+              <p className="text-xs font-medium text-[#716449]">{m.label}</p>
+              <p className="mt-1 text-[9px] text-[#8a785d]">
                 {m.description} · {m.done ? '已达成' : '等待点亮'}
               </p>
             </div>

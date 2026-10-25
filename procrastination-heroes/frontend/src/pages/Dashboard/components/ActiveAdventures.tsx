@@ -14,11 +14,11 @@ export function ActiveAdventures({
     <Card>
       <div className="mb-5 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Flag className="size-4 text-[#839c6c]" />
+          <Flag className="size-4 text-[#716449]" />
           正在进行的冒险{' '}
-          <span className="text-[10px] font-normal text-[#a7b198]">{active.length} 项</span>
+          <span className="text-[10px] font-normal text-[#8a785d]">{active.length} 项</span>
         </h2>
-        <Link to="/quests" className="flex items-center gap-1 text-[10px] text-[#8a9c75]">
+        <Link to="/quests" className="flex items-center gap-1 text-[10px] text-[#716449]">
           全部任务
           <ChevronRight className="size-3" />
         </Link>
@@ -31,16 +31,16 @@ export function ActiveAdventures({
         </div>
       ) : (
         <EmptyState
-          title={draft.length ? '你的计划准备好了' : '冒险故事，等你落笔'}
+          title={draft.length ? '你的计划准备好了' : '公告板还有空位'}
           description={
             draft.length
               ? '草案还没有开始，确认关卡与奖励后，就可以出发。'
-              : '先说说你想完成什么，让 AI 帮你找到今天能做的第一步。'
+              : '下一件想做的事，交给 AI 拆成你今天能接的委托。'
           }
           action={
             <Link to={draft.length ? `/quests/${draft[0].quest.id}` : '/quests/new'}>
               <Button variant="secondary">
-                {draft.length ? '查看任务草稿' : '创建第一个任务'}
+                {draft.length ? '查看任务草稿' : '领取新的委托'}
                 <ArrowRight className="size-3" />
               </Button>
             </Link>

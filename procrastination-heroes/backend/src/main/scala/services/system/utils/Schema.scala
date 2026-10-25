@@ -18,5 +18,6 @@ private[system] object Schema:
     services.economy.tables.roomPlacement.RoomPlacementTableInitializer.initialize(c),
     services.focus.tables.focusSession.FocusSessionTableInitializer.initialize(c),
     services.focus.tables.focusSegment.FocusSegmentTableInitializer.initialize(c),
-    services.ai.tables.generationJob.GenerationJobTableInitializer.initialize(c)
+    services.ai.tables.generationJob.GenerationJobTableInitializer.initialize(c),
+    services.ai.tables.usageEvent.UsageEventTableInitializer.initialize(c)
   ).sequence_.void)

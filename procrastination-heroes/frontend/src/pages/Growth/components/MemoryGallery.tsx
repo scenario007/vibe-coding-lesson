@@ -7,30 +7,30 @@ export function MemoryGallery({ data }: { data: DashboardResponse }) {
     <Card className="mb-6">
       <div className="mb-5 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Trophy className="size-4 text-[#baac7b]" />
-          任务专属纪念图鉴
+          <Trophy className="size-4 text-[#716449]" />
+          我的战利品档案
         </h2>
-        <span className="text-[10px] text-[#b1b79d]">每件藏品，都有一个完成过的故事</span>
+        <span className="text-[10px] text-[#8a785d]">每件藏品，都有一个完成过的故事</span>
       </div>
       {data.rewards.length ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {data.rewards.map((reward) => (
-            <div key={reward.id} className="rounded-xl border border-[#e9e6d7] bg-[#faf8ef] p-5">
+            <div key={reward.id} className="rounded-xl border border-[#cabb9e] bg-[#fff8e7] p-5">
               <div className="mb-4 flex justify-center">
                 <Emblem symbol={reward.design.symbol} palette={reward.design.palette} />
               </div>
-              <h3 className="text-center text-sm font-semibold text-[#96865c]">
+              <h3 className="text-center text-sm font-semibold text-[#716449]">
                 {reward.design.name}
               </h3>
-              <p className="mt-3 text-center text-[11px] leading-6 text-[#ada388]">
+              <p className="mt-3 text-center text-[11px] leading-6 text-[#716449]">
                 {reward.design.story}
               </p>
-              <p className="my-3 text-center text-[9px] text-[#b8b09a]">
-                {new Date(reward.unlockedAt).toLocaleDateString('zh-CN')} 解锁 · 模板呈现
+              <p className="my-3 text-center text-[9px] text-[#8a785d]">
+                {new Date(reward.unlockedAt).toLocaleDateString('zh-CN')} 解锁 · 公会手绘部件
               </p>
               <Link
                 to={`/quests/${reward.questId}`}
-                className="flex justify-center text-[10px] text-[#91a17b]"
+                className="flex justify-center text-[10px] text-[#716449]"
               >
                 回看这场冒险 →
               </Link>

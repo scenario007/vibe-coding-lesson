@@ -1,11 +1,13 @@
 @import 'tailwindcss';
 @theme {
   --font-sans: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
-  --font-serif: 'Noto Serif SC', 'Songti SC', 'STSong', Georgia, serif;
+  --font-serif: 'STKaiti', 'Kaiti SC', 'Songti SC', Georgia, serif;
 }
 @layer base {
   body {
     margin: 0;
+    background: #eadcc1;
+    color: #332820;
   }
   button,
   a,
@@ -17,8 +19,64 @@
     cursor: pointer;
   }
   :focus-visible {
-    outline: 2px solid #7f9e73;
-    outline-offset: 3px;
+    outline: 3px solid #a94732;
+    outline-offset: 4px;
+  }
+  ::selection {
+    background: #c69a4266;
+    color: #332820;
+  }
+}
+/* A small shared texture/animation vocabulary supports the illustrated assets. */
+@layer utilities {
+  .guild-paper {
+    background-color: #f4e8cd;
+    background-image: radial-gradient(#71583a22 0.65px, transparent 0.8px);
+    background-size: 5px 5px;
+  }
+  .guild-board {
+    background-color: #66533e;
+    background-image: repeating-linear-gradient(
+      3deg,
+      transparent 0 38px,
+      #33282033 39px 41px,
+      transparent 42px 78px
+    );
+  }
+  .guild-note {
+    transform: rotate(-0.7deg);
+  }
+  .guild-note:nth-child(even) {
+    transform: rotate(0.7deg);
+  }
+  .guild-note:hover {
+    transform: translateY(-4px) rotate(0);
+  }
+  .guild-stamp {
+    border: 2px solid currentColor;
+    outline: 1px solid currentColor;
+    outline-offset: -5px;
+    transform: rotate(-8deg);
+    letter-spacing: 0.1em;
+  }
+}
+@keyframes slime-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.025);
+  }
+}
+@keyframes guild-pop {
+  0% {
+    transform: scale(0.85) rotate(-9deg);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) rotate(-5deg);
+    opacity: 1;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -26,6 +84,7 @@
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
 }

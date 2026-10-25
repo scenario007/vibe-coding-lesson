@@ -30,7 +30,7 @@ export function QuestEditor({
       <div className="space-y-5">
         <Card>
           <div className="mb-5 flex items-center gap-2">
-            <span className="grid size-7 place-items-center rounded-lg bg-[#ecf1df] text-xs text-[#7e965c]">
+            <span className="grid size-7 place-items-center rounded-lg bg-[#eadcc1] text-xs text-[#716449]">
               01
             </span>
             <h2 className="text-sm font-semibold">你想完成什么？</h2>
@@ -48,7 +48,7 @@ export function QuestEditor({
               {['完成课程选题', '整理我的书桌', '读完一本想读的书'].map((v) => (
                 <button
                   key={v}
-                  className="rounded-lg bg-[#f0f4e7] px-2.5 py-1.5 text-[10px] text-[#81966a]"
+                  className="rounded-lg bg-[#eadcc1] px-2.5 py-1.5 text-[10px] text-[#716449]"
                   onClick={() => f.setTitle(v)}
                 >
                   {v}
@@ -72,7 +72,7 @@ export function QuestEditor({
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="grid gap-2 text-sm font-medium text-[#51614e]">
+              <label className="grid gap-2 text-sm font-medium text-[#665d3e]">
                 任务分类
                 <select
                   className={inputClass}
@@ -86,7 +86,7 @@ export function QuestEditor({
                   ))}
                 </select>
               </label>
-              <label className="grid gap-2 text-sm font-medium text-[#51614e]">
+              <label className="grid gap-2 text-sm font-medium text-[#665d3e]">
                 奖励风格
                 <select
                   className={inputClass}
@@ -100,7 +100,7 @@ export function QuestEditor({
                 </select>
               </label>
             </div>
-            <label className="grid gap-2 text-sm font-medium text-[#51614e]">
+            <label className="grid gap-2 text-sm font-medium text-[#665d3e]">
               已经完成什么，或卡在哪里？
               <textarea
                 value={f.feedback}
@@ -123,12 +123,12 @@ export function QuestEditor({
             <button
               disabled={disabled}
               onClick={() => void f.recover()}
-              className="mt-3 w-full text-center text-[10px] text-[#91a17c] underline underline-offset-4"
+              className="mt-3 w-full text-center text-[10px] text-[#716449] underline underline-offset-4"
             >
               找回最近的 AI 草案
             </button>
-            <p className="mt-3 text-center text-[10px] leading-5 text-[#a1aa93]">
-              AI 会返回可修改的草案，确认后才开始。预计时间仅供规划参考。
+            <p className="mt-3 text-center text-[10px] leading-5 text-[#8a785d]">
+              AI 会返回可修改的草案，确认后才开始。每次生成按 Token 计入右上角账本，不自动重试。
             </p>
           </div>
         </Card>
@@ -136,7 +136,7 @@ export function QuestEditor({
         {f.notice && (
           <div
             role="status"
-            className="flex gap-2 rounded-xl bg-[#eaf2e1] p-4 text-xs leading-6 text-[#71915b]"
+            className="flex gap-2 rounded-xl bg-[#eadcc1] p-4 text-xs leading-6 text-[#716449]"
           >
             <Check className="mt-1 size-4 shrink-0" />
             {f.notice}
@@ -145,12 +145,12 @@ export function QuestEditor({
         <Card>
           <div className="mb-5 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <span className="grid size-7 place-items-center rounded-lg bg-[#ecf1df] text-xs text-[#7e965c]">
+              <span className="grid size-7 place-items-center rounded-lg bg-[#eadcc1] text-xs text-[#716449]">
                 02
               </span>
               把路分成小小的关卡
             </h2>
-            <span className="text-[10px] text-[#9aa68a]">{f.stages.length} / 5 个阶段</span>
+            <span className="text-[10px] text-[#716449]">{f.stages.length} / 5 个阶段</span>
           </div>
           {f.stages.length ? (
             <div className="space-y-4">
@@ -158,15 +158,15 @@ export function QuestEditor({
                 <fieldset
                   disabled={disabled}
                   key={index}
-                  className="rounded-xl border border-[#e5e9db] bg-[#fafcf6] p-4"
+                  className="rounded-xl border border-[#eadcc1] bg-[#fff8e7] p-4"
                 >
                   <div className="mb-3 flex items-center gap-2">
-                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-[#e4edd8] text-[10px] font-semibold text-[#77945b]">
+                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-[#eadcc1] text-[10px] font-semibold text-[#716449]">
                       {index + 1}
                     </span>
                     <input
                       aria-label={`第${index + 1}阶段名称`}
-                      className="min-w-0 flex-1 border-b border-transparent bg-transparent py-1 text-sm font-medium outline-none focus:border-[#a4bc90]"
+                      className="min-w-0 flex-1 border-b border-transparent bg-transparent py-1 text-sm font-medium outline-none focus:border-[#8a785d]"
                       value={stage.title}
                       onChange={(e) => f.updateStage(index, { title: e.target.value })}
                       maxLength={120}
@@ -176,7 +176,7 @@ export function QuestEditor({
                       aria-label="上移阶段"
                       disabled={index === 0 || disabled}
                       onClick={() => f.moveStage(index, -1)}
-                      className="p-1 text-[#a4af94] disabled:opacity-20"
+                      className="p-1 text-[#8a785d] disabled:opacity-20"
                     >
                       <ArrowUp className="size-3.5" />
                     </button>
@@ -184,14 +184,14 @@ export function QuestEditor({
                       aria-label="下移阶段"
                       disabled={index === f.stages.length - 1 || disabled}
                       onClick={() => f.moveStage(index, 1)}
-                      className="p-1 text-[#a4af94] disabled:opacity-20"
+                      className="p-1 text-[#8a785d] disabled:opacity-20"
                     >
                       <ArrowDown className="size-3.5" />
                     </button>
                     <button
                       aria-label="删除阶段"
                       onClick={() => f.removeStage(index)}
-                      className="p-1 text-[#c19f8e]"
+                      className="p-1 text-[#8a785d]"
                     >
                       <Trash2 className="size-3.5" />
                     </button>
@@ -221,7 +221,7 @@ export function QuestEditor({
                       onChange={(e) => f.updateStage(index, { minutes: Number(e.target.value) })}
                     />
                   </div>
-                  <label className="mt-3 grid gap-2 text-[10px] text-[#8a9b79]">
+                  <label className="mt-3 grid gap-2 text-[10px] text-[#716449]">
                     行动清单（每行一项，最多五项）
                     <textarea
                       value={stage.checklist.join('\n')}
@@ -234,7 +234,7 @@ export function QuestEditor({
                       placeholder="先打开文档，写下一个想法"
                     />
                   </label>
-                  <p className="mt-3 text-[9px] text-[#a0ad8c]">
+                  <p className="mt-3 text-[9px] text-[#8a785d]">
                     {stage.dependsOn.length
                       ? `在第 ${stage.dependsOn.map((v) => v + 1).join('、')} 步之后推进`
                       : '可以从这里开始'}{' '}
@@ -244,7 +244,7 @@ export function QuestEditor({
               ))}
             </div>
           ) : (
-            <p className="py-8 text-center text-xs leading-7 text-[#a2ae93]">
+            <p className="py-8 text-center text-xs leading-7 text-[#8a785d]">
               让 AI 帮你找一条路，
               <br />
               或者从一个自己确定的小步骤开始。
@@ -260,13 +260,13 @@ export function QuestEditor({
             手动添加一个步骤
           </Button>
           {f.stages.length > 0 && (
-            <p className="mt-3 text-[10px] text-[#9aaa87]">
+            <p className="mt-3 text-[10px] text-[#716449]">
               预计总投入 {f.stages.reduce((n, v) => n + v.minutes, 0)} 分钟 · 可以调整后再出发
             </p>
           )}
         </Card>
         <Card>
-          <label className="grid gap-2 text-sm font-medium text-[#51614e]">
+          <label className="grid gap-2 text-sm font-medium text-[#665d3e]">
             计划说明
             <textarea
               className={inputClass + ' min-h-20'}
@@ -280,16 +280,16 @@ export function QuestEditor({
         </Card>
       </div>
       <div className="space-y-5 xl:sticky xl:top-24">
-        <Card className="bg-[#f3f5e9]">
+        <Card className="bg-[#eadcc1]">
           <div className="flex items-center justify-between">
-            <h2 className="text-xs font-semibold text-[#6f8358]">属于这场冒险的纪念物</h2>
+            <h2 className="text-xs font-semibold text-[#665d3e]">这张委托的专属战利品</h2>
             <Pill tone="gold">完成后解锁</Pill>
           </div>
           <div className="my-7 flex justify-center">
             <Emblem size="large" symbol={f.reward.symbol} palette={f.reward.palette} />
           </div>
-          <p className="mb-4 text-center text-[9px] tracking-widest text-[#9bab85]">
-            任务定制 · 模板呈现
+          <p className="mb-4 text-center text-[9px] tracking-widest text-[#716449]">
+            任务定制 · 公会手绘部件
           </p>
           <fieldset disabled={disabled} className="space-y-4">
             <Field
@@ -298,7 +298,7 @@ export function QuestEditor({
               onChange={(e) => f.setReward({ ...f.reward, name: e.target.value })}
               maxLength={60}
             />
-            <label className="grid gap-2 text-xs text-[#7c9066]">
+            <label className="grid gap-2 text-xs text-[#716449]">
               它想对你说
               <textarea
                 value={f.reward.story}
@@ -326,6 +326,9 @@ export function QuestEditor({
                   ['moon', '月亮'],
                   ['flower', '花朵'],
                   ['cloud', '云朵'],
+                  ['sword', '稿纸之剑'],
+                  ['shield', '锅盖之盾'],
+                  ['scroll', '冒险卷轴'],
                 ].map(([v, l]) => (
                   <option key={v} value={v}>
                     {l}
@@ -372,7 +375,7 @@ export function QuestEditor({
                 disabled={disabled}
                 key={value}
                 onClick={() => f.setTier(value as RewardTier)}
-                className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-xs ${f.tier === value ? 'border-[#9cb887] bg-[#f0f6e7] text-[#6b8a51]' : 'border-[#e8ecdf] text-[#9da98b]'}`}
+                className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-xs ${f.tier === value ? 'border-[#8a785d] bg-[#eadcc1] text-[#665d3e]' : 'border-[#eadcc1] text-[#716449]'}`}
               >
                 <span>{t.label}</span>
                 <span className="flex items-center gap-1 text-[10px]">
@@ -382,7 +385,7 @@ export function QuestEditor({
               </button>
             ))}
           </div>
-          <p className="mt-4 text-[10px] leading-6 text-[#a4af97]">
+          <p className="mt-4 text-[10px] leading-6 text-[#8a785d]">
             这是整项任务的奖励总额，拆成更多步骤也不会增加。每日最多获得 60 冒险币。
           </p>
         </Card>

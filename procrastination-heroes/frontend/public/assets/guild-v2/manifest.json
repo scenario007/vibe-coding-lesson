@@ -1,0 +1,41 @@
+{
+  "version": "0.2.0",
+  "model": "seedream-image-v5.0-flash",
+  "currency": "CNY",
+  "priceVerifiedAt": "2026-10-25",
+  "priceSource": "https://cloud.tencent.com/document/product/1823/130055",
+  "billingNote": "按平台返回用量与官方费率估算，非平台实扣；不包含账本启用前调用。",
+  "assets": [
+    {
+      "name": "hero-prior-1",
+      "file": "hero.png",
+      "model": "seedream-image-v5.0-flash",
+      "prompt": "制作透明背景角色图集，2048×2048，严格2列3行六个等大格，每格四周留足透明间隔，无格线。六格是同一成年中性小勇者：豆形圆脸、半睁黑眼、一撮乱卷发、皱暗红披风、灰橄榄短衫、棕短靴、凹锅盖盾牌和折纸稿剑。按行依次：站立发呆、挠头犹豫、提剑开工、举盾庆祝、趴地休息、抱卷轴认真读。各姿态完整不越格，比例一致。炭黑粗细统一的微抖手绘墨线、少量排线、哑光平涂，暖羊皮色与暗红橄榄配色，笨拙困倦但可爱。无字、无数字、无标签、无界面、无水印、无阴影底板，无3D和渐变。",
+      "status": "unconfirmed",
+      "startedAt": "2026-10-25T02:51:00.195006+00:00",
+      "estimatedCny": 0.12,
+      "tokens": null,
+      "requestId": null,
+      "pricePerMillionTokens": 10,
+      "errorType": "HTTPError",
+      "completedAt": "2026-10-25T02:51:06.760878+00:00"
+    },
+    {
+      "name": "hero",
+      "file": "hero.png",
+      "model": "seedream-image-v5.0-flash",
+      "prompt": "制作透明背景角色图集，2048×2048，严格2列3行六个等大格，每格四周留足透明间隔，无格线。六格是同一成年中性小勇者：豆形圆脸、半睁黑眼、一撮乱卷发、皱暗红披风、灰橄榄短衫、棕短靴、凹锅盖盾牌和折纸稿剑。按行依次：站立发呆、挠头犹豫、提剑开工、举盾庆祝、趴地休息、抱卷轴认真读。各姿态完整不越格，比例一致。炭黑粗细统一的微抖手绘墨线、少量排线、哑光平涂，暖羊皮色与暗红橄榄配色，笨拙困倦但可爱。无字、无数字、无标签、无界面、无水印、无阴影底板，无3D和渐变。",
+      "status": "unconfirmed",
+      "startedAt": "2026-10-25T02:52:46.619772+00:00",
+      "estimatedCny": 0.12,
+      "tokens": null,
+      "requestId": null,
+      "pricePerMillionTokens": 10,
+      "errorType": "HTTPError",
+      "completedAt": "2026-10-25T02:52:48.677824+00:00",
+      "httpStatus": 402,
+      "errorCode": "401007",
+      "errorMessage": "No free trial quota is available for the service and postpaid billing is not enabled, so the service cannot be accessed. Please go to Console > Online Inference Service to enable postpaid billing. See: https://console.cloud.tencent.com/tokenhub/inference"
+    }
+  ]
+}

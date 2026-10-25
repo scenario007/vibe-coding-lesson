@@ -33,7 +33,7 @@ export default function Dashboard() {
         title={`${greeting}，${data.user.nickname}`}
         description="欢迎回到协会。今天，也按自己的节奏慢慢来。"
         action={
-          <span className="flex items-center gap-2 text-xs text-[#99a48b]">
+          <span className="flex items-center gap-2 text-xs text-[#716449]">
             <CalendarDays className="size-3.5" />
             {now.toLocaleDateString('zh-CN', {
               timeZone: 'Asia/Shanghai',

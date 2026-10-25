@@ -8,3 +8,6 @@ export type RewardSymbol =
   | 'moon'
   | 'flower'
   | 'cloud'
+  | 'sword'
+  | 'shield'
+  | 'scroll'

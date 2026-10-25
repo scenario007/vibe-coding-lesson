@@ -1,3 +1,7 @@
+import { RewardIllustration } from './RewardIllustration'
+import { FurnitureIllustration } from './FurnitureIllustration'
+import { createPortal } from 'react-dom'
+import { useEffect, useRef } from 'react'
 import {
   ArrowUpRight,
   BookOpen,
@@ -23,15 +27,17 @@ export function Button({
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
 }) {
   const colors = {
-    primary: 'bg-[#2e5748] text-white hover:bg-[#214535] shadow-[0_3px_0_#193a2e]',
-    secondary: 'border border-[#dddccf] bg-white text-[#365645] hover:bg-[#f0f2e7]',
-    ghost: 'text-[#5d7160] hover:bg-[#e9eee1]',
-    danger: 'bg-[#f7e5df] text-[#974d3b] hover:bg-[#f0d7cd]',
+    primary:
+      'border-2 border-[#332820] bg-[#a94732] text-[#fff8e7] hover:bg-[#8c382b] shadow-[3px_3px_0_#332820] hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0_#332820]',
+    secondary:
+      'border-2 border-[#57472f] bg-[#fff8e7] text-[#332820] hover:bg-[#eadcc1] shadow-[2px_2px_0_#6b573d]',
+    ghost: 'text-[#665d3e] hover:bg-[#eadcc1]',
+    danger: 'bg-[#eadcc1] text-[#665d3e] hover:bg-[#cabb9e]',
   }
   return (
     <button
       {...props}
-      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-45 ${colors[variant]} ${className}`}
+      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-[4px_9px_4px_7px] px-4 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-45 ${colors[variant]} ${className}`}
     >
       {children}
     </button>
@@ -40,7 +46,7 @@ export function Button({
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
     <section
-      className={`rounded-2xl border border-[#e3e5d9] bg-white/90 p-5 shadow-[0_3px_14px_#2e574805] ${className}`}
+      className={`relative rounded-[4px_12px_5px_9px] border-[1.5px] border-[#a38c65] bg-[#fff8e7] p-5 shadow-[3px_4px_0_#79604425] ${className}`}
     >
       {children}
     </section>
@@ -51,17 +57,17 @@ export function Field({
   ...props
 }: InputHTMLAttributes<HTMLInputElement> & { label: string }) {
   return (
-    <label className="grid gap-2 text-sm font-medium text-[#51614e]">
+    <label className="grid gap-2 text-sm font-medium text-[#665d3e]">
       {label}
       <input
         {...props}
-        className="min-h-11 w-full rounded-xl border border-[#dcded2] bg-white px-3.5 py-2.5 text-[#303c31] outline-none transition placeholder:text-[#a5ac9d] focus:border-[#71927b] focus:ring-3 focus:ring-[#9abb8e25] disabled:bg-[#f1f2e9]"
+        className="min-h-11 w-full rounded-md border-[1.5px] border-[#a38c65] bg-white px-3.5 py-2.5 text-[#332820] outline-none transition placeholder:text-[#8a785d] focus:border-[#716449] focus:ring-3 focus:ring-[#9abb8e25] disabled:bg-[#eadcc1]"
       />
     </label>
   )
 }
 export const inputClass =
-  'min-h-11 w-full rounded-xl border border-[#dcded2] bg-white px-3.5 py-2.5 text-sm text-[#303c31] outline-none focus:border-[#71927b] focus:ring-3 focus:ring-[#9abb8e25]'
+  'min-h-11 w-full rounded-md border-[1.5px] border-[#a38c65] bg-white px-3.5 py-2.5 text-sm text-[#332820] outline-none focus:border-[#716449] focus:ring-3 focus:ring-[#9abb8e25]'
 export function PageTitle({
   eyebrow,
   title,
@@ -74,11 +80,13 @@ export function PageTitle({
   action?: ReactNode
 }) {
   return (
-    <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-7 flex flex-wrap items-end justify-between gap-4 border-b-2 border-dashed border-[#b6a17b] pb-5">
       <div>
-        <p className="mb-2 text-[10px] font-semibold tracking-[.22em] text-[#87917b]">{eyebrow}</p>
-        <h1 className="font-serif text-3xl font-bold tracking-tight text-[#293e31]">{title}</h1>
-        <p className="mt-2 text-sm leading-6 text-[#83907d]">{description}</p>
+        <p className="mb-2 text-[10px] font-extrabold tracking-[.22em] text-[#a94732]">{eyebrow}</p>
+        <h1 className="font-serif text-3xl font-black tracking-wide text-[#332820] sm:text-4xl">
+          {title}
+        </h1>
+        <p className="mt-2 text-sm leading-6 text-[#716449]">{description}</p>
       </div>
       {action}
     </div>
@@ -88,7 +96,7 @@ export function Loading({ label = '正在整理你的冒险…' }: { label?: str
   return (
     <div
       role="status"
-      className="flex min-h-48 items-center justify-center gap-3 text-sm text-[#87927e]"
+      className="flex min-h-48 items-center justify-center gap-3 text-sm text-[#716449]"
     >
       <LoaderCircle className="size-5 animate-spin" />
       {label}
@@ -99,7 +107,7 @@ export function ErrorState({ message, retry }: { message: string; retry?: () => 
   return (
     <div
       role="alert"
-      className="rounded-2xl border border-[#eddbd0] bg-[#fff6ef] p-5 text-sm text-[#8a5540]"
+      className="rounded-2xl border border-[#cabb9e] bg-[#fff8e7] p-5 text-sm text-[#665d3e]"
     >
       <p>{message}</p>
       {retry && (
@@ -120,12 +128,12 @@ export function EmptyState({
   action?: ReactNode
 }) {
   return (
-    <div className="grid min-h-52 justify-items-center gap-3 rounded-2xl border border-dashed border-[#dce1d2] bg-[#fafbf6] p-8 text-center">
-      <div className="grid size-12 place-items-center rounded-full bg-[#e9efdf] text-[#68855b]">
+    <div className="grid min-h-52 justify-items-center gap-3 rounded-2xl border border-dashed border-[#cabb9e] bg-[#fff8e7] p-8 text-center">
+      <div className="grid size-12 place-items-center rounded-full bg-[#eadcc1] text-[#716449]">
         <Leaf className="size-5" />
       </div>
-      <h3 className="font-medium text-[#4e624a]">{title}</h3>
-      <p className="max-w-md text-sm leading-6 text-[#8a9580]">{description}</p>
+      <h3 className="font-medium text-[#665d3e]">{title}</h3>
+      <p className="max-w-md text-sm leading-6 text-[#716449]">{description}</p>
       {action}
     </div>
   )
@@ -137,10 +145,10 @@ export function Progress({ value, color = 'green' }: { value: number; color?: 'g
       aria-valuenow={Math.round(value)}
       aria-valuemin={0}
       aria-valuemax={100}
-      className="h-2 overflow-hidden rounded-full bg-[#edf0e5]"
+      className="h-2 overflow-hidden rounded-full bg-[#eadcc1]"
     >
       <div
-        className={`h-full rounded-full transition-all duration-700 ${color === 'gold' ? 'bg-[#d5ad64]' : 'bg-[#789a68]'}`}
+        className={`h-full rounded-full transition-all duration-700 ${color === 'gold' ? 'bg-[#8a785d]' : 'bg-[#716449]'}`}
         style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
       />
     </div>
@@ -148,11 +156,11 @@ export function Progress({ value, color = 'green' }: { value: number; color?: 'g
 }
 export function Pill({ children, tone = 'sage' }: { children: ReactNode; tone?: string }) {
   const colors: Record<string, string> = {
-    sage: 'bg-[#edf3e6] text-[#648258]',
-    gold: 'bg-[#fbf2dc] text-[#aa8745]',
-    rose: 'bg-[#f9e9e4] text-[#ad7768]',
-    sky: 'bg-[#eaf1f5] text-[#6d93a5]',
-    lavender: 'bg-[#efeaf5] text-[#937fa8]',
+    sage: 'bg-[#eadcc1] text-[#665d3e]',
+    gold: 'bg-[#eadcc1] text-[#716449]',
+    rose: 'bg-[#eadcc1] text-[#716449]',
+    sky: 'bg-[#eadcc1] text-[#716449]',
+    lavender: 'bg-[#eadcc1] text-[#716449]',
   }
   return (
     <span
@@ -171,27 +179,79 @@ export function Modal({
   children: ReactNode
   onClose: () => void
 }) {
-  return (
+  const panel = useRef<HTMLElement>(null)
+  const close = useRef(onClose)
+  useEffect(() => {
+    close.current = onClose
+  }, [onClose])
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    panel.current?.focus()
+    const key = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        close.current()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const nodes = Array.from(
+        panel.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex="0"]',
+        ) || [],
+      )
+      const first = nodes[0],
+        last = nodes[nodes.length - 1]
+      if (!first || !last) {
+        event.preventDefault()
+        return
+      }
+      if (
+        event.shiftKey &&
+        (document.activeElement === first || document.activeElement === panel.current)
+      ) {
+        event.preventDefault()
+        last.focus()
+      } else if (
+        !event.shiftKey &&
+        (document.activeElement === last || !panel.current?.contains(document.activeElement))
+      ) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', key)
+    return () => {
+      document.body.style.overflow = overflow
+      document.removeEventListener('keydown', key)
+      previous?.focus()
+    }
+  }, [])
+  return createPortal(
     <div
       className="fixed inset-0 z-50 grid place-items-center bg-[#1a2e2390] p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <section
+        ref={panel}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
-        className="max-h-[85vh] w-full max-w-lg overflow-auto rounded-3xl bg-[#fafaf4] p-6 shadow-2xl"
+        className="max-h-[85vh] w-full max-w-lg overflow-auto rounded-3xl bg-[#fff8e7] p-6 shadow-2xl"
       >
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[#304933]">{title}</h2>
-          <button aria-label="关闭" onClick={onClose} className="rounded-lg p-2 hover:bg-[#e6ebde]">
+          <h2 className="text-lg font-semibold text-[#332820]">{title}</h2>
+          <button aria-label="关闭" onClick={onClose} className="rounded-lg p-2 hover:bg-[#eadcc1]">
             <X className="size-5" />
           </button>
         </div>
         {children}
       </section>
-    </div>
+    </div>,
+    document.body,
   )
 }
 const glyphs = {
@@ -213,29 +273,22 @@ export function Emblem({
   symbol = 'star',
   palette = 'sage',
   size = 'normal',
+  itemId,
 }: {
   symbol?: string
   palette?: string
   size?: 'normal' | 'large' | 'small'
+  itemId?: string
 }) {
-  const colors: Record<string, string> = {
-    sage: '#7f9e73',
-    gold: '#d3a661',
-    lavender: '#a394b7',
-    rose: '#c58e7c',
-    sky: '#82a7b2',
-  }
-  const c = colors[palette] || colors.sage
   return (
     <div
-      className={`relative grid shrink-0 place-items-center rounded-[28%] border-4 border-white/70 shadow-[0_5px_18px_#4c623f18] ${size === 'large' ? 'size-32' : size === 'small' ? 'size-11' : 'size-20'}`}
-      style={{ background: `linear-gradient(145deg,${c}22,${c}50)`, color: c }}
+      className={`relative grid shrink-0 place-items-center ${size === 'large' ? 'size-32' : size === 'small' ? 'size-11' : 'size-20'}`}
     >
-      <div className="absolute inset-1.5 rounded-[25%] border border-current opacity-30" />
-      <Glyph
-        name={symbol}
-        className={size === 'large' ? 'size-14' : size === 'small' ? 'size-5' : 'size-9'}
-      />
+      {itemId ? (
+        <FurnitureIllustration itemId={itemId} />
+      ) : (
+        <RewardIllustration symbol={symbol} palette={palette} compact={size === 'small'} />
+      )}
     </div>
   )
 }

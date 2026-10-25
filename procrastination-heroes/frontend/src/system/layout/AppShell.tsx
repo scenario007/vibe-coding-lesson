@@ -1,3 +1,4 @@
+import { UsageLedger } from './UsageLedger'
 import { Glyph, Progress } from '@/components/ui'
 import { refreshProgress, usePlayer } from '@/system/stores/player'
 import {
@@ -20,12 +21,12 @@ import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 const links = [
   ['/dashboard', '协会大厅', LayoutDashboard],
-  ['/quests', '任务大厅', ScrollText],
-  ['/focus', '专注营地', Timer],
+  ['/quests', '委托公告板', ScrollText],
+  ['/focus', '史莱姆专注室', Timer],
   ['/map', '冒险地图', Map],
   ['/base', '我的据点', House],
-  ['/shop', '补给商店', Store],
-  ['/growth', '成长档案', ChartNoAxesCombined],
+  ['/shop', '破烂补给铺', Store],
+  ['/growth', '勇者手账', ChartNoAxesCombined],
   ['/profile', '勇者资料', Settings2],
 ] as const
 export function AppShell() {
@@ -40,7 +41,7 @@ export function AppShell() {
   }, [])
   const level = 1 + Math.floor((progress?.experience || 0) / 100)
   return (
-    <div className="min-h-screen bg-[#f6f5ef] text-[#344637]">
+    <div className="guild-paper min-h-screen text-[#332820]">
       {open && (
         <button
           className="fixed inset-0 z-30 bg-black/30 lg:hidden"
@@ -49,21 +50,21 @@ export function AppShell() {
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-[#e0e4d6] bg-[#f9faf4] px-4 py-7 transition-transform lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full max-lg:hidden'}`}
+        className={`fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r-[3px] border-[#251f19] bg-[#373027] px-4 py-7 text-[#f6e7c9] transition-transform lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full max-lg:hidden'}`}
       >
         <Link to="/dashboard" className="mb-10 flex items-center gap-2.5 px-2">
-          <span className="grid size-10 place-items-center rounded-xl bg-[#2e5748] text-[#edf3db]">
+          <span className="grid size-10 place-items-center rotate-[-7deg] rounded-sm border-2 border-[#ecd8b0] bg-[#a94732] text-[#fff8e7]">
             <Leaf className="size-6" />
           </span>
           <span>
             <span className="block font-serif text-lg font-bold tracking-wide">拖延勇者协会</span>
             <span className="block text-[8px] tracking-[.21em] text-[#9aab8b]">
-              THE LITTLE HEROES GUILD
+              WORLD’S OKAYEST HEROES
             </span>
           </span>
         </Link>
         <p className="mb-3 px-3 text-[9px] font-semibold tracking-[.22em] text-[#a6b098]">
-          我的冒险 · MY ADVENTURE
+          公会事务 / GUILD AFFAIRS
         </p>
         <nav className="space-y-1">
           {links.map(([path, label, Icon], i) => (
@@ -72,7 +73,7 @@ export function AppShell() {
               <NavLink
                 to={path}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-xl px-3.5 py-3 text-[13px] transition ${isActive ? 'bg-[#e4ecdc] font-semibold text-[#3c633b]' : 'text-[#84907a] hover:bg-[#edf1e6] hover:text-[#496a43]'}`
+                  `flex items-center gap-3 rounded-xl px-3.5 py-3 text-[13px] transition ${isActive ? 'rotate-[-1deg] border-l-4 border-[#d09551] bg-[#f4e8cd] font-bold text-[#332820]' : 'text-[#c8b895] hover:bg-[#594c39] hover:text-[#fff8e7]'}`
                 }
               >
                 <Icon className="size-[18px]" />
@@ -83,15 +84,15 @@ export function AppShell() {
           ))}
         </nav>
         <div className="mt-auto pt-7">
-          <div className="rounded-xl border border-[#e1e6d7] bg-[#f0f4e7] p-4">
-            <div className="mb-2 flex items-center gap-2 text-xs font-medium text-[#7e9467]">
+          <div className="rotate-[1deg] rounded-sm border border-[#a38c65] bg-[#eadcc1] p-4 text-[#332820]">
+            <div className="mb-2 flex items-center gap-2 text-xs font-medium text-[#a94732]">
               <Sparkles className="size-3.5" />
               协会小纸条
             </div>
-            <p className="text-[11px] leading-6 text-[#91a07f]">
-              不必追赶别人的进度，
+            <p className="text-[11px] leading-6 text-[#665d3e]">
+              协会守则第 01 条：
               <br />
-              你的小小进展，也值得记录。
+              可以菜，但今天动一下。
             </p>
           </div>
           <Link to="/profile" className="mt-5 flex items-center gap-3 px-2">
@@ -107,18 +108,19 @@ export function AppShell() {
         </div>
       </aside>
       <div className="lg:ml-60">
-        <header className="sticky top-0 z-20 flex h-[72px] items-center justify-between gap-3 border-b border-[#e4e5da] bg-[#f8f8f1ee] px-5 backdrop-blur-md lg:px-9">
+        <header className="sticky top-0 z-20 flex h-[72px] items-center justify-between gap-3 border-b border-[#b6a17b] bg-[#f4e8cdee] px-5 backdrop-blur-md lg:px-9">
           <div className="flex items-center gap-3">
             <button className="p-2 lg:hidden" onClick={() => setOpen(true)} aria-label="打开导航">
               <Menu className="size-5" />
             </button>
-            <span className="hidden text-xs text-[#a2ac94] sm:block">我的冒险</span>
+            <span className="hidden text-xs text-[#8a785d] sm:block">协会今日营业</span>
             <span className="hidden text-[#c2c9b6] sm:block">/</span>
-            <span className="text-xs font-medium text-[#63785a]">
+            <span className="text-xs font-medium text-[#665d3e]">
               {links.find(([p]) => location.pathname.startsWith(p))?.[1] || '任务工作台'}
             </span>
           </div>
-          <div className="flex items-center gap-3 sm:gap-5">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <UsageLedger />
             <div className="hidden w-32 md:block">
               <div className="mb-1 flex justify-between text-[9px] text-[#8e9e7c]">
                 <span>Lv.{level} 勇者</span>
@@ -135,7 +137,7 @@ export function AppShell() {
               to="/quests/new"
               className="flex items-center gap-1 text-xs font-medium text-[#4e6d43]"
             >
-              新的冒险
+              领取委托
               <ArrowUpRight className="size-4" />
             </Link>
           </div>
@@ -144,8 +146,8 @@ export function AppShell() {
           <Outlet />
         </main>
         <footer className="px-9 pb-6 text-[10px] tracking-wide text-[#acb39f]">
-          LITTLE BY LITTLE, A LITTLE BECOMES A LOT.{' '}
-          <span className="float-right hidden sm:inline">今天先动一下 🌿</span>
+          拖延勇者协会 · 今日无人成为传说，但有人打开了文档。{' '}
+          <span className="float-right hidden sm:inline">公会正常营业中</span>
         </footer>
       </div>
     </div>

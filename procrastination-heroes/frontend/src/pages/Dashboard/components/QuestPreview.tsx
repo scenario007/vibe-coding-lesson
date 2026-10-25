@@ -9,18 +9,18 @@ export function QuestPreview({ detail }: { detail: QuestDetail }) {
   return (
     <Link
       to={`/quests/${quest.id}`}
-      className="group flex items-center gap-4 rounded-xl border border-[#e8eadf] bg-[#fdfef9] p-4 transition hover:border-[#b4c49e] hover:bg-[#f4f8ed]"
+      className="group flex items-center gap-4 rounded-xl border border-[#eadcc1] bg-[#fff8e7] p-4 transition hover:border-[#8a785d] hover:bg-[#fff8e7]"
     >
       <Emblem size="small" symbol={reward.symbol} palette={reward.palette} />
       <div className="min-w-0 flex-1">
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <h3 className="truncate text-sm font-medium text-[#465c3d]">{quest.title}</h3>
+          <h3 className="truncate text-sm font-medium text-[#665d3e]">{quest.title}</h3>
           <Pill>{categories[quest.category]}</Pill>
         </div>
         <div className="mb-2 max-w-sm">
           <Progress value={(done / steps.length) * 100} />
         </div>
-        <div className="flex items-center gap-4 text-[10px] text-[#9aa48d]">
+        <div className="flex items-center gap-4 text-[10px] text-[#716449]">
           <span className="flex items-center gap-1">
             <CheckCircle2 className="size-3" />
             {done}/{steps.length} 步
@@ -31,7 +31,7 @@ export function QuestPreview({ detail }: { detail: QuestDetail }) {
           </span>
         </div>
       </div>
-      <ArrowUpRight className="size-4 text-[#9cae8b] transition group-hover:translate-x-0.5" />
+      <ArrowUpRight className="size-4 text-[#8a785d] transition group-hover:translate-x-0.5" />
     </Link>
   )
 }

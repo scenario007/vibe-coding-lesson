@@ -36,14 +36,14 @@ export function DailyOverview({ data }: { data: DashboardResponse }) {
       ].map(({ label, value, unit, Icon, tone }) => (
         <Card key={label} className="p-4">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] text-[#89967c]">{label}</p>
+            <p className="text-[11px] text-[#716449]">{label}</p>
             <Pill tone={tone}>
               <Icon className="size-3.5" />
             </Pill>
           </div>
           <div className="mt-3 flex items-end gap-2">
-            <span className="font-serif text-3xl font-bold text-[#435d3c]">{value}</span>
-            <span className="pb-1 text-[10px] text-[#a1ac92]">{unit}</span>
+            <span className="font-serif text-3xl font-bold text-[#665d3e]">{value}</span>
+            <span className="pb-1 text-[10px] text-[#8a785d]">{unit}</span>
           </div>
         </Card>
       ))}

@@ -42,25 +42,25 @@ export default function Profile() {
   return (
     <>
       <PageTitle
-        eyebrow="YOUR HERO IDENTITY"
-        title="勇者资料"
-        description="用你喜欢的方式，认识自己、照顾自己。"
+        eyebrow="GUILD MEMBERSHIP CARD"
+        title="我的公会证"
+        description="持证上岗，允许迟疑，允许改期。"
       />
       <div className="grid items-start gap-6 xl:grid-cols-[1fr_1.7fr]">
-        <Card className="bg-[#edf3e3] text-center">
+        <Card className="bg-[#eadcc1] text-center">
           <div className="my-5 flex justify-center">
             <Emblem symbol={avatar} palette="sage" size="large" />
           </div>
-          <h2 className="font-serif text-xl font-bold text-[#76905b]">{user?.nickname}</h2>
-          <p className="mt-2 text-xs text-[#9aaa87]">
+          <h2 className="font-serif text-xl font-bold text-[#716449]">{user?.nickname}</h2>
+          <p className="mt-2 text-xs text-[#716449]">
             Lv.{1 + Math.floor((progress?.experience || 0) / 100)} · 正在慢慢成长
           </p>
-          <p className="mt-5 text-[10px] leading-7 text-[#a3af92]">
+          <p className="mt-5 text-[10px] leading-7 text-[#8a785d]">
             加入协会于 {new Date(user?.createdAt || Date.now()).toLocaleDateString('zh-CN')}
             <br />
             账号：{user?.username}
           </p>
-          <div className="mt-6 border-t border-[#dce5ce] pt-5 text-xs leading-7 text-[#95a780]">
+          <div className="mt-6 border-t border-[#cabb9e] pt-5 text-xs leading-7 text-[#716449]">
             “不必追赶别人，
             <br />
             你的步伐，有自己的方向。”
@@ -69,7 +69,7 @@ export default function Profile() {
         <div className="space-y-5">
           {error && <ErrorState message={error} />}{' '}
           {notice && (
-            <p role="status" className="rounded-xl bg-[#eaf2e0] p-4 text-xs text-[#819b66]">
+            <p role="status" className="rounded-xl bg-[#eadcc1] p-4 text-xs text-[#716449]">
               {notice}
             </p>
           )}
@@ -81,14 +81,14 @@ export default function Profile() {
               maxLength={24}
               onChange={(e) => setNickname(e.target.value)}
             />
-            <p className="mb-3 mt-5 text-xs text-[#94a281]">选择一个喜欢的头像</p>
+            <p className="mb-3 mt-5 text-xs text-[#716449]">选择一个喜欢的头像</p>
             <div className="flex flex-wrap gap-3">
               {(['leaf', 'star', 'moon', 'flower', 'book', 'mountain'] as const).map((v) => (
                 <button
                   key={v}
                   aria-label={`选择${v}头像`}
                   onClick={() => setAvatar(v)}
-                  className={`rounded-2xl p-1.5 ${avatar === v ? 'bg-[#e5edd9] ring-2 ring-[#9cb884]' : 'hover:bg-[#f0f4e7]'}`}
+                  className={`rounded-2xl p-1.5 ${avatar === v ? 'bg-[#eadcc1] ring-2 ring-[#8a785d]' : 'hover:bg-[#eadcc1]'}`}
                 >
                   <Emblem symbol={v} palette="sage" size="small" />
                 </button>
@@ -97,7 +97,7 @@ export default function Profile() {
           </Card>
           <Card>
             <h2 className="mb-5 flex items-center gap-2 text-sm font-semibold">
-              <Leaf className="size-4 text-[#9bae85]" />
+              <Leaf className="size-4 text-[#716449]" />
               我的节奏
             </h2>
             <div className="grid gap-5 sm:grid-cols-2">
@@ -109,7 +109,7 @@ export default function Profile() {
                 value={goal}
                 onChange={(e) => setGoal(Number(e.target.value))}
               />
-              <label className="grid gap-2 text-sm font-medium text-[#51614e]">
+              <label className="grid gap-2 text-sm font-medium text-[#665d3e]">
                 默认专注时间
                 <select
                   className={inputClass}
@@ -124,7 +124,7 @@ export default function Profile() {
                 </select>
               </label>
             </div>
-            <p className="mt-4 text-[10px] leading-6 text-[#a8b297]">
+            <p className="mt-4 text-[10px] leading-6 text-[#8a785d]">
               每日目标是一份温柔的提醒，未完成也不会扣除成长或装饰。
             </p>
             <Button className="mt-5" disabled={busy} onClick={() => void save()}>
@@ -136,7 +136,7 @@ export default function Profile() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-sm font-medium">暂时离开协会</h2>
-                <p className="mt-2 text-[10px] text-[#a7b098]">
+                <p className="mt-2 text-[10px] text-[#8a785d]">
                   任务和小屋已经保存在后端，下次登录继续。
                 </p>
               </div>

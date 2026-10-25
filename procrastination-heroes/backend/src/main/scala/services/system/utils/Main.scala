@@ -20,6 +20,7 @@ object Main extends IOApp.Simple:
     val resource = for
       _ <- Resource.eval(Schema.initialize)
       _ <- Resource.eval(DatabaseSession.transaction(c=>GenerationJobTable.recoverInterrupted(c)))
+      _ <- Resource.eval(DatabaseSession.transaction(c=>services.ai.tables.usageEvent.UsageEventTable.recoverInterrupted(c)))
       _ <- GenerationRuntime.background
       server <- EmberServerBuilder.default[IO].withHost(host"127.0.0.1").withPort(Port.fromInt(sys.env.getOrElse("HTTP_PORT","8088").toInt).get).withHttpApp(APIMessageRouter.routes(messages).orNotFound).build
       _ <- Resource.eval(IO.println("Heroes backend ready at http://127.0.0.1:"+server.address.getPort))

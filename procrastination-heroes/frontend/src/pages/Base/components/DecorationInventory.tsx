@@ -30,7 +30,7 @@ export function DecorationInventory({
           <button
             key={s.id}
             onClick={() => setSlot(s.id)}
-            className={`rounded-lg px-2.5 py-2 text-[10px] ${slot === s.id ? 'bg-[#e8efdd] font-medium text-[#7c965e]' : 'bg-[#f4f5ee] text-[#9da78e]'}`}
+            className={`rounded-lg px-2.5 py-2 text-[10px] ${slot === s.id ? 'bg-[#eadcc1] font-medium text-[#716449]' : 'bg-[#fff8e7] text-[#716449]'}`}
           >
             {s.label}
           </button>
@@ -45,14 +45,14 @@ export function DecorationInventory({
               disabled={b.busy}
               key={o.id}
               onClick={() => void b.place(slot, o.id, null)}
-              className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left ${selected ? 'border-[#adc799] bg-[#f2f8eb]' : 'border-[#e6eadc] hover:bg-[#f8faf1]'}`}
+              className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left ${selected ? 'border-[#8a785d] bg-[#fff8e7]' : 'border-[#eadcc1] hover:bg-[#fff8e7]'}`}
             >
-              <Emblem symbol={item.symbol} palette={item.palette} size="small" />
-              <span className="flex-1 text-xs text-[#82966b]">{item.name}</span>
+              <Emblem itemId={item.id} symbol={item.symbol} palette={item.palette} size="small" />
+              <span className="flex-1 text-xs text-[#716449]">{item.name}</span>
               {selected ? (
-                <Check className="size-4 text-[#8daa72]" />
+                <Check className="size-4 text-[#716449]" />
               ) : (
-                <Plus className="size-4 text-[#b4c2a4]" />
+                <Plus className="size-4 text-[#8a785d]" />
               )}
             </button>
           )
@@ -63,14 +63,14 @@ export function DecorationInventory({
               disabled={b.busy}
               key={r.id}
               onClick={() => void b.place('wall', null, r.id)}
-              className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left ${placed?.rewardId === r.id ? 'border-[#cbb77f] bg-[#fbf6e7]' : 'border-[#e6eadc]'}`}
+              className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left ${placed?.rewardId === r.id ? 'border-[#8a785d] bg-[#fff8e7]' : 'border-[#eadcc1]'}`}
             >
               <Emblem symbol={r.design.symbol} palette={r.design.palette} size="small" />
               <span className="flex-1">
-                <span className="block text-xs text-[#94855b]">{r.design.name}</span>
-                <span className="mt-1 block text-[9px] text-[#b3a783]">任务专属纪念画</span>
+                <span className="block text-xs text-[#716449]">{r.design.name}</span>
+                <span className="mt-1 block text-[9px] text-[#716449]">任务专属纪念画</span>
               </span>
-              {placed?.rewardId === r.id && <Check className="size-4 text-[#b6a16b]" />}
+              {placed?.rewardId === r.id && <Check className="size-4 text-[#716449]" />}
             </button>
           ))}
       </div>
@@ -95,12 +95,12 @@ export function DecorationInventory({
           先把这里留空
         </Button>
       )}
-      <div className="mt-5 rounded-xl bg-[#f6f3e8] p-4">
+      <div className="mt-5 rounded-xl bg-[#eadcc1] p-4">
         <div className="mb-2 flex items-center gap-1">
-          <LockKeyhole className="size-3 text-[#b8aa7b]" />
+          <LockKeyhole className="size-3 text-[#716449]" />
           <Pill tone="gold">努力会留下形状</Pill>
         </div>
-        <p className="text-[10px] leading-6 text-[#aba084]">
+        <p className="text-[10px] leading-6 text-[#716449]">
           尚未完成的任务奖励，先在任务页预览。通关后，就能带回这里。
         </p>
       </div>

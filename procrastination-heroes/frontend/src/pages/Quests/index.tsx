@@ -20,8 +20,8 @@ export default function Quests() {
     <>
       <PageTitle
         eyebrow="QUEST BOARD"
-        title="任务大厅"
-        description="把大大的愿望，拆成一步一步可以抵达的地方。"
+        title="委托公告板"
+        description="大事小事都能接。先撕一张委托，再考虑拯救世界。"
         action={
           <Link to="/quests/new">
             <Button>
@@ -32,7 +32,7 @@ export default function Quests() {
         }
       />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex gap-1 rounded-xl border border-[#e4e6da] bg-[#f0f1e7] p-1">
+        <div className="flex gap-1 rounded-xl border border-[#cabb9e] bg-[#eadcc1] p-1">
           {[
             ['active', '进行中'],
             ['draft', '草稿'],
@@ -43,7 +43,7 @@ export default function Quests() {
             <button
               key={v}
               onClick={() => q.setFilter(v)}
-              className={`rounded-lg px-3 py-2 text-xs ${q.filter === v ? 'bg-white font-medium text-[#45653f] shadow-sm' : 'text-[#97a18a]'}`}
+              className={`rounded-lg px-3 py-2 text-xs ${q.filter === v ? 'bg-white font-medium text-[#665d3e] shadow-sm' : 'text-[#716449]'}`}
             >
               {l}
               <span className="ml-1 text-[9px]">
@@ -67,13 +67,13 @@ export default function Quests() {
             ))}
           </select>
           <div className="relative">
-            <Search className="absolute left-3 top-3.5 size-4 text-[#a6ad9a]" />
+            <Search className="absolute left-3 top-3.5 size-4 text-[#8a785d]" />
             <input
               aria-label="搜索任务"
               value={q.search}
               onChange={(e) => q.setSearch(e.target.value)}
               className={inputClass + ' max-w-48 pl-9'}
-              placeholder="寻找一场冒险…"
+              placeholder="搜一张能接的委托…"
             />
           </div>
         </div>
@@ -83,32 +83,42 @@ export default function Quests() {
       ) : q.state.status === 'error' ? (
         <ErrorState message={q.state.message} retry={q.reload} />
       ) : q.filtered.length ? (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="guild-board grid gap-6 rounded-lg border-[3px] border-[#332820] p-5 pb-8 shadow-[5px_6px_0_#33282035] md:grid-cols-2 xl:grid-cols-3">
           {q.filtered.map(({ quest, steps, reward }) => {
             const done = steps.filter((s) => s.completedAt !== null).length
             return (
-              <Link key={quest.id} to={`/quests/${quest.id}`} className="group">
-                <Card className="h-full transition group-hover:-translate-y-1 group-hover:border-[#b8c8a3] group-hover:shadow-md">
+              <Link
+                key={quest.id}
+                to={`/quests/${quest.id}`}
+                className="group guild-note relative block transition duration-200 before:absolute before:-top-2 before:left-1/2 before:z-10 before:size-4 before:rounded-full before:border-2 before:border-[#332820] before:bg-[#a94732] before:shadow-md"
+              >
+                <Card className="h-full transition group-hover:-translate-y-1 group-hover:border-[#8a785d] group-hover:shadow-md">
                   <div className="flex items-start justify-between">
                     <Emblem symbol={reward.symbol} palette={reward.palette} />
-                    <Pill tone={quest.status === 'completed' ? 'gold' : 'sage'}>
+                    <span
+                      className={
+                        quest.status === 'completed'
+                          ? 'guild-stamp px-3 py-2 text-xs font-black text-[#a94732]'
+                          : 'rounded-sm border border-[#a38c65] px-2 py-1 text-xs text-[#665d3e]'
+                      }
+                    >
                       {statuses[quest.status]}
-                    </Pill>
+                    </span>
                   </div>
                   <div className="mt-5 flex gap-2">
                     <Pill>{categories[quest.category]}</Pill>
-                    <span className="pt-1 text-[10px] text-[#a3ac96]">
+                    <span className="pt-1 text-[10px] text-[#8a785d]">
                       {tiers[quest.tier].label}
                     </span>
                   </div>
-                  <h2 className="mt-3 text-base font-semibold leading-7 text-[#46603b]">
+                  <h2 className="mt-3 text-base font-semibold leading-7 text-[#665d3e]">
                     {quest.title}
                   </h2>
-                  <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-5 text-[#98a28b]">
+                  <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-5 text-[#716449]">
                     {quest.description || '一步一步，完成自己的小目标。'}
                   </p>
                   <div className="mt-5">
-                    <div className="mb-2 flex justify-between text-[10px] text-[#90a17b]">
+                    <div className="mb-2 flex justify-between text-[10px] text-[#716449]">
                       <span>冒险进度</span>
                       <span>
                         {done}/{steps.length} 步
@@ -116,7 +126,7 @@ export default function Quests() {
                     </div>
                     <Progress value={(done / steps.length) * 100} />
                   </div>
-                  <div className="mt-5 flex justify-between border-t border-[#edf0e6] pt-4 text-[10px] text-[#a3ac96]">
+                  <div className="mt-5 flex justify-between border-t border-[#eadcc1] pt-4 text-[10px] text-[#8a785d]">
                     <span>{dateLabel(quest.dueDate)}</span>
                     <span className="flex items-center gap-1">
                       继续看看

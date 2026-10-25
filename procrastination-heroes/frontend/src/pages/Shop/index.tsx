@@ -14,9 +14,9 @@ export default function Shop() {
   return (
     <>
       <PageTitle
-        eyebrow="LITTLE TREASURES"
-        title="补给商店"
-        description="把努力攒成小小的喜欢，为房间添一点温暖。"
+        eyebrow="CERTIFIED SECOND-HAND TREASURES"
+        title="破烂补给铺"
+        description="装备来路正不正经不重要，每一枚冒险币都是你挣的。"
         action={
           <Link to="/base">
             <Button variant="secondary">
@@ -26,25 +26,25 @@ export default function Shop() {
           </Link>
         }
       />
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#e8dfc4] bg-[#f9f3e4] px-5 py-4">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#cabb9e] bg-[#eadcc1] px-5 py-4">
         <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-full bg-[#efdfb5] text-[#b69751]">
+          <span className="grid size-10 place-items-center rounded-full bg-[#cabb9e] text-[#716449]">
             <Coins className="size-5" />
           </span>
           <div>
-            <p className="text-[10px] text-[#b3a273]">我的冒险币</p>
-            <p className="mt-1 text-xl font-semibold text-[#a68c4f]">
+            <p className="text-[10px] text-[#716449]">我的冒险币</p>
+            <p className="mt-1 text-xl font-semibold text-[#716449]">
               {data.progress.coins}
               <span className="ml-2 text-[10px] font-normal">每一枚，都来自你完成的一小步。</span>
             </p>
           </div>
         </div>
-        <Link to="/quests" className="text-xs text-[#ae9d69]">
+        <Link to="/quests" className="text-xs text-[#716449]">
           去完成任务赚冒险币 →
         </Link>
       </div>
       {b.notice && (
-        <p role="status" className="mb-4 rounded-xl bg-[#eaf2e0] p-3 text-xs text-[#7d985f]">
+        <p role="status" className="mb-4 rounded-xl bg-[#eadcc1] p-3 text-xs text-[#716449]">
           {b.notice}
         </p>
       )}
@@ -62,7 +62,7 @@ export default function Shop() {
           <button
             key={v}
             onClick={() => setFilter(v)}
-            className={`rounded-lg px-4 py-2 text-xs ${filter === v ? 'bg-[#e7efdb] text-[#7c975c]' : 'text-[#a3ad94]'}`}
+            className={`rounded-lg px-4 py-2 text-xs ${filter === v ? 'bg-[#eadcc1] text-[#716449]' : 'text-[#8a785d]'}`}
           >
             {l}
           </button>
@@ -81,13 +81,18 @@ export default function Shop() {
             const owned = data.owned.some((o) => o.itemId === item.id)
             return (
               <Card key={item.id}>
-                <div className="mb-5 flex h-36 items-center justify-center rounded-xl bg-[#f5f6ed]">
-                  <Emblem symbol={item.symbol} palette={item.palette} />
+                <div className="mb-5 flex h-36 items-center justify-center rounded-xl bg-[#fff8e7]">
+                  <Emblem
+                    itemId={item.id}
+                    symbol={item.symbol}
+                    palette={item.palette}
+                    size="large"
+                  />
                 </div>
-                <h2 className="text-sm font-semibold text-[#748b60]">{item.name}</h2>
-                <p className="mt-2 text-[11px] leading-6 text-[#a3ae95]">{item.description}</p>
+                <h2 className="text-sm font-semibold text-[#716449]">{item.name}</h2>
+                <p className="mt-2 text-[11px] leading-6 text-[#8a785d]">{item.description}</p>
                 <div className="mt-5 flex items-center justify-between">
-                  <span className="flex items-center gap-1 text-sm font-semibold text-[#b39a5e]">
+                  <span className="flex items-center gap-1 text-sm font-semibold text-[#716449]">
                     <Coins className="size-3.5" />
                     {item.price}
                   </span>
@@ -105,7 +110,7 @@ export default function Shop() {
                     ) : (
                       <>
                         <ShoppingBag className="size-3" />
-                        带它回家
+                        老板，包起来
                       </>
                     )}
                   </Button>
@@ -115,24 +120,29 @@ export default function Shop() {
           })}
       </div>
       {selected && (
-        <Modal title="把这份小喜欢带回家" onClose={() => setSelected(null)}>
+        <Modal title="本次交易只收冒险币" onClose={() => setSelected(null)}>
           <div className="my-5 flex justify-center">
-            <Emblem symbol={selected.symbol} palette={selected.palette} size="large" />
+            <Emblem
+              itemId={selected.id}
+              symbol={selected.symbol}
+              palette={selected.palette}
+              size="large"
+            />
           </div>
-          <h3 className="text-center text-lg font-semibold text-[#7c9068]">{selected.name}</h3>
-          <p className="my-3 text-center text-xs leading-7 text-[#a4ae95]">
+          <h3 className="text-center text-lg font-semibold text-[#716449]">{selected.name}</h3>
+          <p className="my-3 text-center text-xs leading-7 text-[#8a785d]">
             {selected.description}
           </p>
-          <div className="my-5 flex justify-between rounded-xl bg-white p-4 text-xs text-[#9b9d7f]">
+          <div className="my-5 flex justify-between rounded-xl bg-white p-4 text-xs text-[#716449]">
             <span>购买价格</span>
             <span>{selected.price} 冒险币</span>
           </div>
           {data.progress.coins < selected.price ? (
-            <p className="mb-4 text-center text-xs text-[#b29c6d]">
+            <p className="mb-4 text-center text-xs text-[#716449]">
               还差 {selected.price - data.progress.coins} 枚冒险币，推进任务再回来吧。
             </p>
           ) : (
-            <p className="mb-4 text-center text-[11px] text-[#9daa8a]">
+            <p className="mb-4 text-center text-[11px] text-[#716449]">
               购买后余额：{data.progress.coins - selected.price} 冒险币
             </p>
           )}

@@ -5,7 +5,7 @@ export function DailyChallenges({ data }: { data: DashboardResponse }) {
   return (
     <Card>
       <div className="mb-4 flex items-center gap-2">
-        <Sparkles className="size-4 text-[#ba9b57]" />
+        <Sparkles className="size-4 text-[#716449]" />
         <h2 className="text-sm font-semibold">每日小挑战</h2>
         <Pill tone="gold">轻轻松松，也算数</Pill>
       </div>
@@ -22,13 +22,13 @@ export function DailyChallenges({ data }: { data: DashboardResponse }) {
             description: '累计专注 10 分钟',
           },
         ].map((c) => (
-          <div key={c.label} className="flex gap-3 rounded-xl bg-[#f6f8ee] p-4">
+          <div key={c.label} className="flex gap-3 rounded-xl bg-[#fff8e7] p-4">
             <CircleCheck
-              className={`mt-0.5 size-5 ${c.done ? 'text-[#7da165]' : 'text-[#ccd5bf]'}`}
+              className={`mt-0.5 size-5 ${c.done ? 'text-[#716449]' : 'text-[#cabb9e]'}`}
             />
             <div>
-              <p className="text-xs font-medium text-[#728564]">{c.label}</p>
-              <p className="mt-2 text-[10px] text-[#a2ac94]">
+              <p className="text-xs font-medium text-[#716449]">{c.label}</p>
+              <p className="mt-2 text-[10px] text-[#8a785d]">
                 {c.done ? '今日印章已点亮' : c.description}
               </p>
             </div>

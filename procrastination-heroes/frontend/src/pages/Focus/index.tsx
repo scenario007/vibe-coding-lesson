@@ -12,8 +12,8 @@ export default function Focus() {
     <>
       <PageTitle
         eyebrow="FOCUS CAMP"
-        title="专注营地"
-        description="把外面的事情放一放，这一小段时间，只做眼前的一步。"
+        title="史莱姆专注室"
+        description="搭子已经困了，但它决定再陪你坚持一小段。"
       />
       <div className="grid items-start gap-6 xl:grid-cols-[1.7fr_1fr]">
         <FocusTimerPanel f={f} min={min} sec={sec} />
@@ -21,12 +21,12 @@ export default function Focus() {
           {f.error && <ErrorState message={f.error} />}{' '}
           {f.notice && (
             <Card>
-              <p role="status" className="text-xs leading-7 text-[#809b65]">
+              <p role="status" className="text-xs leading-7 text-[#716449]">
                 {f.notice}
               </p>
               <Link
                 to="/quests"
-                className="mt-3 inline-flex items-center gap-1 text-xs text-[#6f8a53]"
+                className="mt-3 inline-flex items-center gap-1 text-xs text-[#716449]"
               >
                 回到任务
                 <ArrowRight className="size-3" />
@@ -34,9 +34,9 @@ export default function Focus() {
             </Card>
           )}
           <FocusHistoryPanel f={f} />
-          <Card className="bg-[#f5f0e4]">
-            <Coffee className="mb-3 size-5 text-[#c2ab7e]" />
-            <p className="text-xs leading-7 text-[#a59a80]">
+          <Card className="bg-[#eadcc1]">
+            <Coffee className="mb-3 size-5 text-[#8a785d]" />
+            <p className="text-xs leading-7 text-[#716449]">
               专注不是一直紧绷。
               <br />
               一段结束后，站起来伸伸懒腰，

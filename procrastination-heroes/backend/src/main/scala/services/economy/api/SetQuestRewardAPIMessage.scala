@@ -18,7 +18,7 @@ final case class SetQuestRewardAPIMessage(userId: UserId,questId: QuestId,reward
   def plan(connection: Connection): IO[ActionResult] =
     for
       quest <- QuestTable.findById(connection,questId,userId).flatMap(v=>IO.fromOption(v)(AppError(404,"找不到任务")))
-      _ <- if quest.status==QuestStatus.draft && reward.name.trim.nonEmpty && reward.name.length<=60 && reward.story.trim.nonEmpty && reward.story.length<=500 && Set("lamp","leaf","star","book","camera","mountain","moon","flower","cloud").contains(reward.symbol.toString) && Set("sage","gold","lavender","rose","sky").contains(reward.palette.toString) then IO.unit else IO.raiseError(AppError(400,"请检查奖励名称、文案与模板样式"))
+      _ <- if quest.status==QuestStatus.draft && reward.name.trim.nonEmpty && reward.name.length<=60 && reward.story.trim.nonEmpty && reward.story.length<=500 then IO.unit else IO.raiseError(AppError(400,"请检查奖励名称、文案与模板样式"))
       existing <- RewardDesignTable.find(connection,questId)
       _ <- existing match
         case Some(_) => RewardDesignTable.updateDraft(connection,questId,reward).void

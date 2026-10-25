@@ -1,69 +1,92 @@
 import { Button, ErrorState, Field } from '@/components/ui'
+import { AtlasSprite } from '@/components/ui/AtlasSprite'
 import { usePlayer } from '@/system/stores/player'
-import { ArrowRight, Leaf, ShieldCheck, Sparkles } from 'lucide-react'
+import { ArrowRight, ShieldCheck, Swords } from 'lucide-react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
+
 export default function Auth() {
   const form = useAuth()
   const { user } = usePlayer()
   if (user) return <Navigate to="/dashboard" replace />
   return (
-    <main className="grid min-h-screen bg-[#f7f5ed] lg:grid-cols-[1.2fr_1fr]">
-      <section className="relative hidden min-h-screen overflow-hidden bg-[#eaf0e2] lg:block">
-        <img
-          src="/assets/camp-landscape.png"
-          alt="森林里的温暖小屋"
-          className="absolute inset-0 h-full w-full object-cover object-[65%_center]"
-        />
-        <div className="absolute inset-0 bg-linear-to-b from-[#f6f5e9]/90 via-transparent to-[#234b32]/20" />
-        <div className="relative p-12 xl:p-16">
-          <div className="flex items-center gap-3">
-            <span className="grid size-11 place-items-center rounded-2xl bg-[#2e5748] text-white">
-              <Leaf />
-            </span>
-            <span className="font-serif text-xl font-bold text-[#2e5748]">拖延勇者协会</span>
-          </div>
-          <h1 className="mt-20 font-serif text-5xl font-bold leading-[1.5] tracking-wide text-[#2e5748]">
-            你的冒险，
-            <br />
-            从一小步开始。
-          </h1>
-          <p className="mt-5 max-w-xs text-sm leading-8 text-[#6c8062]">
-            让 AI 帮你把遥远的目标拆成今天的小事。
-            <br />
-            每一份努力，都会在这里慢慢发光。
-          </p>
-        </div>
-        <div className="absolute bottom-10 left-14 rounded-2xl border border-white/50 bg-white/70 px-5 py-4 text-xs leading-6 text-[#58704c] backdrop-blur">
-          🌱 不必一口气到终点。
-          <br />
-          <span className="text-[#87957a]">今天先动一下，已经很棒了。</span>
-        </div>
-      </section>
-      <section className="flex items-center justify-center px-6 py-16">
-        <div className="w-full max-w-sm">
-          <div className="mb-10 flex items-center gap-2 text-[#3f674a] lg:hidden">
-            <Leaf />
-            <span className="font-serif text-lg font-bold">拖延勇者协会</span>
-          </div>
-          <span className="inline-flex items-center gap-2 rounded-full bg-[#e8efde] px-3 py-1.5 text-[10px] font-medium tracking-widest text-[#738c5c]">
-            <Sparkles className="size-3" />
-            WELCOME, LITTLE HERO
+    <main className="grid min-h-screen bg-[#eee0bd] text-[#332820] lg:grid-cols-[1.05fr_1fr]">
+      <section className="relative hidden overflow-hidden border-r-2 border-[#332820] bg-[#ead6a7] p-10 lg:flex lg:flex-col xl:p-14">
+        <div className="flex items-center gap-3">
+          <span className="grid size-11 -rotate-6 place-items-center rounded-[5px_10px_5px_8px] border-2 border-[#332820] bg-[#a94732] text-[#fff8e7] shadow-[3px_3px_0_#332820]">
+            <Swords className="size-6" />
           </span>
-          <h2 className="mt-5 font-serif text-3xl font-bold text-[#304b37]">
-            {form.register ? '领取你的勇者身份' : '欢迎回到协会'}
-          </h2>
-          <p className="mt-3 text-sm text-[#929c85]">
-            {form.register
-              ? '为自己留一间小屋，记录每一次前进。'
-              : '小屋里的灯还亮着，继续你的冒险吧。'}
+          <div>
+            <p className="font-serif text-xl font-black">拖延勇者协会</p>
+            <p className="mt-1 text-[9px] font-bold tracking-[.2em] text-[#74614c]">
+              THE NOT-SO-LEGENDARY GUILD
+            </p>
+          </div>
+        </div>
+        <div className="relative mt-16">
+          <span className="inline-block -rotate-3 border border-[#a94732] px-3 py-1 text-xs font-bold text-[#a94732]">
+            公会常年招募中
+          </span>
+          <h1 className="mt-6 font-serif text-4xl font-black leading-[1.5] xl:text-5xl">
+            废柴勇者，
+            <br />
+            欢迎归队。
+          </h1>
+          <p className="mt-5 max-w-sm text-sm leading-8 text-[#74614c]">
+            这里没有天选之人。
+            <br />
+            只有把“明天再说”，改成“今天先动一下”的普通人。
           </p>
-          <div className="my-7 grid grid-cols-2 rounded-xl bg-[#eeeee4] p-1">
+        </div>
+        <div className="relative mx-auto mt-8 w-full max-w-[440px]">
+          <span className="absolute right-0 top-1 -rotate-3 rounded-[50%] border border-[#332820] bg-[#fff8e7] px-4 py-2 text-xs text-[#626341]">
+            入会申请……我先看看。
+          </span>
+          <AtlasSprite
+            sheet="hero"
+            frame={5}
+            label="披着皱披风，抱着卷轴认真阅读的锅盖盾牌勇者"
+            className="w-full"
+          />
+        </div>
+        <p className="mt-auto border-t-2 border-dashed border-[#b69b6d] pt-5 text-[11px] leading-7 text-[#74614c]">
+          入会条件只有一条：愿意开始。
+          <br />
+          <span className="text-[#a94732]">装备凑合一点，人生也能往前走。</span>
+        </p>
+      </section>
+      <section className="flex items-center justify-center px-5 py-12 sm:px-10 lg:py-16">
+        <div className="relative w-full max-w-[440px] rounded-[5px_14px_7px_12px] border-2 border-[#332820] bg-[#fff8e7] px-6 py-8 shadow-[6px_7px_0_#332820] sm:px-9 sm:py-10">
+          <span
+            aria-hidden="true"
+            className="absolute -top-3 left-[38%] h-6 w-24 -rotate-3 border border-[#bcac7d]/40 bg-[#d6c69d]/85"
+          />
+          <div className="mb-7 flex items-center gap-2 text-[#a94732] lg:hidden">
+            <Swords className="size-5" />
+            <span className="font-serif text-lg font-black">拖延勇者协会</span>
+          </div>
+          <div className="flex items-center justify-between border-b-2 border-dashed border-[#d3be94] pb-4 text-[10px] font-bold tracking-[.15em] text-[#8b775c]">
+            <span>公会入会处 / ENTRY FORM</span>
+            <ShieldCheck className="size-5 text-[#a94732]" />
+          </div>
+          <AtlasSprite
+            sheet="hero"
+            frame={5}
+            label="抱着卷轴阅读入会申请的锅盖勇者"
+            className="mx-auto mt-4 w-36 lg:hidden"
+          />
+          <h2 className="mt-6 font-serif text-3xl font-black text-[#332820]">
+            {form.register ? '领取你的勇者身份' : '老会员，回来签个到。'}
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-[#8b775c]">
+            {form.register ? '填好这张表，公会就有你的一席之地。' : '小屋和冒险存档，都替你留着。'}
+          </p>
+          <div className="my-7 grid grid-cols-2 gap-1 border border-[#c7af83] bg-[#ebdebd] p-1">
             {[false, true].map((v) => (
               <button
                 key={String(v)}
                 onClick={() => form.setRegister(v)}
-                className={`rounded-lg py-2.5 text-sm transition ${form.register === v ? 'bg-white font-medium text-[#38583b] shadow-sm' : 'text-[#929b87]'}`}
+                className={`min-h-10 px-2 py-2.5 text-sm transition ${form.register === v ? '-rotate-1 border border-[#332820] bg-[#fff8e7] font-bold text-[#a94732] shadow-[2px_2px_0_#332820]' : 'border border-transparent text-[#8b775c]'}`}
               >
                 {v ? '注册账号' : '登录协会'}
               </button>
@@ -113,7 +136,7 @@ export default function Auth() {
               <ArrowRight className="size-4" />
             </Button>
           </form>
-          <div className="mt-8 flex justify-center gap-2 text-[10px] text-[#a4ad97]">
+          <div className="mt-7 flex justify-center gap-2 border-t border-dashed border-[#d3be94] pt-5 text-[10px] text-[#8b775c]">
             <ShieldCheck className="size-3.5" />
             你的任务与小屋，只属于你
           </div>

@@ -34,32 +34,32 @@ export default function Base() {
       <div className="grid items-start gap-6 xl:grid-cols-[1.8fr_1fr]">
         <div>
           <RoomScene data={data} slot={slot} setSlot={setSlot} />
-          <p className="mt-3 text-[10px] leading-6 text-[#a6ac96]">
+          <p className="mt-3 text-[10px] leading-6 text-[#8a785d]">
             点击小屋中的位置，再从背包选择装饰。纪念画可以放在墙面，固定槽位布局会自动保存。
           </p>
           {b.notice && (
-            <p role="status" className="mt-3 rounded-xl bg-[#eaf2e0] p-3 text-xs text-[#7d985f]">
+            <p role="status" className="mt-3 rounded-xl bg-[#eadcc1] p-3 text-xs text-[#716449]">
               {b.notice}
             </p>
           )}
           {b.error && <ErrorState message={b.error} />}
           <Card className="mt-5">
             <h2 className="mb-4 flex items-center gap-2 text-xs font-semibold">
-              <Package className="size-4 text-[#99ab81]" />
+              <Package className="size-4 text-[#716449]" />
               这间小屋的收藏
             </h2>
             <div className="grid grid-cols-3 gap-3 text-center">
               <div>
-                <p className="font-serif text-2xl text-[#76945b]">{data.owned.length}</p>
-                <p className="mt-1 text-[10px] text-[#a1ad91]">已购装饰</p>
+                <p className="font-serif text-2xl text-[#716449]">{data.owned.length}</p>
+                <p className="mt-1 text-[10px] text-[#8a785d]">已购装饰</p>
               </div>
               <div>
-                <p className="font-serif text-2xl text-[#b9a368]">{data.rewards.length}</p>
-                <p className="mt-1 text-[10px] text-[#a1ad91]">专属纪念物</p>
+                <p className="font-serif text-2xl text-[#716449]">{data.rewards.length}</p>
+                <p className="mt-1 text-[10px] text-[#8a785d]">专属纪念物</p>
               </div>
               <div>
-                <p className="font-serif text-2xl text-[#869caa]">{data.placements.length}/6</p>
-                <p className="mt-1 text-[10px] text-[#a1ad91]">已布置位置</p>
+                <p className="font-serif text-2xl text-[#716449]">{data.placements.length}/6</p>
+                <p className="mt-1 text-[10px] text-[#8a785d]">已布置位置</p>
               </div>
             </div>
           </Card>

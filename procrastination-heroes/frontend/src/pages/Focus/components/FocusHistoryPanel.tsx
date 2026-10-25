@@ -7,7 +7,7 @@ export function FocusHistoryPanel({ f }: { f: ReturnType<typeof useFocus> }) {
   return (
     <Card>
       <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold">
-        <Timer className="size-4 text-[#96a77d]" />
+        <Timer className="size-4 text-[#716449]" />
         最近的专注
       </h2>
       {f.history.state.status === 'ready' ? (
@@ -16,14 +16,14 @@ export function FocusHistoryPanel({ f }: { f: ReturnType<typeof useFocus> }) {
             {f.history.state.data.slice(0, 7).map((s) => (
               <div
                 key={s.id}
-                className="flex justify-between border-b border-[#edf0e5] pb-3 text-xs"
+                className="flex justify-between border-b border-[#eadcc1] pb-3 text-xs"
               >
                 <div>
-                  <p className="text-[#748b60]">
+                  <p className="text-[#716449]">
                     {Math.floor(s.elapsedSeconds / 60)} 分钟
                     {['running', 'paused'].includes(s.status) ? ' · 进行中的会话' : ''}
                   </p>
-                  <p className="mt-1 text-[9px] text-[#aab59a]">
+                  <p className="mt-1 text-[9px] text-[#8a785d]">
                     {new Date(s.createdAt).toLocaleString('zh-CN', {
                       month: 'numeric',
                       day: 'numeric',
@@ -37,7 +37,7 @@ export function FocusHistoryPanel({ f }: { f: ReturnType<typeof useFocus> }) {
             ))}
           </div>
         ) : (
-          <p className="py-7 text-center text-xs leading-7 text-[#a2ad94]">
+          <p className="py-7 text-center text-xs leading-7 text-[#8a785d]">
             这里会记下你的专注时光。
             <br />
             从今天的一小段开始吧。

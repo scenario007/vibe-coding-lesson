@@ -34,7 +34,7 @@ export function useQuestEditor(initial: QuestDetail | null, onSaved: (q: QuestDe
   const [description, setDescription] = useState(initial?.quest.description || '')
   const [dueDate, setDueDate] = useState(initial?.quest.dueDate || '')
   const [dailyMinutes, setDailyMinutes] = useState(30)
-  const [preference, setPreference] = useState('温暖手账')
+  const [preference, setPreference] = useState('公会手账')
   const [feedback, setFeedback] = useState('')
   const [tier, setTier] = useState<RewardTier>(initial?.quest.tier || 'normal')
   const [stages, setStages] = useState<StageDraft[]>(

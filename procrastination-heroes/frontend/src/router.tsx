@@ -53,7 +53,7 @@ export const router = createBrowserRouter([
           {
             path: '*',
             element: (
-              <div className="py-20 text-center text-[#8ca274]">
+              <div className="py-20 text-center text-[#716449]">
                 这条小路还没有开辟。
                 <Link className="ml-3 underline" to="/dashboard">
                   回到协会大厅

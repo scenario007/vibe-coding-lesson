@@ -13,9 +13,17 @@ import {
 import { categories, dateLabel, statuses, tiers } from '@/pages/objects/labels'
 import { ArrowUpRight, Plus, ScrollText, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useState } from 'react'
 import { useQuests } from './hooks/useQuests'
 export default function Quests() {
   const q = useQuests()
+  const [memo, setMemo] = useState(() => window.localStorage.getItem('guild-board-memo') || '')
+  const [memoSaved, setMemoSaved] = useState(false)
+  function saveMemo() {
+    window.localStorage.setItem('guild-board-memo', memo)
+    setMemoSaved(true)
+    window.setTimeout(() => setMemoSaved(false), 1800)
+  }
   return (
     <>
       <PageTitle
@@ -31,6 +39,35 @@ export default function Quests() {
           </Link>
         }
       />
+      <Card className="mb-6 border-dashed bg-[#fff8e7]">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-[#665d3e]">公会备忘录</h2>
+            <p className="mt-1 text-[10px] text-[#8a785d]">
+              只记录想法和提醒，不创建任务，也不会触发奖励。
+            </p>
+          </div>
+          <span className="text-[10px] text-[#8a785d]">
+            {memoSaved ? '已收进公告板' : '私人纸条'}
+          </span>
+        </div>
+        <textarea
+          className={inputClass + ' mt-4 min-h-20 resize-y bg-[#fffdf4]'}
+          value={memo}
+          maxLength={1000}
+          onChange={(e) => setMemo(e.target.value)}
+          placeholder="例如：周五记得问老师科研项目的截止时间"
+        />
+        <div className="mt-3 flex justify-end">
+          <Button
+            variant="secondary"
+            className="min-h-8 px-3 py-1.5 text-[10px]"
+            onClick={saveMemo}
+          >
+            保存备忘
+          </Button>
+        </div>
+      </Card>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex gap-1 rounded-xl border border-[#cabb9e] bg-[#eadcc1] p-1">
           {[

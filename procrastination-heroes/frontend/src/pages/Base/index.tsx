@@ -1,21 +1,15 @@
 import { Button, Card, ErrorState, Loading, PageTitle } from '@/components/ui'
-import type { RoomSlot } from '@/objects/economy/RoomSlot'
 import { useBaseInventory } from '@/pages/hooks/useBaseInventory'
 import { Package, ShoppingBag } from 'lucide-react'
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { DecorationInventory } from './components/DecorationInventory'
 import { RoomScene } from './components/RoomScene'
+import { RewardBoard } from './components/RewardBoard'
 export default function Base() {
   const b = useBaseInventory()
-  const [slot, setSlot] = useState<RoomSlot>('wall')
   if (b.state.status === 'loading') return <Loading />
   if (b.state.status === 'error') return <ErrorState message={b.state.message} retry={b.reload} />
   const data = b.state.data
-  const placed = data.placements.find((p) => p.slot === slot)
-  const candidates = data.owned.filter((o) =>
-    data.items.some((i) => i.id === o.itemId && i.slot === slot),
-  )
   return (
     <>
       <PageTitle
@@ -33,7 +27,7 @@ export default function Base() {
       />
       <div className="grid items-start gap-6 xl:grid-cols-[1.8fr_1fr]">
         <div>
-          <RoomScene data={data} slot={slot} setSlot={setSlot} />
+          <RoomScene data={data} onMove={b.move} />
           <p className="mt-3 text-[10px] leading-6 text-[#8a785d]">
             把收藏拖到你喜欢的位置。这里没有固定点位，家具、纪念物和新生成的素材都可以自由安排。
           </p>
@@ -58,21 +52,15 @@ export default function Base() {
                 <p className="mt-1 text-[10px] text-[#8a785d]">专属纪念物</p>
               </div>
               <div>
-                <p className="font-serif text-2xl text-[#716449]">{data.placements.length}/6</p>
+                <p className="font-serif text-2xl text-[#716449]">{data.placements.length}</p>
                 <p className="mt-1 text-[10px] text-[#8a785d]">已布置位置</p>
               </div>
             </div>
           </Card>
         </div>
-        <DecorationInventory
-          data={data}
-          slot={slot}
-          setSlot={setSlot}
-          b={b}
-          candidates={candidates}
-          placed={placed}
-        />
+        <DecorationInventory data={data} b={b} />
       </div>
+      <RewardBoard rewards={data.rewards} />
     </>
   )
 }

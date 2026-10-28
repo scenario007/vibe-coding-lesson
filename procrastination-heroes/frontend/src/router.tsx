@@ -4,7 +4,6 @@ import Base from '@/pages/Base'
 import Dashboard from '@/pages/Dashboard'
 import Focus from '@/pages/Focus'
 import Growth from '@/pages/Growth'
-import AdventureMap from '@/pages/Map'
 import Profile from '@/pages/Profile'
 import Quests from '@/pages/Quests'
 import QuestWorkbench from '@/pages/QuestWorkbench'
@@ -45,7 +44,6 @@ export const router = createBrowserRouter([
           { path: '/quests/new', element: <QuestWorkbench /> },
           { path: '/quests/:id', element: <QuestWorkbench /> },
           { path: '/focus', element: <Focus /> },
-          { path: '/map', element: <AdventureMap /> },
           { path: '/base', element: <Base /> },
           { path: '/shop', element: <Shop /> },
           { path: '/growth', element: <Growth /> },

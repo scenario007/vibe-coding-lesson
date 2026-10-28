@@ -14,5 +14,6 @@ object EconomyRoutes:
     RegisteredAPIMessage.register[PurchaseStoreItemAPIMessage,BaseResponse](true),
     RegisteredAPIMessage.register[CreateCustomFurnitureAPIMessage,BaseResponse](true),
     RegisteredAPIMessage.register[PlaceItemAPIMessage,BaseResponse](true),
+    RegisteredAPIMessage.register[MovePlacementAPIMessage,BaseResponse](true),
     RegisteredAPIMessage.register[ListRewardHistoryAPIMessage,List[RewardEvent]](true)
   )

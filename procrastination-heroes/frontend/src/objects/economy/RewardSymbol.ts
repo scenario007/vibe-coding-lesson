@@ -11,3 +11,5 @@ export type RewardSymbol =
   | 'sword'
   | 'shield'
   | 'scroll'
+  | 'dumbbell'
+  | 'microscope'

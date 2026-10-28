@@ -1,56 +1,55 @@
 import { Emblem } from '@/components/ui'
 import { useGuildAsset } from '@/components/ui/AtlasSprite'
-import { useState } from 'react'
 import type { BaseResponse } from '@/objects/economy/apiTypes/BaseResponse'
-import type { RoomSlot } from '@/objects/economy/RoomSlot'
-import { Plus } from 'lucide-react'
-import { roomSlots } from '../objects/roomSlots'
+import { useEffect, useState } from 'react'
 
 export function RoomScene({
   data,
-  slot,
-  setSlot,
+  onMove,
 }: {
   data: BaseResponse
-  slot: RoomSlot
-  setSlot: (slot: RoomSlot) => void
+  onMove: (id: string, x: number, y: number) => Promise<boolean>
 }) {
   const background = useGuildAsset('room')
   const [failed, setFailed] = useState(false)
-  const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>(() => {
-    try {
-      return JSON.parse(window.localStorage.getItem('guild-base-positions') || '{}')
-    } catch {
-      return {}
-    }
-  })
+  const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({})
   const [dragging, setDragging] = useState<string | null>(null)
+
+  useEffect(() => {
+    setPositions((current) =>
+      Object.fromEntries(data.placements.map((p) => [p.id, current[p.id] || { x: p.x, y: p.y }])),
+    )
+  }, [data.placements])
+
   function move(event: React.PointerEvent<HTMLElement>) {
     if (!dragging) return
     const rect = event.currentTarget.getBoundingClientRect()
     const next = {
-      x: Math.min(94, Math.max(6, ((event.clientX - rect.left) / rect.width) * 100)),
-      y: Math.min(88, Math.max(12, ((event.clientY - rect.top) / rect.height) * 100)),
+      x: Math.min(96, Math.max(4, ((event.clientX - rect.left) / rect.width) * 100)),
+      y: Math.min(92, Math.max(8, ((event.clientY - rect.top) / rect.height) * 100)),
     }
     setPositions((current) => ({ ...current, [dragging]: next }))
   }
-  function finishDrag() {
+
+  async function finishDrag() {
     if (!dragging) return
-    window.localStorage.setItem('guild-base-positions', JSON.stringify(positions))
+    const position = positions[dragging]
     setDragging(null)
+    if (position) await onMove(dragging, Math.round(position.x), Math.round(position.y))
   }
+
   return (
     <section
       onPointerMove={move}
-      onPointerUp={finishDrag}
-      onPointerCancel={finishDrag}
+      onPointerUp={() => void finishDrag()}
+      onPointerCancel={() => void finishDrag()}
       className="relative aspect-[16/10] min-h-[340px] overflow-hidden rounded-[6px_18px_8px_13px] border-2 border-[#332820] bg-[#e8d6b0] shadow-[4px_5px_0_#332820]"
     >
       <svg
         viewBox="0 0 1000 625"
         preserveAspectRatio="xMidYMid slice"
         role="img"
-        aria-label="公会原创手绘小屋，空墙与旧木工作台"
+        aria-label="公会原创手绘自由据点画布"
         aria-hidden={Boolean(background) && !failed}
         className="absolute inset-0 h-full w-full"
         fill="none"
@@ -80,12 +79,11 @@ export function RoomScene({
         <path d="M799 260h151l-4 22-150-4Zm18 23-9 86m122-84 9 81" fill="#9d7450" />
         <path d="m861 93 60 8-6 96-24-13-18 14-14-27Z" fill="#a94732" />
         <path d="m878 106 3 57m19-55 3 64m-153 203 22-4m-528-11 34 2m153-118 17 3" opacity=".4" />
-        <path d="m72 602 50-5m184-38 36 1m367 47 45-4m67-106 29 2m-605-33 22 2" opacity=".45" />
       </svg>
       {background && !failed && (
         <img
           src={background}
-          alt="炭黑手绘线条、空墙和旧工作台组成的公会小屋"
+          alt="炭黑手绘线条、空墙和旧木工作台组成的公会小屋"
           onError={() => setFailed(true)}
           className="absolute inset-0 h-full w-full object-cover object-center"
         />
@@ -96,46 +94,46 @@ export function RoomScene({
       <span className="absolute left-4 top-4 -rotate-2 border border-[#332820] bg-[#fff8e7]/95 px-3 py-1.5 text-[10px] font-bold tracking-wider text-[#332820] shadow-[2px_2px_0_#332820]">
         勇者据点 · 自由画布
       </span>
-      {roomSlots.map((s) => {
-        const p = data.placements.find((v) => v.slot === s.id)
-        const owned = p?.itemId ? data.owned.find((o) => o.id === p.itemId) : null
+      {data.placements.map((placement) => {
+        const owned = placement.itemId ? data.owned.find((o) => o.id === placement.itemId) : null
         const item = owned ? data.items.find((v) => v.id === owned.itemId) : null
-        const reward = p?.rewardId ? data.rewards.find((r) => r.id === p.rewardId) : null
-        const key = item?.id || reward?.id || s.id
-        const position = positions[key] || { x: s.x, y: s.y }
+        const reward = placement.rewardId
+          ? data.rewards.find((r) => r.id === placement.rewardId)
+          : null
+        const position = positions[placement.id] || { x: placement.x, y: placement.y }
         return (
           <button
-            key={s.id}
+            key={placement.id}
+            aria-label={`移动${item?.name || reward?.design.name || '纪念物'}`}
             onPointerDown={(event) => {
               event.preventDefault()
-              setDragging(key)
+              setDragging(placement.id)
               event.currentTarget.setPointerCapture?.(event.pointerId)
             }}
-            aria-label={`布置${s.label}`}
-            aria-pressed={slot === s.id}
-            onClick={() => setSlot(s.id)}
             style={{ left: position.x + '%', top: position.y + '%' }}
-            className={`group absolute grid -translate-x-1/2 -translate-y-1/2 justify-items-center rounded-md p-1.5 transition ${slot === s.id ? 'outline-2 outline-offset-2 outline-dashed outline-[#a94732]' : 'hover:bg-[#fff8e7]/30'}`}
+            className="group absolute grid -translate-x-1/2 -translate-y-1/2 touch-none justify-items-center rounded-md p-1.5 transition hover:bg-[#fff8e7]/30"
           >
-            {item || reward ? (
-              <span className="drop-shadow-[2px_4px_0_#33282025] transition-transform group-hover:-translate-y-1">
-                <Emblem
-                  itemId={item?.id}
-                  symbol={item?.symbol || reward?.design.symbol}
-                  palette={item?.palette || reward?.design.palette}
-                />
-              </span>
-            ) : (
-              <span className="grid size-9 place-items-center rounded-full border border-dashed border-[#74614c] bg-[#fff8e7]/70 text-[#74614c]">
-                <Plus className="size-4" />
-              </span>
-            )}
+            <span className="drop-shadow-[2px_4px_0_#33282025] transition-transform group-hover:-translate-y-1">
+              <Emblem
+                itemId={item?.id}
+                symbol={item?.symbol || reward?.design.symbol}
+                palette={item?.palette || reward?.design.palette}
+              />
+            </span>
             <span className="mt-1 max-w-32 rounded-sm border border-[#b8a17a]/70 bg-[#fff8e7]/95 px-2 py-0.5 text-center text-[10px] leading-4 text-[#62503c]">
-              {item?.name || reward?.design.name || s.label}
+              {item?.name || reward?.design.name || '据点纪念物'}
             </span>
           </button>
         )
       })}
+      {!data.placements.length && (
+        <p className="absolute inset-0 grid place-items-center text-xs text-[#716449]">
+          从右侧素材库放进第一件东西吧。
+        </p>
+      )}
+      <p className="absolute bottom-3 right-4 text-[9px] text-[#62503c]">
+        拖动任意素材，自由安排位置
+      </p>
     </section>
   )
 }

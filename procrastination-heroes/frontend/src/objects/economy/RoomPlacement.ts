@@ -1,6 +1,7 @@
-import type { RoomSlot } from './RoomSlot'
 export interface RoomPlacement {
-  slot: RoomSlot
+  id: string
   itemId: string | null
   rewardId: string | null
+  x: number
+  y: number
 }

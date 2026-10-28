@@ -315,6 +315,30 @@ function Drawing({
           )}
         </>
       )
+    case 'dumbbell':
+      return (
+        <g transform="rotate(-10 80 80)">
+          <path d="M46 82h68" stroke={c.shade} strokeWidth="10" />
+          <path d="M38 58h14v49H38Zm70 0h14v49h-14Z" fill={c.accent} />
+          <path d="M27 49h16v67H27Zm90 0h16v67h-16Z" fill={brass} />
+          <path d="M30 62h10m-10 42h10m81-42h10m-10 42h10" />
+          {!compact && <path d="m57 76 7-7m9 4 7-7m9 4 7-7" stroke={paper} strokeWidth="2" />}
+        </g>
+      )
+    case 'microscope':
+      return (
+        <g transform="rotate(-6 80 80)">
+          <path d="M69 25h18l8 54-18 4Z" fill={c.accent} />
+          <path d="m77 36 22-10 9 15-24 12Z" fill={brass} />
+          <circle cx="103" cy="34" r="9" fill={c.light} />
+          <path d="m72 78-22 35m35-30-9 31m-30 0h63v12H44Z" fill={c.shade} />
+          <path d="M60 113c1-25 38-27 40 0" stroke={red} strokeWidth="6" />
+          <circle cx="80" cy="90" r="6" fill={brass} />
+          {!compact && (
+            <path d="m56 128 14-1m13 0 18-1m-3-83-7 7m-8-1-6 6" stroke={paper} strokeWidth="2" />
+          )}
+        </g>
+      )
     default:
       return (
         <>

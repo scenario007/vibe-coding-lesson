@@ -9,8 +9,8 @@ import type { QuestDetail } from '@/objects/quests/apiTypes/QuestDetail'
 import type { QuestCategory } from '@/objects/quests/QuestCategory'
 import type { RewardTier } from '@/objects/quests/RewardTier'
 import type { StageDraft } from '@/objects/quests/StageDraft'
-import type { MapMode } from '@/objects/quests/MapMode'
-import { mapModes } from '@/objects/quests/MapMode'
+import type { FixedMode } from '@/objects/quests/FixedMode'
+import { fixedModes } from '@/objects/quests/FixedMode'
 import { touchPlayer } from '@/system/stores/player'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -36,15 +36,9 @@ export function useQuestEditor(initial: QuestDetail | null, onSaved: (q: QuestDe
   const [description, setDescription] = useState(initial?.quest.description || '')
   const [dueDate, setDueDate] = useState(initial?.quest.dueDate || '')
   const [dailyMinutes, setDailyMinutes] = useState<number | null>(null)
-  const [preference, setPreference] = useState('公会手账')
+  const preference = '公会手账'
   const [feedback, setFeedback] = useState('')
-  const [mapMode, setMapMode] = useState<MapMode>(() => {
-    const saved = window.localStorage.getItem('guild-map-mode') as MapMode | null
-    return saved && saved in mapModes ? saved : 'progress'
-  })
-  useEffect(() => {
-    window.localStorage.setItem('guild-map-mode', mapMode)
-  }, [mapMode])
+  const [fixedMode, setFixedMode] = useState<FixedMode | null>(null)
   const [tier, setTier] = useState<RewardTier>(initial?.quest.tier || 'daily')
   const [stages, setStages] = useState<StageDraft[]>(
     initial?.steps.map((x) => ({
@@ -97,6 +91,10 @@ export function useQuestEditor(initial: QuestDetail | null, onSaved: (q: QuestDe
       setError('先写下你想完成的事情，至少两个字。')
       return
     }
+    if (rewardOnly && fixedMode) {
+      setNotice('固定模式使用协会预制奖品，不需要重复生成。')
+      return
+    }
     setBusy(rewardOnly ? '正在设计专属奖励…' : 'AI 正在把目标拆成小步骤…')
     setError('')
     setNotice('')
@@ -106,7 +104,9 @@ export function useQuestEditor(initial: QuestDetail | null, onSaved: (q: QuestDe
         dueDate || null,
         dailyMinutes,
         preference,
-        (rewardOnly ? '保留目标，为它重新设计一份纪念奖励。 ' : '') + feedback,
+        `任务等级：${tier}。请让奖励的稀有度、装饰复杂度和故事规模匹配这个等级。 ` +
+          (rewardOnly ? '保留目标，为它重新设计一份纪念奖励。 ' : '') +
+          feedback,
         crypto.randomUUID(),
       ).send()
       for (let i = 0; i < 120; i++) {
@@ -125,7 +125,7 @@ export function useQuestEditor(initial: QuestDetail | null, onSaved: (q: QuestDe
             setStages(plan.stages)
             setJobId(job.id)
           }
-          setReward(plan.reward)
+          setReward(fixedMode ? fixedModes[fixedMode].reward : plan.reward)
           setNotice(
             rewardOnly
               ? '新的奖励设计已准备好，可以继续修改。'
@@ -158,7 +158,6 @@ export function useQuestEditor(initial: QuestDetail | null, onSaved: (q: QuestDe
       setReward(job.result.reward)
       setDueDate(job.dueDate || '')
       setDailyMinutes(job.dailyMinutes)
-      setPreference(job.preference)
       setFeedback(job.feedback)
       setJobId(job.id)
       setNotice('已找回最近一次 AI 草案。确认内容后再开始，已有正式任务不会被修改。')
@@ -220,11 +219,13 @@ export function useQuestEditor(initial: QuestDetail | null, onSaved: (q: QuestDe
     dailyMinutes,
     setDailyMinutes,
     preference,
-    setPreference,
     feedback,
     setFeedback,
-    mapMode,
-    setMapMode,
+    fixedMode,
+    setFixedMode: (mode: FixedMode | null) => {
+      setFixedMode(mode)
+      if (mode) setReward(fixedModes[mode].reward)
+    },
     tier,
     setTier,
     stages,

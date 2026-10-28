@@ -1,8 +1,8 @@
 import { Button, Card, Emblem, ErrorState, Field, Pill, inputClass } from '@/components/ui'
 import type { QuestCategory } from '@/objects/quests/QuestCategory'
 import type { RewardTier } from '@/objects/quests/RewardTier'
-import type { MapMode } from '@/objects/quests/MapMode'
-import { mapModes } from '@/objects/quests/MapMode'
+import type { FixedMode } from '@/objects/quests/FixedMode'
+import { fixedModes } from '@/objects/quests/FixedMode'
 import type { QuestDetail } from '@/objects/quests/apiTypes/QuestDetail'
 import { categories, tiers } from '@/pages/objects/labels'
 import {
@@ -10,7 +10,6 @@ import {
   ArrowRight,
   ArrowUp,
   Check,
-  Coins,
   LoaderCircle,
   Plus,
   Sparkles,
@@ -90,40 +89,44 @@ export function QuestEditor({
                 </select>
               </label>
               <label className="grid gap-2 text-sm font-medium text-[#665d3e]">
-                奖励风格
+                固定模式（可选）
                 <select
                   className={inputClass}
-                  value={f.preference}
-                  onChange={(e) => f.setPreference(e.target.value)}
+                  value={f.fixedMode || ''}
+                  onChange={(e) => f.setFixedMode((e.target.value || null) as FixedMode | null)}
                 >
-                  <option>温暖手账</option>
-                  <option>森林冒险</option>
-                  <option>星空童话</option>
-                  <option>像素冒险</option>
+                  <option value="">自由设计奖励</option>
+                  {Object.entries(fixedModes).map(([v, item]) => (
+                    <option key={v} value={v}>
+                      {item.label} · 固定奖品
+                    </option>
+                  ))}
                 </select>
               </label>
             </div>
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-medium text-[#665d3e]">冒险地图（可选）</span>
-                <span className="text-[10px] text-[#8a785d]">之后也能切换</span>
+                <span className="text-sm font-medium text-[#665d3e]">任务等级</span>
+                <span className="text-[10px] text-[#8a785d]">等级决定战利品稀有度</span>
               </div>
-              <div className="grid gap-2 sm:grid-cols-5">
-                {Object.entries(mapModes).map(([value, item]) => (
+              <div className="grid gap-2 sm:grid-cols-3">
+                {Object.entries(tiers).map(([value, item]) => (
                   <button
                     type="button"
-                    key={value}
                     disabled={disabled}
-                    onClick={() => f.setMapMode(value as MapMode)}
+                    key={value}
+                    onClick={() => f.setTier(value as RewardTier)}
                     className={
-                      'rounded-xl border px-2 py-3 text-left text-[10px] ' +
-                      (f.mapMode === value
+                      'rounded-xl border px-3 py-3 text-left text-xs ' +
+                      (f.tier === value
                         ? 'border-[#a94732] bg-[#eadcc1] text-[#665d3e]'
                         : 'border-[#eadcc1] bg-[#fff8e7] text-[#8a785d]')
                     }
                   >
                     <span className="block font-semibold">{item.label}</span>
-                    <span className="mt-1 block leading-4">{item.hint}</span>
+                    <span className="mt-1 block text-[10px]">
+                      {item.rarity} · {item.coins} 币
+                    </span>
                   </button>
                 ))}
               </div>
@@ -331,87 +334,21 @@ export function QuestEditor({
                 className={inputClass + ' min-h-24 bg-white/70 text-xs'}
               />
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              <select
-                aria-label="奖励图案"
-                className={inputClass}
-                value={f.reward.symbol}
-                onChange={(e) =>
-                  f.setReward({ ...f.reward, symbol: e.target.value as typeof f.reward.symbol })
-                }
-              >
-                {[
-                  ['star', '星星'],
-                  ['lamp', '小灯'],
-                  ['leaf', '绿叶'],
-                  ['book', '书本'],
-                  ['camera', '相机'],
-                  ['mountain', '山峰'],
-                  ['moon', '月亮'],
-                  ['flower', '花朵'],
-                  ['cloud', '云朵'],
-                  ['sword', '稿纸之剑'],
-                  ['shield', '锅盖之盾'],
-                  ['scroll', '冒险卷轴'],
-                ].map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-              <select
-                aria-label="奖励配色"
-                className={inputClass}
-                value={f.reward.palette}
-                onChange={(e) =>
-                  f.setReward({ ...f.reward, palette: e.target.value as typeof f.reward.palette })
-                }
-              >
-                {[
-                  ['sage', '森林绿'],
-                  ['gold', '暖金色'],
-                  ['rose', '浅玫瑰'],
-                  ['lavender', '薰衣草'],
-                  ['sky', '晴空蓝'],
-                ].map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </div>
           </fieldset>
           <Button
             className="mt-4 w-full"
             variant="secondary"
-            disabled={disabled}
+            disabled={disabled || !!f.fixedMode}
             onClick={() => void f.generate(true)}
           >
             <WandSparkles className="size-3.5" />
-            AI 再设计一份奖励
+            {f.fixedMode ? '固定模式奖品已预先准备' : 'AI 再设计一份奖励'}
           </Button>
-        </Card>
-        <Card>
-          <h2 className="mb-4 text-xs font-semibold">选择任务等级</h2>
-          <div className="space-y-2">
-            {Object.entries(tiers).map(([value, t]) => (
-              <button
-                disabled={disabled}
-                key={value}
-                onClick={() => f.setTier(value as RewardTier)}
-                className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-xs ${f.tier === value ? 'border-[#8a785d] bg-[#eadcc1] text-[#665d3e]' : 'border-[#eadcc1] text-[#716449]'}`}
-              >
-                <span>{t.label}</span>
-                <span className="flex items-center gap-1 text-[10px]">
-                  <Coins className="size-3" />
-                  {t.coins} 币 · {t.coins * 2} XP
-                </span>
-              </button>
-            ))}
-          </div>
-          <p className="mt-4 text-[10px] leading-6 text-[#8a785d]">
-            等级决定专属战利品的稀有度和华丽程度；每日任务轻巧，长期任务会留下更完整的收藏。
-          </p>
+          {f.fixedMode && (
+            <p className="mt-3 text-center text-[10px] leading-5 text-[#8a785d]">
+              固定模式会使用协会预制的 {fixedModes[f.fixedMode].label} 奖品。
+            </p>
+          )}
         </Card>
         <Button
           className="w-full"

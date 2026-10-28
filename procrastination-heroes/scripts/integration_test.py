@@ -55,11 +55,11 @@ def main():
         purchases=list(pool.map(lambda _:call('PurchaseStoreItemAPI',{'itemId':'lamp'},token),range(6)))
     base=call('GetBaseAPI',{},token);check(base['progress']['coins']==5 and len(base['owned'])==1,'并发重复购买只扣一次款并持有一件物品')
     own=base['owned'][0]['id'];reward_id=base['rewards'][0]['id']
-    call('PlaceItemAPI',{'slot':'wall','itemId':own,'rewardId':None},token,403)
-    call('PlaceItemAPI',{'slot':'lighting','itemId':own,'rewardId':None},other,403)
-    call('PlaceItemAPI',{'slot':'lighting','itemId':own,'rewardId':None},token)
-    call('PlaceItemAPI',{'slot':'wall','itemId':None,'rewardId':reward_id},token)
-    base=call('GetBaseAPI',{},token);check(len(base['placements'])==2,'据点校验物品归属/位置并持久化布置')
+    call('PlaceItemAPI',{'slot':'wall','itemId':own,'rewardId':None},token)
+    call('PlaceItemAPI',{'slot':'other-placement','itemId':own,'rewardId':None},other,403)
+    call('PlaceItemAPI',{'slot':'wall','itemId':own,'rewardId':None},token)
+    call('PlaceItemAPI',{'slot':'free-reward','itemId':None,'rewardId':reward_id},token)
+    base=call('GetBaseAPI',{},token);check(len(base['placements'])==2,'自由画布校验素材归属并持久化布置')
     replay=call('CompleteQuestStepAPI',{'questId':qid,'stepId':s2},token);check(replay['alreadyCompleted'] and replay['progress']['coins']==5,'通关重放不重复领奖')
     for n in range(3):
         d=draft(token,'main','每日奖励测试'+str(n),[stages()[0]])

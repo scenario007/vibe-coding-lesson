@@ -15,28 +15,19 @@ const slots: Array<[RoomSlot, string]> = [
   ['window', '窗边'],
   ['chair', '座椅'],
 ]
-const symbols: Array<[RewardSymbol, string]> = [
-  ['book', '书本'],
-  ['lamp', '小灯'],
-  ['leaf', '绿叶'],
-  ['star', '星星'],
-  ['cloud', '云朵'],
-  ['mountain', '山峰'],
-]
-const palettes: Array<[RewardPalette, string]> = [
-  ['sage', '灰橄榄'],
-  ['gold', '暖金'],
-  ['rose', '暗红'],
-  ['lavender', '褪紫'],
-  ['sky', '晴空蓝'],
-]
+function previewFor(prompt: string): { symbol: RewardSymbol; palette: RewardPalette } {
+  if (prompt.includes('灯'))
+    return { symbol: 'lamp', palette: prompt.includes('红') ? 'rose' : 'gold' }
+  if (prompt.includes('植物') || prompt.includes('花')) return { symbol: 'leaf', palette: 'sage' }
+  if (prompt.includes('椅')) return { symbol: 'cloud', palette: 'sky' }
+  if (prompt.includes('柜') || prompt.includes('书')) return { symbol: 'book', palette: 'sage' }
+  return { symbol: 'star', palette: 'sage' }
+}
 
 export default function Shop() {
   const b = useBaseInventory()
   const [prompt, setPrompt] = useState('')
   const [slot, setSlot] = useState<RoomSlot>('desk')
-  const [symbol, setSymbol] = useState<RewardSymbol>('book')
-  const [palette, setPalette] = useState<RewardPalette>('sage')
   if (b.state.status === 'loading') return <Loading />
   if (b.state.status === 'error') return <ErrorState message={b.state.message} retry={b.reload} />
   const data = b.state.data
@@ -95,55 +86,28 @@ export default function Shop() {
             maxLength={160}
             placeholder="它长什么样？用来做什么？希望是什么感觉？"
           />
-          <div className="mt-5 grid gap-4 sm:grid-cols-3">
-            <label className="grid gap-2 text-xs text-[#716449]">
-              放在哪里
-              <select
-                className="rounded-xl border border-[#cabb9e] bg-[#fff8e7] px-3 py-3 text-xs"
-                value={slot}
-                onChange={(e) => setSlot(e.target.value as RoomSlot)}
-              >
-                {slots.map(([v, label]) => (
-                  <option key={v} value={v}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid gap-2 text-xs text-[#716449]">
-              轮廓
-              <select
-                className="rounded-xl border border-[#cabb9e] bg-[#fff8e7] px-3 py-3 text-xs"
-                value={symbol}
-                onChange={(e) => setSymbol(e.target.value as RewardSymbol)}
-              >
-                {symbols.map(([v, label]) => (
-                  <option key={v} value={v}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid gap-2 text-xs text-[#716449]">
-              配色
-              <select
-                className="rounded-xl border border-[#cabb9e] bg-[#fff8e7] px-3 py-3 text-xs"
-                value={palette}
-                onChange={(e) => setPalette(e.target.value as RewardPalette)}
-              >
-                {palettes.map(([v, label]) => (
-                  <option key={v} value={v}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+          <label className="mt-5 grid gap-2 text-xs text-[#716449]">
+            放在哪里
+            <select
+              className="rounded-xl border border-[#cabb9e] bg-[#fff8e7] px-3 py-3 text-xs"
+              value={slot}
+              onChange={(e) => setSlot(e.target.value as RoomSlot)}
+            >
+              {slots.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="mt-4 rounded-xl bg-[#eadcc1] p-3 text-[10px] leading-5 text-[#716449]">
+            家具外形、材质和配色由你的描述生成；这里只需要告诉协会它最后放在哪里。
+          </p>
           <Button
             className="mt-5 w-full"
             disabled={b.busy || prompt.trim().length < 2 || data.progress.coins < 5}
             onClick={() =>
-              void b.customize(prompt, slot, symbol, palette).then((ok) => {
+              void b.customize(prompt, slot).then((ok) => {
                 if (ok) setPrompt('')
               })
             }
@@ -158,14 +122,18 @@ export default function Shop() {
         <Card className="bg-[#eadcc1]">
           <p className="text-[10px] tracking-widest text-[#8a785d]">PREVIEW</p>
           <div className="my-7 flex justify-center">
-            <Emblem itemId="custom-preview" symbol={symbol} palette={palette} size="large" />
+            <Emblem
+              itemId="custom-preview"
+              symbol={previewFor(prompt).symbol}
+              palette={previewFor(prompt).palette}
+              size="large"
+            />
           </div>
           <h2 className="text-center font-serif text-xl font-bold text-[#665d3e]">
             {prompt.trim() || '还没写下家具想法'}
           </h2>
           <p className="mt-3 text-center text-xs leading-6 text-[#716449]">
-            {slots.find(([v]) => v === slot)?.[1]} · {palettes.find(([v]) => v === palette)?.[1]} ·
-            公会手绘部件
+            {slots.find(([v]) => v === slot)?.[1]} · 公会自动配色 · 公会手绘部件
           </p>
         </Card>
       </div>

@@ -2,9 +2,8 @@ import { GetBaseAPI } from '@/apis/economy/GetBaseAPI'
 import { PlaceItemAPI } from '@/apis/economy/PlaceItemAPI'
 import { PurchaseStoreItemAPI } from '@/apis/economy/PurchaseStoreItemAPI'
 import { CreateCustomFurnitureAPI } from '@/apis/economy/CreateCustomFurnitureAPI'
+import { MovePlacementAPI } from '@/apis/economy/MovePlacementAPI'
 import type { RoomSlot } from '@/objects/economy/RoomSlot'
-import type { RewardSymbol } from '@/objects/economy/RewardSymbol'
-import type { RewardPalette } from '@/objects/economy/RewardPalette'
 import { useResource } from '@/system/hooks/useResource'
 import { setProgress, touchPlayer, usePlayer } from '@/system/stores/player'
 import { useState } from 'react'
@@ -31,7 +30,7 @@ export function useBaseInventory() {
       setBusy(false)
     }
   }
-  async function place(slot: RoomSlot, itemId: string | null, rewardId: string | null) {
+  async function place(slot: string, itemId: string | null, rewardId: string | null) {
     setBusy(true)
     setError('')
     try {
@@ -46,16 +45,25 @@ export function useBaseInventory() {
       setBusy(false)
     }
   }
-  async function customize(
-    prompt: string,
-    slot: RoomSlot,
-    symbol: RewardSymbol,
-    palette: RewardPalette,
-  ) {
+  async function move(id: string, x: number, y: number) {
     setBusy(true)
     setError('')
     try {
-      const data = await new CreateCustomFurnitureAPI(prompt, slot, symbol, palette).send()
+      const data = await new MovePlacementAPI(id, x, y).send()
+      resource.setState({ status: 'ready', data })
+      return true
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '移动未完成')
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+  async function customize(prompt: string, slot: RoomSlot) {
+    setBusy(true)
+    setError('')
+    try {
+      const data = await new CreateCustomFurnitureAPI(prompt, slot).send()
       resource.setState({ status: 'ready', data })
       setProgress(data.progress)
       setNotice('定制家具已生成并放进素材库，去据点自由摆放吧。')
@@ -68,5 +76,5 @@ export function useBaseInventory() {
       setBusy(false)
     }
   }
-  return { ...resource, busy, error, notice, purchase, place, customize }
+  return { ...resource, busy, error, notice, purchase, place, move, customize }
 }

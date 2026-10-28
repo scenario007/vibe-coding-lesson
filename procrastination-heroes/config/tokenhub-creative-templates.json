@@ -1,0 +1,48 @@
+{
+  "source": "tokenhub_student_quickstart.txt",
+  "checkedAt": "2026-10-28",
+  "style": {
+    "include": ["guild journal", "warm parchment", "charcoal hand-drawn outline", "dark red wax seal", "muted olive green", "matte flat color", "dry comic humor"],
+    "exclude": ["photorealistic", "glossy 3D", "baked text", "watermark", "generic SaaS dashboard"]
+  },
+  "templates": {
+    "lootPanorama": {
+      "model": "hy-world2-panorama",
+      "endpoint": "/v1/wand/hunyuan-image/world2-panorama",
+      "mode": "sync",
+      "output": "data[0].super_resolution_image_url",
+      "purpose": "unique loot display room; never a transparent item asset",
+      "promptVariables": ["questTier", "lootName", "lootMaterials", "lootPalette", "lootStory"],
+      "requiresBudgetLock": true
+    },
+    "slimeLoopHunyuan": {
+      "model": "hy-video-v1.5",
+      "endpoint": "/v1/wand/hunyuan-video/generation",
+      "mode": "async",
+      "submitOutput": "task_id",
+      "pollEndpoint": "/v1/wand/hunyuan-video/tasks/{task_id}",
+      "result": "videos[0].url",
+      "purpose": "optional 5 second focus-room loop",
+      "fallback": "static slime SVG/PNG",
+      "requiresBudgetLock": true
+    },
+    "slimeLoopKling": {
+      "model": "kling-video-v3",
+      "endpoint": "/v1/wand/kling/text-to-video",
+      "mode": "async",
+      "submitOutput": "data.id",
+      "pollEndpoint": "/v1/wand/kling/tasks/{task_id}",
+      "result": "outputs[].url",
+      "purpose": "optional configurable slime loop",
+      "fallback": "static slime SVG/PNG",
+      "requiresBudgetLock": true
+    },
+    "questPlan": {
+      "model": "deepseek-v4.1-flash",
+      "endpoint": "/v1/chat/completions",
+      "mode": "sync",
+      "purpose": "milestones, loot metadata and furniture parameters",
+      "rules": ["dailyTimeMinutes is optional", "never output exact daily-minute commitments", "return strict JSON"]
+    }
+  }
+}

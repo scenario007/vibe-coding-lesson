@@ -15,14 +15,45 @@ import { ArrowUpRight, Plus, ScrollText, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { useQuests } from './hooks/useQuests'
+
+type MemoNote = { id: string; text: string; color: string; rotation: number }
+const memoColors = ['#f5d993', '#dce1bd', '#f0c9ae', '#cfe4df', '#e3d4e6']
+
+function readMemoNotes(): MemoNote[] {
+  try {
+    const saved = window.localStorage.getItem('guild-board-memos')
+    if (saved) return JSON.parse(saved) as MemoNote[]
+    const legacy = window.localStorage.getItem('guild-board-memo')
+    return legacy
+      ? [{ id: crypto.randomUUID(), text: legacy, color: memoColors[0], rotation: -2 }]
+      : []
+  } catch {
+    return []
+  }
+}
 export default function Quests() {
   const q = useQuests()
-  const [memo, setMemo] = useState(() => window.localStorage.getItem('guild-board-memo') || '')
-  const [memoSaved, setMemoSaved] = useState(false)
-  function saveMemo() {
-    window.localStorage.setItem('guild-board-memo', memo)
-    setMemoSaved(true)
-    window.setTimeout(() => setMemoSaved(false), 1800)
+  const [memoDraft, setMemoDraft] = useState('')
+  const [memoNotes, setMemoNotes] = useState<MemoNote[]>(readMemoNotes)
+  function addMemo() {
+    const text = memoDraft.trim()
+    if (!text) return
+    const note = {
+      id: crypto.randomUUID(),
+      text,
+      color: memoColors[memoNotes.length % memoColors.length],
+      rotation: memoNotes.length % 2 ? 2 : -2,
+    }
+    const next = [note, ...memoNotes]
+    setMemoNotes(next)
+    window.localStorage.setItem('guild-board-memos', JSON.stringify(next))
+    window.localStorage.removeItem('guild-board-memo')
+    setMemoDraft('')
+  }
+  function removeMemo(id: string) {
+    const next = memoNotes.filter((note) => note.id !== id)
+    setMemoNotes(next)
+    window.localStorage.setItem('guild-board-memos', JSON.stringify(next))
   }
   return (
     <>
@@ -39,35 +70,54 @@ export default function Quests() {
           </Link>
         }
       />
-      <Card className="mb-6 border-dashed bg-[#fff8e7]">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className="guild-board mb-6 rounded-lg border-[3px] border-[#332820] p-5 shadow-[5px_6px_0_#33282035]">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3 text-[#fff8e7]">
           <div>
-            <h2 className="text-sm font-semibold text-[#665d3e]">公会备忘录</h2>
-            <p className="mt-1 text-[10px] text-[#8a785d]">
-              只记录想法和提醒，不创建任务，也不会触发奖励。
+            <p className="text-[9px] tracking-[.25em] text-[#e4c78e]">PRIVATE NOTICE WALL</p>
+            <h2 className="mt-1 font-serif text-xl font-bold">公会备忘板</h2>
+            <p className="mt-1 text-[10px] text-[#e8d7b5]">
+              写一张纸条钉上去；点击纸条，就把它撕掉。
             </p>
           </div>
-          <span className="text-[10px] text-[#8a785d]">
-            {memoSaved ? '已收进公告板' : '私人纸条'}
-          </span>
+          <span className="text-[10px] text-[#e8d7b5]">{memoNotes.length} 张纸条</span>
         </div>
-        <textarea
-          className={inputClass + ' mt-4 min-h-20 resize-y bg-[#fffdf4]'}
-          value={memo}
-          maxLength={1000}
-          onChange={(e) => setMemo(e.target.value)}
-          placeholder="例如：周五记得问老师科研项目的截止时间"
-        />
-        <div className="mt-3 flex justify-end">
-          <Button
-            variant="secondary"
-            className="min-h-8 px-3 py-1.5 text-[10px]"
-            onClick={saveMemo}
-          >
-            保存备忘
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            className="min-h-10 flex-1 rounded-md border-2 border-[#332820] bg-[#fff8e7] px-3 text-xs text-[#665d3e] outline-none"
+            value={memoDraft}
+            maxLength={160}
+            onChange={(e) => setMemoDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') addMemo()
+            }}
+            placeholder="例如：周五问老师科研项目截止时间"
+          />
+          <Button variant="secondary" className="min-h-10 px-4 text-xs" onClick={addMemo}>
+            钉上纸条
           </Button>
         </div>
-      </Card>
+        <div className="mt-5 grid min-h-28 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {memoNotes.map((note) => (
+            <button
+              type="button"
+              key={note.id}
+              title="点击消除这张备忘"
+              onClick={() => removeMemo(note.id)}
+              style={{ backgroundColor: note.color, transform: `rotate(${note.rotation}deg)` }}
+              className="relative min-h-24 border-2 border-[#332820]/70 p-4 text-left text-xs leading-6 text-[#4c3b2a] shadow-[3px_4px_0_#33282055] transition hover:-translate-y-1 hover:rotate-0"
+            >
+              <span className="absolute -top-2 left-1/2 size-4 -translate-x-1/2 rounded-full border-2 border-[#332820] bg-[#a94732]" />
+              {note.text}
+              <span className="mt-3 block text-[9px] text-[#806b4e]">点击消除</span>
+            </button>
+          ))}
+          {!memoNotes.length && (
+            <p className="col-span-full grid place-items-center py-5 text-xs text-[#e8d7b5]">
+              这块板子还空着，写一张提醒自己的纸条吧。
+            </p>
+          )}
+        </div>
+      </section>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex gap-1 rounded-xl border border-[#cabb9e] bg-[#eadcc1] p-1">
           {[

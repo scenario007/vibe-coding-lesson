@@ -116,7 +116,8 @@ export default function Shop() {
             {b.busy ? '正在制作参数草案…' : '消耗 5 冒险币，定制我的家具'}
           </Button>
           <p className="mt-3 text-center text-[10px] leading-5 text-[#8a785d]">
-            首版先保存可编辑的 SVG 家具参数；后续接入课程允许的媒体接口后，再补充展示场景。
+            已配置阿里云图片 Key 时会生成 1K AI 家具图并保存到素材库；未配置时保留公会手绘 SVG
+            兜底。
           </p>
         </Card>
         <Card className="bg-[#eadcc1]">
@@ -133,7 +134,7 @@ export default function Shop() {
             {prompt.trim() || '还没写下家具想法'}
           </h2>
           <p className="mt-3 text-center text-xs leading-6 text-[#716449]">
-            {slots.find(([v]) => v === slot)?.[1]} · 公会自动配色 · 公会手绘部件
+            {slots.find(([v]) => v === slot)?.[1]} · 仅为手绘草图预览
           </p>
         </Card>
       </div>
@@ -149,7 +150,13 @@ export default function Shop() {
                 key={item.id}
                 className="flex items-center gap-3 rounded-xl border border-[#eadcc1] bg-[#fff8e7] p-3"
               >
-                <Emblem itemId={item.id} symbol={item.symbol} palette={item.palette} size="small" />
+                <Emblem
+                  itemId={item.id}
+                  symbol={item.symbol}
+                  palette={item.palette}
+                  imageUrl={item.imageUrl}
+                  size="small"
+                />
                 <div className="min-w-0">
                   <p className="truncate text-xs font-semibold text-[#665d3e]">{item.name}</p>
                   <p className="mt-1 text-[10px] text-[#8a785d]">可拖进自由据点</p>

@@ -18,7 +18,7 @@ object UsageMeterChecks extends IOApp.Simple:
   private val off=Instant.parse("2026-10-25T02:00:00Z").toEpochMilli
   private val high=Instant.parse("2026-10-26T02:00:00Z").toEpochMilli
   private val user=UserId("meter-fixture-user")
-  private def job(i: Int) = GenerationJob(JobId("meter-job-"+i),user,JobStatus.pending,"整理书桌",None,20,"","",None,None,off)
+  private def job(i: Int) = GenerationJob(JobId("meter-job-"+i),user,JobStatus.pending,"整理书桌",None,Some(20),"","",None,None,off)
   private val fixture=Json.obj("usage"->Json.obj("prompt_tokens"->Json.fromLong(1000),"completion_tokens"->Json.fromLong(200),"prompt_tokens_details"->Json.obj("cached_tokens"->Json.fromLong(800))))
   def run: IO[Unit] = (for
     _ <- check(UsagePricing.estimate(TokenReading(1000,200,0),off,off)==BigDecimal("0.0018"),"off-peak input/output pricing")

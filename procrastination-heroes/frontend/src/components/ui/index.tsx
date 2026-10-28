@@ -1,7 +1,7 @@
 import { RewardIllustration } from './RewardIllustration'
 import { FurnitureIllustration } from './FurnitureIllustration'
 import { createPortal } from 'react-dom'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ArrowUpRight,
   BookOpen,
@@ -274,17 +274,29 @@ export function Emblem({
   palette = 'sage',
   size = 'normal',
   itemId,
+  imageUrl,
 }: {
   symbol?: string
   palette?: string
   size?: 'normal' | 'large' | 'small'
   itemId?: string
+  imageUrl?: string | null
 }) {
+  const [imageFailed, setImageFailed] = useState(false)
+  useEffect(() => setImageFailed(false), [imageUrl])
   return (
     <div
       className={`relative grid shrink-0 place-items-center ${size === 'large' ? 'size-32' : size === 'small' ? 'size-11' : 'size-20'}`}
     >
-      {itemId ? (
+      {imageUrl && !imageFailed ? (
+        <img
+          src={imageUrl}
+          alt=""
+          className="h-full w-full rounded-lg object-contain drop-shadow-[2px_4px_0_#33282025]"
+          loading="lazy"
+          onError={() => setImageFailed(true)}
+        />
+      ) : itemId ? (
         <FurnitureIllustration itemId={itemId} />
       ) : (
         <RewardIllustration symbol={symbol} palette={palette} compact={size === 'small'} />

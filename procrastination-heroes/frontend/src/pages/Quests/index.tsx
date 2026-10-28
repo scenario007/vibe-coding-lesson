@@ -181,7 +181,11 @@ export default function Quests() {
               >
                 <Card className="h-full transition group-hover:-translate-y-1 group-hover:border-[#8a785d] group-hover:shadow-md">
                   <div className="flex items-start justify-between">
-                    <Emblem symbol={reward.symbol} palette={reward.palette} />
+                    <Emblem
+                      symbol={reward.symbol}
+                      palette={reward.palette}
+                      imageUrl={reward.imageUrl}
+                    />
                     <span
                       className={
                         quest.status === 'completed'

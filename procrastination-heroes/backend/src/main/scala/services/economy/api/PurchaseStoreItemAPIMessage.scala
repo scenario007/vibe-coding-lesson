@@ -18,6 +18,7 @@ final case class PurchaseStoreItemAPIMessage(userId: UserId, itemId: String) ext
       wallet <- WalletTable.lock(connection,userId).flatMap(v=>IO.fromOption(v)(AppError(500,"钱包尚未初始化")))
       owned <- PlayerItemTable.list(connection,userId)
       item <- StoreItemTable.find(connection,itemId).flatMap(v=>IO.fromOption(v)(AppError(404,"商品不存在")))
+      _ <- if itemId.startsWith("custom-") && !owned.exists(_.itemId==itemId) then IO.raiseError(AppError(403,"定制家具只属于创建它的勇者")) else IO.unit
       _ <- if owned.exists(_.itemId==itemId) then IO.unit else
         for
           _ <- if wallet.coins>=item.price then IO.unit else IO.raiseError(AppError(409,s"还差 ${item.price-wallet.coins} 冒险币，完成一小步再回来吧"))

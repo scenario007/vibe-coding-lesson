@@ -57,6 +57,7 @@ export function useQuestEditor(initial: QuestDetail | null, onSaved: (q: QuestDe
           story: initial.reward.story,
           symbol: initial.reward.symbol,
           palette: initial.reward.palette,
+          imageUrl: initial.reward.imageUrl,
         }
       : {
           name: '这一小步，算数',
@@ -95,7 +96,7 @@ export function useQuestEditor(initial: QuestDetail | null, onSaved: (q: QuestDe
       setNotice('固定模式使用协会预制奖品，不需要重复生成。')
       return
     }
-    setBusy(rewardOnly ? '正在设计专属奖励…' : 'AI 正在把目标拆成小步骤…')
+    setBusy(rewardOnly ? '正在设计专属奖励和图片…' : 'AI 正在规划步骤并绘制专属奖励…')
     setError('')
     setNotice('')
     try {
@@ -108,8 +109,9 @@ export function useQuestEditor(initial: QuestDetail | null, onSaved: (q: QuestDe
           (rewardOnly ? '保留目标，为它重新设计一份纪念奖励。 ' : '') +
           feedback,
         crypto.randomUUID(),
+        !fixedMode,
       ).send()
-      for (let i = 0; i < 120; i++) {
+      for (let i = 0; i < 270; i++) {
         if (!alive.current) return
         await new Promise((r) => setTimeout(r, 1000))
         const current = await new GetGenerationJobAPI(job.id).send()
@@ -123,18 +125,20 @@ export function useQuestEditor(initial: QuestDetail | null, onSaved: (q: QuestDe
             setDescription(plan.summary)
             setCategory(plan.category)
             setStages(plan.stages)
-            setJobId(job.id)
           }
+          setJobId(job.id)
           setReward(fixedMode ? fixedModes[fixedMode].reward : plan.reward)
           setNotice(
-            rewardOnly
-              ? '新的奖励设计已准备好，可以继续修改。'
-              : '计划已生成。看看步骤是否合适，再确认开始冒险。',
+            fixedMode
+              ? '计划已生成，固定模式使用协会预制奖品。'
+              : plan.reward.imageUrl
+                ? '计划和专属奖励图片已生成，可以继续修改。'
+                : '计划与奖励文案已生成；图片服务未配置或暂时不可用，当前显示公会手绘部件。',
           )
           return
         }
       }
-      throw new Error('这次等待稍久，你的输入已保留，可以稍后重试。')
+      throw new Error('这次生成仍在处理中。请稍后使用“找回上次草案”查看结果，避免重复生图。')
     } catch (e) {
       if (alive.current) setError(e instanceof Error ? e.message : '生成失败')
     } finally {
@@ -186,6 +190,7 @@ export function useQuestEditor(initial: QuestDetail | null, onSaved: (q: QuestDe
             tier,
             stages,
             reward,
+            jobId,
           ).send()
         : await new CreateQuestDraftAPI(
             title,
@@ -227,7 +232,10 @@ export function useQuestEditor(initial: QuestDetail | null, onSaved: (q: QuestDe
       if (mode) setReward(fixedModes[mode].reward)
     },
     tier,
-    setTier,
+    setTier: (value: RewardTier) => {
+      setTier(value)
+      setReward((current) => ({ ...current, imageUrl: null }))
+    },
     stages,
     setStages,
     reward,

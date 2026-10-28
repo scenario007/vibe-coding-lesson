@@ -1,4 +1,5 @@
 import type { RewardDraft } from '@/objects/economy/RewardDraft'
+import type { JobId } from '@/objects/ai/JobId'
 import type { QuestDetail } from '@/objects/quests/apiTypes/QuestDetail'
 import type { QuestCategory } from '@/objects/quests/QuestCategory'
 import type { QuestId } from '@/objects/quests/QuestId'
@@ -15,6 +16,7 @@ export class SaveQuestDraftAPI extends APIMessage<QuestDetail> {
   readonly tier: RewardTier
   readonly stages: StageDraft[]
   readonly reward: RewardDraft
+  readonly jobId: JobId | null
   constructor(
     questId: QuestId,
     version: number,
@@ -25,6 +27,7 @@ export class SaveQuestDraftAPI extends APIMessage<QuestDetail> {
     tier: RewardTier,
     stages: StageDraft[],
     reward: RewardDraft,
+    jobId: JobId | null,
   ) {
     super()
     this.questId = questId
@@ -36,5 +39,6 @@ export class SaveQuestDraftAPI extends APIMessage<QuestDetail> {
     this.tier = tier
     this.stages = stages
     this.reward = reward
+    this.jobId = jobId
   }
 }

@@ -19,7 +19,7 @@ final case class PlaceItemAPIMessage(userId: UserId, slot: String, itemId: Optio
       _ <- WalletTable.lock(connection,userId)
       _ <- if slot.trim.nonEmpty && !(itemId.nonEmpty && rewardId.nonEmpty) then IO.unit else IO.raiseError(AppError(400,"请选择一件要放进据点的素材"))
       owned <- PlayerItemTable.list(connection,userId)
-      items <- StoreItemTable.list(connection)
+      items <- StoreItemTable.list(connection,userId)
       rewards <- TaskRewardTable.list(connection,userId)
       validItem = itemId.exists(id=>owned.exists(o=>o.id==id && items.exists(_.id==o.itemId)))
       validReward = rewardId.exists(id=>rewards.exists(_.id==id))

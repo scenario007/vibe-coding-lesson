@@ -11,7 +11,12 @@ export function QuestPreview({ detail }: { detail: QuestDetail }) {
       to={`/quests/${quest.id}`}
       className="group flex items-center gap-4 rounded-xl border border-[#eadcc1] bg-[#fff8e7] p-4 transition hover:border-[#8a785d] hover:bg-[#fff8e7]"
     >
-      <Emblem size="small" symbol={reward.symbol} palette={reward.palette} />
+      <Emblem
+        size="small"
+        symbol={reward.symbol}
+        palette={reward.palette}
+        imageUrl={reward.imageUrl}
+      />
       <div className="min-w-0 flex-1">
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <h3 className="truncate text-sm font-medium text-[#665d3e]">{quest.title}</h3>

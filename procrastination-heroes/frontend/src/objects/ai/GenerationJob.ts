@@ -14,4 +14,5 @@ export interface GenerationJob {
   result: PlanDraft | null
   error: string | null
   createdAt: number
+  generateRewardImage: boolean
 }

@@ -63,10 +63,19 @@ export function useBaseInventory() {
     setBusy(true)
     setError('')
     try {
+      const previous = new Set(
+        resource.state.status === 'ready' ? resource.state.data.owned.map((item) => item.id) : [],
+      )
       const data = await new CreateCustomFurnitureAPI(prompt, slot).send()
+      const created = data.owned.find((item) => !previous.has(item.id))
+      const imageUrl = data.items.find((item) => item.id === created?.itemId)?.imageUrl
       resource.setState({ status: 'ready', data })
       setProgress(data.progress)
-      setNotice('定制家具已生成并放进素材库，去据点自由摆放吧。')
+      setNotice(
+        imageUrl
+          ? 'AI 家具图片已生成并放进素材库，去据点自由摆放吧。'
+          : '家具已放进素材库；图片服务未配置或暂时不可用，当前显示公会手绘部件。',
+      )
       touchPlayer()
       return true
     } catch (e) {

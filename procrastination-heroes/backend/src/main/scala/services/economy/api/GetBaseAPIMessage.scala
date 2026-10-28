@@ -14,7 +14,7 @@ import services.economy.tables.roomPlacement.RoomPlacementTable
 final case class GetBaseAPIMessage(userId: UserId) extends APIWithTokenMessage[BaseResponse]:
   override def plan(connection: Connection): IO[BaseResponse] =
     for
-      items <- StoreItemTable.list(connection)
+      items <- StoreItemTable.list(connection,userId)
       owned <- PlayerItemTable.list(connection,userId)
       rewards <- TaskRewardTable.list(connection,userId)
       placements <- RoomPlacementTable.list(connection,userId)

@@ -118,6 +118,7 @@ export function RoomScene({
                 itemId={item?.id}
                 symbol={item?.symbol || reward?.design.symbol}
                 palette={item?.palette || reward?.design.palette}
+                imageUrl={item?.imageUrl || reward?.design.imageUrl}
               />
             </span>
             <span className="mt-1 max-w-32 rounded-sm border border-[#b8a17a]/70 bg-[#fff8e7]/95 px-2 py-0.5 text-center text-[10px] leading-4 text-[#62503c]">

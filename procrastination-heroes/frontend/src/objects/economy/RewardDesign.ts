@@ -8,4 +8,5 @@ export interface RewardDesign {
   story: string
   symbol: RewardSymbol
   palette: RewardPalette
+  imageUrl: string | null
 }

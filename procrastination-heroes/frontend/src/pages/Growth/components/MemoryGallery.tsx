@@ -17,7 +17,11 @@ export function MemoryGallery({ data }: { data: DashboardResponse }) {
           {data.rewards.map((reward) => (
             <div key={reward.id} className="rounded-xl border border-[#cabb9e] bg-[#fff8e7] p-5">
               <div className="mb-4 flex justify-center">
-                <Emblem symbol={reward.design.symbol} palette={reward.design.palette} />
+                <Emblem
+                  symbol={reward.design.symbol}
+                  palette={reward.design.palette}
+                  imageUrl={reward.design.imageUrl}
+                />
               </div>
               <h3 className="text-center text-sm font-semibold text-[#716449]">
                 {reward.design.name}
@@ -26,7 +30,8 @@ export function MemoryGallery({ data }: { data: DashboardResponse }) {
                 {reward.design.story}
               </p>
               <p className="my-3 text-center text-[9px] text-[#8a785d]">
-                {new Date(reward.unlockedAt).toLocaleDateString('zh-CN')} 解锁 · 公会手绘部件
+                {new Date(reward.unlockedAt).toLocaleDateString('zh-CN')} 解锁 ·{' '}
+                {reward.design.imageUrl ? 'AI 生图素材' : '公会手绘部件'}
               </p>
               <Link
                 to={`/quests/${reward.questId}`}

@@ -10,3 +10,4 @@ target/
 .DS_Store
 *.tsbuildinfo
 __pycache__/
+frontend/public/generated/

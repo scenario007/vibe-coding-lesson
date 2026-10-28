@@ -9,4 +9,5 @@ export interface StoreItem {
   slot: RoomSlot
   symbol: RewardSymbol
   palette: RewardPalette
+  imageUrl: string | null
 }

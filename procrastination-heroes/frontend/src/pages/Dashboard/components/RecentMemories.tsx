@@ -15,7 +15,12 @@ export function RecentMemories({ data }: { data: DashboardResponse }) {
           {data.rewards.slice(0, 3).map((r) => (
             <Link to="/growth" key={r.id} className="min-w-0 flex-1 text-center">
               <div className="flex justify-center">
-                <Emblem symbol={r.design.symbol} palette={r.design.palette} size="small" />
+                <Emblem
+                  symbol={r.design.symbol}
+                  palette={r.design.palette}
+                  imageUrl={r.design.imageUrl}
+                  size="small"
+                />
               </div>
               <p className="mt-2 truncate text-[9px] text-[#716449]">{r.design.name}</p>
             </Link>

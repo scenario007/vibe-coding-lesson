@@ -1,10 +1,13 @@
 import { Card, Emblem, Pill } from '@/components/ui'
 import type { TaskReward } from '@/objects/economy/TaskReward'
 
+const fixedRewards = new Set(['book:作业书本', 'dumbbell:坚持哑铃', 'microscope:好奇心显微镜'])
+
 export function RewardBoard({ rewards }: { rewards: TaskReward[] }) {
   const groups = Array.from(
     rewards.reduce((map, reward) => {
-      const key = `${reward.design.symbol}:${reward.design.name}`
+      const fixedKey = `${reward.design.symbol}:${reward.design.name}`
+      const key = fixedRewards.has(fixedKey) ? fixedKey : reward.id
       const current = map.get(key)
       map.set(key, { reward: current?.reward || reward, count: (current?.count || 0) + 1 })
       return map
@@ -26,13 +29,16 @@ export function RewardBoard({ rewards }: { rewards: TaskReward[] }) {
               key={reward.id}
               className="relative rounded-xl border border-[#b8a17a] bg-[#fff8e7] p-4 text-center"
             >
-              <span className="absolute right-2 top-2 rounded-full bg-[#a94732] px-2 py-1 text-[10px] font-bold text-white">
-                x{count}
-              </span>
+              {count > 1 && (
+                <span className="absolute right-2 top-2 rounded-full bg-[#a94732] px-2 py-1 text-[10px] font-bold text-white">
+                  x{count}
+                </span>
+              )}
               <div className="mb-2 flex justify-center">
                 <Emblem
                   symbol={reward.design.symbol}
                   palette={reward.design.palette}
+                  imageUrl={reward.design.imageUrl}
                   size="normal"
                 />
               </div>

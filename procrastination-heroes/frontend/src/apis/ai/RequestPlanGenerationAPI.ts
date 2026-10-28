@@ -7,6 +7,7 @@ export class RequestPlanGenerationAPI extends APIMessage<GenerationJob> {
   readonly preference: string
   readonly feedback: string
   readonly requestKey: string
+  readonly generateRewardImage: boolean
   constructor(
     goal: string,
     dueDate: string | null,
@@ -14,6 +15,7 @@ export class RequestPlanGenerationAPI extends APIMessage<GenerationJob> {
     preference: string,
     feedback: string,
     requestKey: string,
+    generateRewardImage: boolean,
   ) {
     super()
     this.goal = goal
@@ -22,5 +24,6 @@ export class RequestPlanGenerationAPI extends APIMessage<GenerationJob> {
     this.preference = preference
     this.feedback = feedback
     this.requestKey = requestKey
+    this.generateRewardImage = generateRewardImage
   }
 }

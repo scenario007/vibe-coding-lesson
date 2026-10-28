@@ -1,4 +1,4 @@
-# 拖延勇者协会 · v0.2.0
+# 拖延勇者协会 · v0.2.1
 
 一间不招天才、能开工就行的废柴勇者公会。AI 把目标拆成小委托，你完成现实里的步骤，用战利品和冒险币建设自己的据点。
 
@@ -8,6 +8,7 @@
 - TokenHub 用量账本每 5 秒刷新，区分估算与预留，项目级 10 元上限、并发锁、超时保留预留。
 - 10 种页面：登录注册、协会大厅、任务大厅、任务工作台、专注营地、冒险地图、我的据点、补给商店、成长档案、勇者资料。
 - 真实 TokenHub 后台任务生成，计划与奖励均可编辑，确认后才建立/开始任务；可找回最近的 AI 草案。
+- 任务奖励和补给铺家具支持后端调用阿里云百炼 `wan2.7-image`：统一使用 1K 正方形、公会手账＋废柴勇者风格提示词，并把返回的临时图片下载到本地素材目录；未配置图片 Key 时自动回退到原创 SVG。
 - 任务前置阶段、不可重复领取、每日奖励上限、归档恢复、复盘与重新安排日期。
 - 服务端专注计时、暂停继续、刷新恢复和历史记录。
 - 固定地图、12 件商店物品、6 个房间槽位、任务纪念物解锁与持久保存。
@@ -44,10 +45,13 @@ python3 scripts/dev.py stop
 
 1. 复制 `.env.example` 为 `.env.local`。
 2. 将 `TOKENHUB_CONFIG_FILE` 指向老师发的本地 JSON 凭证文件，读取字段为 `api_key`。也可以只在后端环境设置 `TOKENHUB_API_KEY`。不要把密钥放进前端 `VITE_` 变量。
-3. 在 `frontend` 目录运行 `npm ci --legacy-peer-deps`。
-4. 回到项目目录，执行 `python3 scripts/dev.py start`。
+3. 若要启用奖励和家具生图，双击 `ConfigureAliyun.command`，在隐藏输入中粘贴**重新生成的**阿里云百炼 Key。也可以手动将新 Key 写入 `.env.local` 的 `ALIYUN_DASHSCOPE_API_KEY`。不要使用聊天中暴露的旧 Key，也不要放进 `VITE_` 变量。默认模型为 `wan2.7-image`，画幅为 `1K`；`ALIYUN_DASHSCOPE_BASE_URL` 可按 Key 所属地域调整。
+4. 在 `frontend` 目录运行 `npm ci --legacy-peer-deps`。
+5. 回到项目目录，执行 `python3 scripts/dev.py start`。
 
 若默认包源较慢，可仅本次安装指定 `--registry=https://registry.npmmirror.com`。不要把 `.env.local`、数据库或密钥文件打进提交包。
+
+阿里云图片调用的额度和费用不在现有 TokenHub 账本及其 10 元预算锁内。请在阿里云百炼控制台查看剩余额度并开启“免费额度用完即停”，以免免费额度耗尽后产生未预期费用。
 
 ## 自己运行与检查
 
@@ -65,6 +69,10 @@ python3 scripts/integration_test.py
 
 # 生产构建后的前后端 API 名称一致性
 node scripts/check_api_names.mjs
+
+# 阿里云图片适配器和奖励/家具完整流程（使用本地模拟服务，不产生模型费用）
+python3 scripts/aliyun_image_mock_test.py
+python3 scripts/aliyun_workflow_mock_test.py
 
 # 计费规则、隔离数据库中的真实并发预算保护（不调用模型）
 python3 scripts/usage_meter_test.py

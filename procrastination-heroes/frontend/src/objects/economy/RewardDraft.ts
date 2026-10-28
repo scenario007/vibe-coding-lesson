@@ -5,4 +5,5 @@ export interface RewardDraft {
   story: string
   symbol: RewardSymbol
   palette: RewardPalette
+  imageUrl?: string | null
 }

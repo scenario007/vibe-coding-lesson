@@ -254,12 +254,17 @@ export function QuestAdventure({
             {quest.completedAt ? <Trophy className="size-4" /> : <LockKeyhole className="size-4" />}
           </div>
           <div className={`my-7 flex justify-center ${quest.completedAt ? '' : 'opacity-65'}`}>
-            <Emblem symbol={reward.symbol} palette={reward.palette} size="large" />
+            <Emblem
+              symbol={reward.symbol}
+              palette={reward.palette}
+              imageUrl={reward.imageUrl}
+              size="large"
+            />
           </div>
           <h3 className="text-center font-serif text-xl font-bold text-[#665d3e]">{reward.name}</h3>
           <p className="mt-3 text-center text-xs leading-7 text-[#716449]">{reward.story}</p>
           <p className="mt-4 text-center text-[9px] text-[#8a785d]">
-            任务定制 · 公会手绘部件 ·{' '}
+            任务定制 · {reward.imageUrl ? 'AI 生图素材' : '公会手绘部件'} ·{' '}
             {quest.completedAt ? '已收入你的纪念图鉴' : '完成全部阶段后解锁'}
           </p>
           {quest.completedAt && (

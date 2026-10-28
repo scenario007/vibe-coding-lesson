@@ -14,7 +14,7 @@ import services.economy.tables.wallet.WalletTable
 import services.ai.tables.generationJob.GenerationJobTable
 
 
-final case class RequestPlanGenerationAPIMessage(userId: UserId, goal: String, dueDate: Option[String], dailyMinutes: Option[Int], preference: String, feedback: String, requestKey: String) extends APIWithTokenMessage[GenerationJob]:
+final case class RequestPlanGenerationAPIMessage(userId: UserId, goal: String, dueDate: Option[String], dailyMinutes: Option[Int], preference: String, feedback: String, requestKey: String, generateRewardImage: Option[Boolean]) extends APIWithTokenMessage[GenerationJob]:
   override def plan(connection: Connection): IO[GenerationJob] =
     for
       _ <- WalletTable.lock(connection,userId)
@@ -28,7 +28,7 @@ final case class RequestPlanGenerationAPIMessage(userId: UserId, goal: String, d
             count <- GenerationJobTable.dailyCount(connection,userId,Instant.ofEpochMilli(now).atZone(ZoneId.of("Asia/Shanghai")).toLocalDate.atStartOfDay(ZoneId.of("Asia/Shanghai")).toInstant.toEpochMilli)
             _ <- if count.headOption.getOrElse(0)<20 then IO.unit else IO.raiseError(AppError(429,"今天已生成 20 次，先推进已有计划，明天再来吧"))
             id <- IO(UUID.randomUUID().toString).map(JobId(_))
-            job = GenerationJob(id,userId,JobStatus.pending,goal.trim,dueDate,dailyMinutes,preference,feedback,None,None,now)
+            job = GenerationJob(id,userId,JobStatus.pending,goal.trim,dueDate,dailyMinutes,preference,feedback,None,None,now,generateRewardImage.getOrElse(true))
             _ <- GenerationJobTable.insert(connection,job,requestKey)
           yield job
     yield result

@@ -34,7 +34,13 @@ export function DecorationInventory({
               onClick={() => void b.place(crypto.randomUUID(), owned.id, null)}
               className="flex w-full items-center gap-3 rounded-xl border border-[#eadcc1] bg-[#fff8e7] p-3 text-left hover:bg-[#eadcc1]"
             >
-              <Emblem itemId={item.id} symbol={item.symbol} palette={item.palette} size="small" />
+              <Emblem
+                itemId={item.id}
+                symbol={item.symbol}
+                palette={item.palette}
+                imageUrl={item.imageUrl}
+                size="small"
+              />
               <span className="flex-1 text-xs text-[#716449]">{item.name}</span>
               {selected ? (
                 <Check className="size-4 text-[#716449]" />
@@ -53,7 +59,12 @@ export function DecorationInventory({
               onClick={() => void b.place(crypto.randomUUID(), null, reward.id)}
               className="flex w-full items-center gap-3 rounded-xl border border-[#eadcc1] bg-[#fff8e7] p-3 text-left hover:bg-[#eadcc1]"
             >
-              <Emblem symbol={reward.design.symbol} palette={reward.design.palette} size="small" />
+              <Emblem
+                symbol={reward.design.symbol}
+                palette={reward.design.palette}
+                imageUrl={reward.design.imageUrl}
+                size="small"
+              />
               <span className="flex-1">
                 <span className="block text-xs text-[#716449]">{reward.design.name}</span>
                 <span className="mt-1 block text-[9px] text-[#8a785d]">任务专属奖品</span>

@@ -313,23 +313,30 @@ export function QuestEditor({
             <Pill tone="gold">完成后解锁</Pill>
           </div>
           <div className="my-7 flex justify-center">
-            <Emblem size="large" symbol={f.reward.symbol} palette={f.reward.palette} />
+            <Emblem
+              size="large"
+              symbol={f.reward.symbol}
+              palette={f.reward.palette}
+              imageUrl={f.reward.imageUrl}
+            />
           </div>
           <p className="mb-4 text-center text-[9px] tracking-widest text-[#716449]">
-            任务定制 · 公会手绘部件
+            任务定制 · {f.reward.imageUrl ? 'AI 生图素材' : '公会手绘部件'}
           </p>
           <fieldset disabled={disabled} className="space-y-4">
             <Field
               label="纪念物名称"
               value={f.reward.name}
-              onChange={(e) => f.setReward({ ...f.reward, name: e.target.value })}
+              onChange={(e) => f.setReward({ ...f.reward, name: e.target.value, imageUrl: null })}
               maxLength={60}
             />
             <label className="grid gap-2 text-xs text-[#716449]">
               它想对你说
               <textarea
                 value={f.reward.story}
-                onChange={(e) => f.setReward({ ...f.reward, story: e.target.value })}
+                onChange={(e) =>
+                  f.setReward({ ...f.reward, story: e.target.value, imageUrl: null })
+                }
                 maxLength={500}
                 className={inputClass + ' min-h-24 bg-white/70 text-xs'}
               />

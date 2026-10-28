@@ -14,9 +14,9 @@ export const statuses: Record<QuestStatus, string> = {
   archived: '已归档',
 }
 export const tiers: Record<RewardTier, { label: string; coins: number }> = {
-  small: { label: '小步任务', coins: 10 },
-  normal: { label: '普通任务', coins: 20 },
-  main: { label: '主线任务', coins: 30 },
+  daily: { label: '日常任务', coins: 10 },
+  challenge: { label: '挑战任务', coins: 20 },
+  long_term: { label: '长期任务', coins: 30 },
 }
 export function dateLabel(date: string | null) {
   if (!date) return '自由安排'

@@ -35,7 +35,7 @@ export default function Base() {
         <div>
           <RoomScene data={data} slot={slot} setSlot={setSlot} />
           <p className="mt-3 text-[10px] leading-6 text-[#8a785d]">
-            点击小屋中的位置，再从背包选择装饰。纪念画可以放在墙面，固定槽位布局会自动保存。
+            把收藏拖到你喜欢的位置。这里没有固定点位，家具、纪念物和新生成的素材都可以自由安排。
           </p>
           {b.notice && (
             <p role="status" className="mt-3 rounded-xl bg-[#eadcc1] p-3 text-xs text-[#716449]">

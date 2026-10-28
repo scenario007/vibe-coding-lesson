@@ -22,7 +22,7 @@ object GenerationJobTable:
 
   private val insertSql = """INSERT INTO ai_generation_jobs VALUES(?,?,?,?,?,?,?,?,?,?,?,?)"""
   def insert(connection: Connection, v: GenerationJob, key: String): IO[Int] =
-    Jdbc.update(connection,insertSql,List(v.id.value,v.userId.value,v.status.toString,v.goal,v.dueDate.orNull,v.dailyMinutes,v.preference,v.feedback,v.result.map(_.asJson.noSpaces).orNull,v.error.orNull,v.createdAt,key))
+    Jdbc.update(connection,insertSql,List(v.id.value,v.userId.value,v.status.toString,v.goal,v.dueDate.orNull,v.dailyMinutes.map(Int.box).orNull,v.preference,v.feedback,v.result.map(_.asJson.noSpaces).orNull,v.error.orNull,v.createdAt,key))
 
   private val claimNextSql = """UPDATE ai_generation_jobs SET status='running' WHERE id=(SELECT id FROM ai_generation_jobs WHERE status='pending' ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING *"""
   def claimNext(connection: Connection): IO[Option[GenerationJob]] =
@@ -44,4 +44,4 @@ object GenerationJobTable:
   def listForUser(connection: Connection, userId: UserId): IO[List[GenerationJob]] =
     Jdbc.query(connection,listForUserSql,List(userId.value))(read)
 
-  private def read(r: ResultSet): GenerationJob = GenerationJob(JobId(r.getString("id")),UserId(r.getString("user_id")),JobStatus.fromString(r.getString("status")).toOption.get,r.getString("goal"),Option(r.getString("due_date")),r.getInt("daily_minutes"),r.getString("preference"),r.getString("feedback"),Option(r.getString("result")).flatMap(s => decode[PlanDraft](s).toOption),Option(r.getString("error")),r.getLong("created_at"))
+  private def read(r: ResultSet): GenerationJob = GenerationJob(JobId(r.getString("id")),UserId(r.getString("user_id")),JobStatus.fromString(r.getString("status")).toOption.get,r.getString("goal"),Option(r.getString("due_date")),Option(r.getObject("daily_minutes")).map(_.asInstanceOf[Number].intValue()),r.getString("preference"),r.getString("feedback"),Option(r.getString("result")).flatMap(s => decode[PlanDraft](s).toOption),Option(r.getString("error")),r.getLong("created_at"))

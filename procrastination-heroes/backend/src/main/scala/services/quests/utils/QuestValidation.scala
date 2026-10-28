@@ -11,6 +11,6 @@ private[quests] object QuestValidation:
     }
     if valid then IO.unit else IO.raiseError(AppError(400,"请检查标题、日期与 1–5 个步骤；前置步骤必须排在当前步骤之前"))
   private[quests] def coinBudget(tier: RewardTier): Int = tier match
-    case RewardTier.small => 10
-    case RewardTier.normal => 20
-    case RewardTier.main => 30
+    case RewardTier.daily => 10
+    case RewardTier.challenge => 20
+    case RewardTier.longTerm => 30

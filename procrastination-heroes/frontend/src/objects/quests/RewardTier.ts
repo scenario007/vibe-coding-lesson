@@ -1,1 +1,1 @@
-export type RewardTier = 'small' | 'normal' | 'main'
+export type RewardTier = 'daily' | 'challenge' | 'long_term'

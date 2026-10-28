@@ -22,10 +22,10 @@ object QuestTable:
 
   private val insertSql = """INSERT INTO quests VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)"""
   def insert(connection: Connection, v: QuestRecord): IO[Int] =
-    Jdbc.update(connection,insertSql,List(v.id.value,v.userId.value,v.title,v.category.toString,v.description,v.dueDate.orNull,v.tier.toString,v.status.toString,v.archivedFrom.toString,v.version,v.reflection,v.createdAt,v.completedAt.map(Long.box).orNull))
+    Jdbc.update(connection,insertSql,List(v.id.value,v.userId.value,v.title,v.category.toString,v.description,v.dueDate.orNull,RewardTier.toString(v.tier),v.status.toString,v.archivedFrom.toString,v.version,v.reflection,v.createdAt,v.completedAt.map(Long.box).orNull))
 
   private val saveSql = """UPDATE quests SET title=?,category=?,description=?,due_date=?,tier=?,status=?,archived_from=?,version=?,reflection=?,completed_at=? WHERE id=? AND user_id=?"""
   def save(connection: Connection, v: QuestRecord): IO[Int] =
-    Jdbc.update(connection,saveSql,List(v.title,v.category.toString,v.description,v.dueDate.orNull,v.tier.toString,v.status.toString,v.archivedFrom.toString,v.version,v.reflection,v.completedAt.map(Long.box).orNull,v.id.value,v.userId.value))
+    Jdbc.update(connection,saveSql,List(v.title,v.category.toString,v.description,v.dueDate.orNull,RewardTier.toString(v.tier),v.status.toString,v.archivedFrom.toString,v.version,v.reflection,v.completedAt.map(Long.box).orNull,v.id.value,v.userId.value))
 
   private def read(r: ResultSet): QuestRecord = QuestRecord(QuestId(r.getString("id")),UserId(r.getString("user_id")),r.getString("title"),QuestCategory.fromString(r.getString("category")).toOption.get,r.getString("description"),Option(r.getString("due_date")),RewardTier.fromString(r.getString("tier")).toOption.get,QuestStatus.fromString(r.getString("status")).toOption.get,QuestStatus.fromString(r.getString("archived_from")).toOption.get,r.getInt("version"),r.getString("reflection"),r.getLong("created_at"),Option(r.getObject("completed_at")).map(_ => r.getLong("completed_at")))

@@ -17,8 +17,35 @@ export function RoomScene({
 }) {
   const background = useGuildAsset('room')
   const [failed, setFailed] = useState(false)
+  const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem('guild-base-positions') || '{}')
+    } catch {
+      return {}
+    }
+  })
+  const [dragging, setDragging] = useState<string | null>(null)
+  function move(event: React.PointerEvent<HTMLElement>) {
+    if (!dragging) return
+    const rect = event.currentTarget.getBoundingClientRect()
+    const next = {
+      x: Math.min(94, Math.max(6, ((event.clientX - rect.left) / rect.width) * 100)),
+      y: Math.min(88, Math.max(12, ((event.clientY - rect.top) / rect.height) * 100)),
+    }
+    setPositions((current) => ({ ...current, [dragging]: next }))
+  }
+  function finishDrag() {
+    if (!dragging) return
+    window.localStorage.setItem('guild-base-positions', JSON.stringify(positions))
+    setDragging(null)
+  }
   return (
-    <section className="relative aspect-[16/10] min-h-[340px] overflow-hidden rounded-[6px_18px_8px_13px] border-2 border-[#332820] bg-[#e8d6b0] shadow-[4px_5px_0_#332820]">
+    <section
+      onPointerMove={move}
+      onPointerUp={finishDrag}
+      onPointerCancel={finishDrag}
+      className="relative aspect-[16/10] min-h-[340px] overflow-hidden rounded-[6px_18px_8px_13px] border-2 border-[#332820] bg-[#e8d6b0] shadow-[4px_5px_0_#332820]"
+    >
       <svg
         viewBox="0 0 1000 625"
         preserveAspectRatio="xMidYMid slice"
@@ -67,20 +94,27 @@ export function RoomScene({
         <span className="absolute bottom-3 left-4 text-[9px] text-[#62503c]">公会原创手绘场景</span>
       )}
       <span className="absolute left-4 top-4 -rotate-2 border border-[#332820] bg-[#fff8e7]/95 px-3 py-1.5 text-[10px] font-bold tracking-wider text-[#332820] shadow-[2px_2px_0_#332820]">
-        勇者据点 · 私人领地
+        勇者据点 · 自由画布
       </span>
       {roomSlots.map((s) => {
         const p = data.placements.find((v) => v.slot === s.id)
         const owned = p?.itemId ? data.owned.find((o) => o.id === p.itemId) : null
         const item = owned ? data.items.find((v) => v.id === owned.itemId) : null
         const reward = p?.rewardId ? data.rewards.find((r) => r.id === p.rewardId) : null
+        const key = item?.id || reward?.id || s.id
+        const position = positions[key] || { x: s.x, y: s.y }
         return (
           <button
             key={s.id}
+            onPointerDown={(event) => {
+              event.preventDefault()
+              setDragging(key)
+              event.currentTarget.setPointerCapture?.(event.pointerId)
+            }}
             aria-label={`布置${s.label}`}
             aria-pressed={slot === s.id}
             onClick={() => setSlot(s.id)}
-            style={{ left: s.x + '%', top: s.y + '%' }}
+            style={{ left: position.x + '%', top: position.y + '%' }}
             className={`group absolute grid -translate-x-1/2 -translate-y-1/2 justify-items-center rounded-md p-1.5 transition ${slot === s.id ? 'outline-2 outline-offset-2 outline-dashed outline-[#a94732]' : 'hover:bg-[#fff8e7]/30'}`}
           >
             {item || reward ? (

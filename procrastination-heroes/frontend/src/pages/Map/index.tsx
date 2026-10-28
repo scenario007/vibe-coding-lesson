@@ -1,7 +1,9 @@
 import { Button, Card, Emblem, Modal, PageTitle, Pill, Progress } from '@/components/ui'
 import { usePlayer } from '@/system/stores/player'
+import type { MapMode } from '@/objects/quests/MapMode'
+import { mapModes } from '@/objects/quests/MapMode'
 import { ArrowRight, Check, LockKeyhole, MapPin } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 const regions = [
   {
@@ -55,6 +57,13 @@ export default function AdventureMap() {
   const xp = progress?.experience || 0
   const level = 1 + Math.floor(xp / 100)
   const [selected, setSelected] = useState<(typeof regions)[number] | null>(null)
+  const [mode, setMode] = useState<MapMode>(() => {
+    const saved = window.localStorage.getItem('guild-map-mode') as MapMode | null
+    return saved && saved in mapModes ? saved : 'progress'
+  })
+  useEffect(() => {
+    window.localStorage.setItem('guild-map-mode', mode)
+  }, [mode])
   const next = regions.find((r) => r.level > level)
   return (
     <>
@@ -63,63 +72,95 @@ export default function AdventureMap() {
         title="冒险地图"
         description="协会地图由勇者亲手绘制，比例随缘，进度算数。"
       />
-      <section className="relative mb-6 h-[430px] overflow-hidden rounded-3xl border border-[#cabb9e] bg-[#eadcc1] sm:h-[480px]">
-        <div className="guild-paper absolute inset-0" />
-        <span
-          aria-hidden="true"
-          className="absolute bottom-10 right-5 rotate-[-14deg] font-serif text-8xl font-black text-[#a94732]/10"
-        >
-          未探索
-        </span>
-        <div className="absolute left-6 top-6 rounded-xl border border-white/80 bg-white/70 px-4 py-3 backdrop-blur">
-          <p className="text-[9px] tracking-widest text-[#716449]">YOUR JOURNEY</p>
-          <p className="mt-1 font-serif text-lg font-bold text-[#665d3e]">
-            Lv.{level} · 已点亮 {regions.filter((r) => r.level <= level).length} 个区域
-          </p>
+      <Card className="mb-6">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold text-[#665d3e]">这场冒险要怎样陪着你？</p>
+            <p className="mt-1 text-[10px] text-[#8a785d]">{mapModes[mode].hint}</p>
+          </div>
+          <Pill>任务级可选模块</Pill>
         </div>
-        <svg
-          viewBox="0 0 1000 1000"
-          preserveAspectRatio="none"
-          className="absolute inset-0 size-full"
-          aria-hidden="true"
-        >
-          <path
-            d="M130 700 C200 650 210 350 320 350 S400 720 520 620 S600 310 720 300 S820 450 890 630"
-            fill="none"
-            stroke="#8a785d"
-            strokeWidth="5"
-            strokeDasharray="10 12"
-            opacity=".7"
-          />
-        </svg>
-        {regions.map((r) => {
-          const unlocked = level >= r.level
-          return (
+        <div className="grid gap-2 sm:grid-cols-5">
+          {Object.entries(mapModes).map(([value, item]) => (
             <button
-              key={r.name}
-              onClick={() => setSelected(r)}
-              style={{ left: r.x + '%', top: r.y + '%' }}
-              className={`absolute -translate-x-1/2 -translate-y-1/2 text-center transition hover:-translate-y-[55%] ${unlocked ? '' : 'grayscale opacity-65'}`}
+              key={value}
+              onClick={() => setMode(value as MapMode)}
+              className={`rounded-xl border px-3 py-3 text-left text-[10px] transition ${mode === value ? 'border-[#a94732] bg-[#eadcc1] text-[#665d3e]' : 'border-[#eadcc1] bg-[#fff8e7] text-[#8a785d]'}`}
             >
-              <div className="relative mx-auto mb-3 flex justify-center">
-                <Emblem symbol={r.symbol} palette={r.palette} size="normal" />
-                <span className="absolute -bottom-1 right-0 grid size-6 place-items-center rounded-full border-2 border-white bg-[#716449] text-white">
-                  {unlocked ? <Check className="size-3" /> : <LockKeyhole className="size-3" />}
-                </span>
-              </div>
-              <span className="whitespace-nowrap rounded-lg bg-[#fff8e7]/90 px-3 py-1.5 text-xs font-semibold text-[#716449]">
-                {r.name}
-              </span>
-              <span className="mt-2 block text-[9px] text-[#716449]">
-                {unlocked ? '已抵达' : `Lv.${r.level} 解锁`}
-              </span>
+              <span className="block font-semibold">{item.label}</span>
+              <span className="mt-1 block leading-4">{item.hint}</span>
             </button>
-          )
-        })}
-        <p className="absolute bottom-5 left-0 right-0 text-center text-[10px] tracking-wide text-[#716449]">
-          点击一个地点，看看它想对你说什么。
-        </p>
-      </section>
+          ))}
+        </div>
+      </Card>
+      {mode === 'off' ? (
+        <Card className="mb-6 flex items-center justify-between gap-4 bg-[#eadcc1]">
+          <p className="text-sm leading-7 text-[#716449]">
+            地图已经收进抽屉，任务和专属战利品仍然会正常推进。
+          </p>
+          <Link to="/quests">
+            <Button variant="secondary">回到委托</Button>
+          </Link>
+        </Card>
+      ) : (
+        <section className="relative mb-6 h-[430px] overflow-hidden rounded-3xl border border-[#cabb9e] bg-[#eadcc1] sm:h-[480px]">
+          <div className="guild-paper absolute inset-0" />
+          <span
+            aria-hidden="true"
+            className="absolute bottom-10 right-5 rotate-[-14deg] font-serif text-8xl font-black text-[#a94732]/10"
+          >
+            未探索
+          </span>
+          <div className="absolute left-6 top-6 rounded-xl border border-white/80 bg-white/70 px-4 py-3 backdrop-blur">
+            <p className="text-[9px] tracking-widest text-[#716449]">YOUR JOURNEY</p>
+            <p className="mt-1 font-serif text-lg font-bold text-[#665d3e]">
+              Lv.{level} · 已点亮 {regions.filter((r) => r.level <= level).length} 个区域
+            </p>
+          </div>
+          <svg
+            viewBox="0 0 1000 1000"
+            preserveAspectRatio="none"
+            className="absolute inset-0 size-full"
+            aria-hidden="true"
+          >
+            <path
+              d="M130 700 C200 650 210 350 320 350 S400 720 520 620 S600 310 720 300 S820 450 890 630"
+              fill="none"
+              stroke="#8a785d"
+              strokeWidth="5"
+              strokeDasharray="10 12"
+              opacity=".7"
+            />
+          </svg>
+          {regions.map((r) => {
+            const unlocked = level >= r.level
+            return (
+              <button
+                key={r.name}
+                onClick={() => setSelected(r)}
+                style={{ left: r.x + '%', top: r.y + '%' }}
+                className={`absolute -translate-x-1/2 -translate-y-1/2 text-center transition hover:-translate-y-[55%] ${unlocked ? '' : 'grayscale opacity-65'}`}
+              >
+                <div className="relative mx-auto mb-3 flex justify-center">
+                  <Emblem symbol={r.symbol} palette={r.palette} size="normal" />
+                  <span className="absolute -bottom-1 right-0 grid size-6 place-items-center rounded-full border-2 border-white bg-[#716449] text-white">
+                    {unlocked ? <Check className="size-3" /> : <LockKeyhole className="size-3" />}
+                  </span>
+                </div>
+                <span className="whitespace-nowrap rounded-lg bg-[#fff8e7]/90 px-3 py-1.5 text-xs font-semibold text-[#716449]">
+                  {r.name}
+                </span>
+                <span className="mt-2 block text-[9px] text-[#716449]">
+                  {unlocked ? '已抵达' : `Lv.${r.level} 解锁`}
+                </span>
+              </button>
+            )
+          })}
+          <p className="absolute bottom-5 left-0 right-0 text-center text-[10px] tracking-wide text-[#716449]">
+            点击一个地点，看看它想对你说什么。
+          </p>
+        </section>
+      )}
       <div className="grid gap-5 sm:grid-cols-2">
         <Card>
           <Pill>

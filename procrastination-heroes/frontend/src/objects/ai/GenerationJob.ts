@@ -8,7 +8,7 @@ export interface GenerationJob {
   status: JobStatus
   goal: string
   dueDate: string | null
-  dailyMinutes: number
+  dailyMinutes: number | null
   preference: string
   feedback: string
   result: PlanDraft | null

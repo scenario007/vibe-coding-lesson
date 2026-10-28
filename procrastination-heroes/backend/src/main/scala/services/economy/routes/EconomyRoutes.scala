@@ -12,6 +12,7 @@ object EconomyRoutes:
     RegisteredAPIMessage.register[GetPlayerProgressAPIMessage,PlayerProgress](true),
     RegisteredAPIMessage.register[GetBaseAPIMessage,BaseResponse](true),
     RegisteredAPIMessage.register[PurchaseStoreItemAPIMessage,BaseResponse](true),
+    RegisteredAPIMessage.register[CreateCustomFurnitureAPIMessage,BaseResponse](true),
     RegisteredAPIMessage.register[PlaceItemAPIMessage,BaseResponse](true),
     RegisteredAPIMessage.register[ListRewardHistoryAPIMessage,List[RewardEvent]](true)
   )

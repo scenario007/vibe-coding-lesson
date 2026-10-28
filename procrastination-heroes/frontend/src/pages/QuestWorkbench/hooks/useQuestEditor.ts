@@ -9,6 +9,8 @@ import type { QuestDetail } from '@/objects/quests/apiTypes/QuestDetail'
 import type { QuestCategory } from '@/objects/quests/QuestCategory'
 import type { RewardTier } from '@/objects/quests/RewardTier'
 import type { StageDraft } from '@/objects/quests/StageDraft'
+import type { MapMode } from '@/objects/quests/MapMode'
+import { mapModes } from '@/objects/quests/MapMode'
 import { touchPlayer } from '@/system/stores/player'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -33,10 +35,17 @@ export function useQuestEditor(initial: QuestDetail | null, onSaved: (q: QuestDe
   const [category, setCategory] = useState<QuestCategory>(initial?.quest.category || 'study')
   const [description, setDescription] = useState(initial?.quest.description || '')
   const [dueDate, setDueDate] = useState(initial?.quest.dueDate || '')
-  const [dailyMinutes, setDailyMinutes] = useState(30)
+  const [dailyMinutes, setDailyMinutes] = useState<number | null>(null)
   const [preference, setPreference] = useState('公会手账')
   const [feedback, setFeedback] = useState('')
-  const [tier, setTier] = useState<RewardTier>(initial?.quest.tier || 'normal')
+  const [mapMode, setMapMode] = useState<MapMode>(() => {
+    const saved = window.localStorage.getItem('guild-map-mode') as MapMode | null
+    return saved && saved in mapModes ? saved : 'progress'
+  })
+  useEffect(() => {
+    window.localStorage.setItem('guild-map-mode', mapMode)
+  }, [mapMode])
+  const [tier, setTier] = useState<RewardTier>(initial?.quest.tier || 'daily')
   const [stages, setStages] = useState<StageDraft[]>(
     initial?.steps.map((x) => ({
       title: x.title,
@@ -214,6 +223,8 @@ export function useQuestEditor(initial: QuestDetail | null, onSaved: (q: QuestDe
     setPreference,
     feedback,
     setFeedback,
+    mapMode,
+    setMapMode,
     tier,
     setTier,
     stages,

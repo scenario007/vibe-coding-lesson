@@ -6,6 +6,10 @@ import services.system.tables.Jdbc
 import services.economy.objects.*
 
 object StoreItemTable:
+  private val insertSql = """INSERT INTO store_items VALUES(?,?,?,?,?,?,?)"""
+  def insert(connection: Connection, item: StoreItem): IO[Int] =
+    Jdbc.update(connection,insertSql,List(item.id,item.name,item.description,item.price,item.slot.toString,item.symbol.toString,item.palette.toString))
+
   private val listSql = """SELECT * FROM store_items ORDER BY price,id"""
   def list(connection: Connection): IO[List[StoreItem]] =
     Jdbc.query(connection,listSql,Nil)(read)

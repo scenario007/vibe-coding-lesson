@@ -1,28 +1,55 @@
-import { Button, Card, Emblem, ErrorState, Loading, Modal, PageTitle } from '@/components/ui'
-import type { StoreItem } from '@/objects/economy/StoreItem'
+import { Button, Card, Emblem, ErrorState, Loading, PageTitle } from '@/components/ui'
+import type { RewardPalette } from '@/objects/economy/RewardPalette'
+import type { RewardSymbol } from '@/objects/economy/RewardSymbol'
+import type { RoomSlot } from '@/objects/economy/RoomSlot'
 import { useBaseInventory } from '@/pages/hooks/useBaseInventory'
-import { ArrowRight, Check, Coins, ShoppingBag } from 'lucide-react'
+import { Coins, Hammer, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+
+const slots: Array<[RoomSlot, string]> = [
+  ['desk', '工作台'],
+  ['wall', '墙面'],
+  ['floor', '地面'],
+  ['lighting', '照明'],
+  ['window', '窗边'],
+  ['chair', '座椅'],
+]
+const symbols: Array<[RewardSymbol, string]> = [
+  ['book', '书本'],
+  ['lamp', '小灯'],
+  ['leaf', '绿叶'],
+  ['star', '星星'],
+  ['cloud', '云朵'],
+  ['mountain', '山峰'],
+]
+const palettes: Array<[RewardPalette, string]> = [
+  ['sage', '灰橄榄'],
+  ['gold', '暖金'],
+  ['rose', '暗红'],
+  ['lavender', '褪紫'],
+  ['sky', '晴空蓝'],
+]
+
 export default function Shop() {
   const b = useBaseInventory()
-  const [selected, setSelected] = useState<StoreItem | null>(null)
-  const [filter, setFilter] = useState('all')
+  const [prompt, setPrompt] = useState('')
+  const [slot, setSlot] = useState<RoomSlot>('desk')
+  const [symbol, setSymbol] = useState<RewardSymbol>('book')
+  const [palette, setPalette] = useState<RewardPalette>('sage')
   if (b.state.status === 'loading') return <Loading />
   if (b.state.status === 'error') return <ErrorState message={b.state.message} retry={b.reload} />
   const data = b.state.data
+  const customItems = data.items.filter((item) => item.id.startsWith('custom-'))
   return (
     <>
       <PageTitle
-        eyebrow="CERTIFIED SECOND-HAND TREASURES"
+        eyebrow="CUSTOM SUPPLY WORKSHOP"
         title="破烂补给铺"
-        description="装备来路正不正经不重要，每一枚冒险币都是你挣的。"
+        description="这里不卖现成货。描述你想要的家具，协会按你的据点气质做一件。"
         action={
           <Link to="/base">
-            <Button variant="secondary">
-              回我的小屋
-              <ArrowRight className="size-3.5" />
-            </Button>
+            <Button variant="secondary">回我的自由据点</Button>
           </Link>
         }
       />
@@ -33,15 +60,12 @@ export default function Shop() {
           </span>
           <div>
             <p className="text-[10px] text-[#716449]">我的冒险币</p>
-            <p className="mt-1 text-xl font-semibold text-[#716449]">
-              {data.progress.coins}
-              <span className="ml-2 text-[10px] font-normal">每一枚，都来自你完成的一小步。</span>
-            </p>
+            <p className="mt-1 text-xl font-semibold text-[#716449]">{data.progress.coins}</p>
           </div>
         </div>
-        <Link to="/quests" className="text-xs text-[#716449]">
-          去完成任务赚冒险币 →
-        </Link>
+        <p className="text-[10px] leading-5 text-[#716449]">
+          每次定制消耗 5 冒险币 · 参数会保存在素材库
+        </p>
       </div>
       {b.notice && (
         <p role="status" className="mb-4 rounded-xl bg-[#eadcc1] p-3 text-xs text-[#716449]">
@@ -53,112 +77,124 @@ export default function Shop() {
           <ErrorState message={b.error} />
         </div>
       )}
-      <div className="mb-5 flex gap-2">
-        {[
-          ['all', '全部装饰'],
-          ['owned', '我的收藏'],
-          ['affordable', '现在买得起'],
-        ].map(([v, l]) => (
-          <button
-            key={v}
-            onClick={() => setFilter(v)}
-            className={`rounded-lg px-4 py-2 text-xs ${filter === v ? 'bg-[#eadcc1] text-[#716449]' : 'text-[#8a785d]'}`}
-          >
-            {l}
-          </button>
-        ))}
-      </div>
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-        {data.items
-          .filter((i) =>
-            filter === 'owned'
-              ? data.owned.some((o) => o.itemId === i.id)
-              : filter === 'affordable'
-                ? i.price <= data.progress.coins
-                : true,
-          )
-          .map((item) => {
-            const owned = data.owned.some((o) => o.itemId === item.id)
-            return (
-              <Card key={item.id}>
-                <div className="mb-5 flex h-36 items-center justify-center rounded-xl bg-[#fff8e7]">
-                  <Emblem
-                    itemId={item.id}
-                    symbol={item.symbol}
-                    palette={item.palette}
-                    size="large"
-                  />
-                </div>
-                <h2 className="text-sm font-semibold text-[#716449]">{item.name}</h2>
-                <p className="mt-2 text-[11px] leading-6 text-[#8a785d]">{item.description}</p>
-                <div className="mt-5 flex items-center justify-between">
-                  <span className="flex items-center gap-1 text-sm font-semibold text-[#716449]">
-                    <Coins className="size-3.5" />
-                    {item.price}
-                  </span>
-                  <Button
-                    className="min-h-8 px-3 py-1.5 text-[10px]"
-                    variant={owned ? 'secondary' : 'primary'}
-                    disabled={owned || b.busy}
-                    onClick={() => setSelected(item)}
-                  >
-                    {owned ? (
-                      <>
-                        <Check className="size-3" />
-                        已在背包
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingBag className="size-3" />
-                        老板，包起来
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </Card>
-            )
-          })}
-      </div>
-      {selected && (
-        <Modal title="本次交易只收冒险币" onClose={() => setSelected(null)}>
-          <div className="my-5 flex justify-center">
-            <Emblem
-              itemId={selected.id}
-              symbol={selected.symbol}
-              palette={selected.palette}
-              size="large"
-            />
+      <div className="grid items-start gap-6 xl:grid-cols-[1.25fr_.75fr]">
+        <Card>
+          <div className="mb-5 flex items-center gap-3">
+            <span className="grid size-9 place-items-center rounded-full bg-[#a94732] text-white">
+              <Hammer className="size-4" />
+            </span>
+            <div>
+              <h2 className="text-sm font-semibold text-[#665d3e]">描述一件你想要的家具</h2>
+              <p className="mt-1 text-[10px] text-[#8a785d]">比如：一张能提醒我别摸鱼的歪桌子</p>
+            </div>
           </div>
-          <h3 className="text-center text-lg font-semibold text-[#716449]">{selected.name}</h3>
-          <p className="my-3 text-center text-xs leading-7 text-[#8a785d]">
-            {selected.description}
-          </p>
-          <div className="my-5 flex justify-between rounded-xl bg-white p-4 text-xs text-[#716449]">
-            <span>购买价格</span>
-            <span>{selected.price} 冒险币</span>
+          <textarea
+            className="min-h-32 w-full rounded-xl border border-[#cabb9e] bg-[#fff8e7] p-4 text-sm leading-7 text-[#665d3e] outline-none focus:border-[#a94732]"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            maxLength={160}
+            placeholder="它长什么样？用来做什么？希望是什么感觉？"
+          />
+          <div className="mt-5 grid gap-4 sm:grid-cols-3">
+            <label className="grid gap-2 text-xs text-[#716449]">
+              放在哪里
+              <select
+                className="rounded-xl border border-[#cabb9e] bg-[#fff8e7] px-3 py-3 text-xs"
+                value={slot}
+                onChange={(e) => setSlot(e.target.value as RoomSlot)}
+              >
+                {slots.map(([v, label]) => (
+                  <option key={v} value={v}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-2 text-xs text-[#716449]">
+              轮廓
+              <select
+                className="rounded-xl border border-[#cabb9e] bg-[#fff8e7] px-3 py-3 text-xs"
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value as RewardSymbol)}
+              >
+                {symbols.map(([v, label]) => (
+                  <option key={v} value={v}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-2 text-xs text-[#716449]">
+              配色
+              <select
+                className="rounded-xl border border-[#cabb9e] bg-[#fff8e7] px-3 py-3 text-xs"
+                value={palette}
+                onChange={(e) => setPalette(e.target.value as RewardPalette)}
+              >
+                {palettes.map(([v, label]) => (
+                  <option key={v} value={v}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
-          {data.progress.coins < selected.price ? (
-            <p className="mb-4 text-center text-xs text-[#716449]">
-              还差 {selected.price - data.progress.coins} 枚冒险币，推进任务再回来吧。
-            </p>
-          ) : (
-            <p className="mb-4 text-center text-[11px] text-[#716449]">
-              购买后余额：{data.progress.coins - selected.price} 冒险币
-            </p>
-          )}
           <Button
-            className="w-full"
-            disabled={b.busy || data.progress.coins < selected.price}
+            className="mt-5 w-full"
+            disabled={b.busy || prompt.trim().length < 2 || data.progress.coins < 5}
             onClick={() =>
-              void b.purchase(selected.id).then((ok) => {
-                if (ok) setSelected(null)
+              void b.customize(prompt, slot, symbol, palette).then((ok) => {
+                if (ok) setPrompt('')
               })
             }
           >
-            {b.busy ? '正在放进背包…' : '确认购买'}
+            <Sparkles className="size-4" />
+            {b.busy ? '正在制作参数草案…' : '消耗 5 冒险币，定制我的家具'}
           </Button>
-        </Modal>
-      )}
+          <p className="mt-3 text-center text-[10px] leading-5 text-[#8a785d]">
+            首版先保存可编辑的 SVG 家具参数；后续接入课程允许的媒体接口后，再补充展示场景。
+          </p>
+        </Card>
+        <Card className="bg-[#eadcc1]">
+          <p className="text-[10px] tracking-widest text-[#8a785d]">PREVIEW</p>
+          <div className="my-7 flex justify-center">
+            <Emblem itemId="custom-preview" symbol={symbol} palette={palette} size="large" />
+          </div>
+          <h2 className="text-center font-serif text-xl font-bold text-[#665d3e]">
+            {prompt.trim() || '还没写下家具想法'}
+          </h2>
+          <p className="mt-3 text-center text-xs leading-6 text-[#716449]">
+            {slots.find(([v]) => v === slot)?.[1]} · {palettes.find(([v]) => v === palette)?.[1]} ·
+            公会手绘部件
+          </p>
+        </Card>
+      </div>
+      <Card className="mt-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-[#665d3e]">我的定制素材库</h2>
+          <span className="text-[10px] text-[#8a785d]">{customItems.length} 件</span>
+        </div>
+        {customItems.length ? (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {customItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center gap-3 rounded-xl border border-[#eadcc1] bg-[#fff8e7] p-3"
+              >
+                <Emblem itemId={item.id} symbol={item.symbol} palette={item.palette} size="small" />
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-semibold text-[#665d3e]">{item.name}</p>
+                  <p className="mt-1 text-[10px] text-[#8a785d]">可拖进自由据点</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="py-8 text-center text-xs leading-6 text-[#8a785d]">
+            还没有定制素材。先写一句需求，让据点长出一点你的性格。
+          </p>
+        )}
+      </Card>
     </>
   )
 }

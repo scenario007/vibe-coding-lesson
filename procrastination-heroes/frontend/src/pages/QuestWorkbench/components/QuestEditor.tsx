@@ -1,6 +1,8 @@
 import { Button, Card, Emblem, ErrorState, Field, Pill, inputClass } from '@/components/ui'
 import type { QuestCategory } from '@/objects/quests/QuestCategory'
 import type { RewardTier } from '@/objects/quests/RewardTier'
+import type { MapMode } from '@/objects/quests/MapMode'
+import { mapModes } from '@/objects/quests/MapMode'
 import type { QuestDetail } from '@/objects/quests/apiTypes/QuestDetail'
 import { categories, tiers } from '@/pages/objects/labels'
 import {
@@ -63,12 +65,13 @@ export function QuestEditor({
                 onChange={(e) => f.setDueDate(e.target.value)}
               />
               <Field
-                label="每天可以投入多少分钟？"
+                label="每天投入时间（可选）"
                 type="number"
                 min={5}
                 max={480}
-                value={f.dailyMinutes}
-                onChange={(e) => f.setDailyMinutes(Number(e.target.value))}
+                value={f.dailyMinutes ?? ''}
+                onChange={(e) => f.setDailyMinutes(e.target.value ? Number(e.target.value) : null)}
+                placeholder="留空，按状态灵活推进"
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -99,6 +102,31 @@ export function QuestEditor({
                   <option>像素冒险</option>
                 </select>
               </label>
+            </div>
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-medium text-[#665d3e]">冒险地图（可选）</span>
+                <span className="text-[10px] text-[#8a785d]">之后也能切换</span>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-5">
+                {Object.entries(mapModes).map(([value, item]) => (
+                  <button
+                    type="button"
+                    key={value}
+                    disabled={disabled}
+                    onClick={() => f.setMapMode(value as MapMode)}
+                    className={
+                      'rounded-xl border px-2 py-3 text-left text-[10px] ' +
+                      (f.mapMode === value
+                        ? 'border-[#a94732] bg-[#eadcc1] text-[#665d3e]'
+                        : 'border-[#eadcc1] bg-[#fff8e7] text-[#8a785d]')
+                    }
+                  >
+                    <span className="block font-semibold">{item.label}</span>
+                    <span className="mt-1 block leading-4">{item.hint}</span>
+                  </button>
+                ))}
+              </div>
             </div>
             <label className="grid gap-2 text-sm font-medium text-[#665d3e]">
               已经完成什么，或卡在哪里？
@@ -212,14 +240,10 @@ export function QuestEditor({
                       maxLength={300}
                       placeholder="例如：列出三个可行选题"
                     />
-                    <Field
-                      label="预计分钟"
-                      type="number"
-                      min={1}
-                      max={480}
-                      value={stage.minutes}
-                      onChange={(e) => f.updateStage(index, { minutes: Number(e.target.value) })}
-                    />
+                    <div className="flex items-end text-[10px] leading-5 text-[#8a785d]">
+                      阶段参考节奏：
+                      {stage.minutes <= 20 ? '轻量' : stage.minutes <= 45 ? '标准' : '深度'}
+                    </div>
                   </div>
                   <label className="mt-3 grid gap-2 text-[10px] text-[#716449]">
                     行动清单（每行一项，最多五项）
@@ -261,7 +285,7 @@ export function QuestEditor({
           </Button>
           {f.stages.length > 0 && (
             <p className="mt-3 text-[10px] text-[#716449]">
-              预计总投入 {f.stages.reduce((n, v) => n + v.minutes, 0)} 分钟 · 可以调整后再出发
+              这是一条里程碑路线，参考节奏会随你的状态调整 · 可以调整后再出发
             </p>
           )}
         </Card>
@@ -368,7 +392,7 @@ export function QuestEditor({
           </Button>
         </Card>
         <Card>
-          <h2 className="mb-4 text-xs font-semibold">选择冒险规模</h2>
+          <h2 className="mb-4 text-xs font-semibold">选择任务等级</h2>
           <div className="space-y-2">
             {Object.entries(tiers).map(([value, t]) => (
               <button
@@ -386,7 +410,7 @@ export function QuestEditor({
             ))}
           </div>
           <p className="mt-4 text-[10px] leading-6 text-[#8a785d]">
-            这是整项任务的奖励总额，拆成更多步骤也不会增加。每日最多获得 60 冒险币。
+            等级决定专属战利品的稀有度和华丽程度；每日任务轻巧，长期任务会留下更完整的收藏。
           </p>
         </Card>
         <Button

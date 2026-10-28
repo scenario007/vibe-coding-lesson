@@ -16,7 +16,11 @@ private[ai] object GenerationWorker:
             ImageAssetKind.reward,
             s"任务主题：${job.goal}。任务等级和要求：${job.feedback}。战利品名称：${reward.name}。战利品故事与外观线索：${reward.story}。根据任务和名称创造独特的物件轮廓与细节，不要默认重复锅盖盾；如果名称明确要求某种形状，就保留其形状并做出独特设计。日常任务要轻巧朴素，挑战任务要有更多装饰细节，长期任务要华丽但仍保持手绘可读性。",
             job.id.value
-          ).map(image => plan.copy(reward = reward.copy(imageUrl = image)))
+          ).attempt.flatMap {
+            case Right(image) => IO.pure(plan.copy(reward = reward.copy(imageUrl = image, imageError = None)))
+            case Left(error: AliyunImageAuthError) => IO.pure(plan.copy(reward = reward.copy(imageUrl = None, imageError = Some(error.getMessage))))
+            case Left(error) => IO.raiseError(error)
+          }
         else IO.pure(plan)
       }.attempt.flatMap {
         case Right(plan) => DatabaseSession.transaction(c=>GenerationJobTable.succeed(c,job.id,plan)).void

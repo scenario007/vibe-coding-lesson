@@ -6,4 +6,5 @@ export interface RewardDraft {
   symbol: RewardSymbol
   palette: RewardPalette
   imageUrl?: string | null
+  imageError?: string | null
 }

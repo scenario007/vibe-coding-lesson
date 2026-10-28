@@ -10,9 +10,10 @@ CONFIG = ROOT / ".env.local"
 
 def main():
     print("请先在阿里云百炼控制台禁用聊天中暴露的旧 Key，并生成新 Key。")
+    print("请在百炼 API Key 管理页面选择华北2（北京），使用普通模型 API Key。")
     key = getpass("粘贴新的阿里云百炼 API Key（输入不会显示）：").strip()
-    if not key or any(char.isspace() for char in key):
-        print("没有保存：Key 为空或包含空白字符。")
+    if not key.startswith("sk-") or any(char.isspace() for char in key) or any(mark in key for mark in ("*", "…", "•••")):
+        print("没有保存：请粘贴创建时显示的完整百炼 API Key，不要使用带星号的脱敏内容。")
         return
     lines = CONFIG.read_text().splitlines() if CONFIG.exists() else []
     names = {"ALIYUN_DASHSCOPE_API_KEY", "ALIYUN_IMAGE_GENERATION_ENABLED"}

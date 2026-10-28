@@ -11,6 +11,9 @@ import java.time.Duration
 import services.ai.objects.ImageAssetKind
 import services.system.objects.AppError
 
+private[ai] final class AliyunImageAuthError
+    extends RuntimeException("阿里云图片 Key 认证失败（HTTP 401）。请检查百炼 API Key、所属地域和接入地址，并重新配置。")
+
 /**
   * Server-side adapter for Aliyun Model Studio image generation.
   *
@@ -109,7 +112,8 @@ private[ai] object AliyunImageClient:
         .build()
       apiClient.send(request, HttpResponse.BodyHandlers.ofString())
     }.flatMap { response =>
-      parse(response.body()).flatMap(json =>
+      if response.statusCode() == 401 then IO.raiseError(AliyunImageAuthError())
+      else parse(response.body()).flatMap(json =>
         if response.statusCode() == 200 then imageUrl(json).toRight(AppError(502, "阿里云图片响应中没有图片地址"))
         else Left(AppError(502, s"阿里云图片生成失败（HTTP ${response.statusCode()}）"))
       ) match
@@ -125,6 +129,6 @@ private[ai] object AliyunImageClient:
         case None => IO.pure(None)
         case Some(apiKey) =>
           request(kind, description, assetId, apiKey).map(Some(_)).handleErrorWith { error =>
-            if required then IO.raiseError(error)
+            if required || error.isInstanceOf[AliyunImageAuthError] then IO.raiseError(error)
             else IO.println("阿里云图片生成未完成，继续使用公会手绘素材。原因：" + error.getMessage).as(None)
           }

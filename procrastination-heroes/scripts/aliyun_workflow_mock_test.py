@@ -46,9 +46,9 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/api/v1/services/aigc/multimodal-generation/generation":
             image_requests.append(body)
             prompt = body["input"]["messages"][0]["content"][0]["text"]
-            if "失败测试" in prompt:
+            if "失败测试" in prompt or "认证测试" in prompt:
                 data = b'{"message":"mock failure"}'
-                self.send_response(503)
+                self.send_response(401 if "认证测试" in prompt else 503)
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
@@ -172,7 +172,22 @@ def main():
                 assert failed_image_job["result"]["reward"]["imageUrl"] is None and len(image_requests) == 3
                 failed_draft = call(port, "CreateQuestDraftAPI", {"title": "失败测试", "category": "study", "description": "图片失败时保留手绘", "dueDate": None, "tier": "challenge", "stages": plan["stages"], "reward": failed_image_job["result"]["reward"], "jobId": failed_image_job["id"]}, token)
                 assert failed_draft["reward"]["imageUrl"] is None and len(image_requests) == 3
-                print("PASS: reward preview, persistence, private furniture, fixed mode and no automatic retry")
+
+                request.update(goal="认证测试", requestKey=str(uuid.uuid4()), generateRewardImage=True)
+                auth_job = wait_job(port, token, call(port, "RequestPlanGenerationAPI", request, token)["id"])
+                assert auth_job["result"]["reward"]["imageUrl"] is None
+                assert "认证失败" in auth_job["result"]["reward"]["imageError"] and len(image_requests) == 4
+                auth_draft = call(port, "CreateQuestDraftAPI", {"title": "认证测试", "category": "study", "description": "保留已生成的文字计划", "dueDate": None, "tier": "challenge", "stages": plan["stages"], "reward": auth_job["result"]["reward"], "jobId": auth_job["id"]}, token)
+                assert auth_draft["reward"]["imageUrl"] is None and len(image_requests) == 4
+                before = call(port, "GetPlayerProgressAPI", token=token)["coins"]
+                try:
+                    call(port, "CreateCustomFurnitureAPI", {"prompt": "认证测试家具", "slot": "desk"}, token)
+                    raise AssertionError("invalid image credentials were accepted")
+                except urllib.error.HTTPError as error:
+                    body = json.load(error)
+                    assert error.code == 502 and "认证失败" in body["message"]
+                assert call(port, "GetPlayerProgressAPI", token=token)["coins"] == before
+                print("PASS: images, private furniture, fixed mode, 401 reporting and no automatic retry")
     finally:
         if process and process.poll() is None:
             os.killpg(process.pid, signal.SIGTERM)

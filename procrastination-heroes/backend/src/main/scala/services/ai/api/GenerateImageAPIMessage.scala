@@ -3,11 +3,15 @@ package services.ai.api
 import cats.effect.IO
 import java.sql.Connection
 import services.ai.objects.ImageAssetKind
-import services.ai.utils.AliyunImageClient
+import services.ai.utils.{AliyunImageAuthError, AliyunImageClient}
 import services.system.api.APIMessage
+import services.system.objects.AppError
 
 /** Internal cross-service boundary for the optional Aliyun image generator. */
 final case class GenerateImageAPIMessage(kind: ImageAssetKind, prompt: String, assetId: String)
     extends APIMessage[Option[String]]:
   override def plan(connection: Connection): IO[Option[String]] =
-    AliyunImageClient.generate(kind, prompt, assetId)
+    AliyunImageClient.generate(kind, prompt, assetId).handleErrorWith {
+      case error: AliyunImageAuthError => IO.raiseError(AppError(502, error.getMessage))
+      case error => IO.raiseError(error)
+    }

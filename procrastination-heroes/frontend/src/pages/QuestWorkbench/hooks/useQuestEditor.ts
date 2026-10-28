@@ -131,9 +131,11 @@ export function useQuestEditor(initial: QuestDetail | null, onSaved: (q: QuestDe
           setNotice(
             fixedMode
               ? '计划已生成，固定模式使用协会预制奖品。'
-              : plan.reward.imageUrl
-                ? '计划和专属奖励图片已生成，可以继续修改。'
-                : '计划与奖励文案已生成；图片服务未配置或暂时不可用，当前显示公会手绘部件。',
+              : plan.reward.imageError
+                ? `计划和奖励文案已保留。${plan.reward.imageError}`
+                : plan.reward.imageUrl
+                  ? '计划和专属奖励图片已生成，可以继续修改。'
+                  : '计划与奖励文案已生成；图片服务未配置或暂时不可用，当前显示公会手绘部件。',
           )
           return
         }
@@ -164,7 +166,11 @@ export function useQuestEditor(initial: QuestDetail | null, onSaved: (q: QuestDe
       setDailyMinutes(job.dailyMinutes)
       setFeedback(job.feedback)
       setJobId(job.id)
-      setNotice('已找回最近一次 AI 草案。确认内容后再开始，已有正式任务不会被修改。')
+      setNotice(
+        job.result.reward.imageError
+          ? `已找回文字计划。${job.result.reward.imageError}`
+          : '已找回最近一次 AI 草案。确认内容后再开始，已有正式任务不会被修改。',
+      )
     } catch (e) {
       setError(e instanceof Error ? e.message : '读取草案未完成')
     } finally {

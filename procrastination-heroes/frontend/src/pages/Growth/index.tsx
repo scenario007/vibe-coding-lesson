@@ -3,8 +3,8 @@ import { ListRewardHistoryAPI } from '@/apis/economy/ListRewardHistoryAPI'
 import { Card, ErrorState, Loading, PageTitle } from '@/components/ui'
 import { useResource } from '@/system/hooks/useResource'
 import { usePlayer } from '@/system/stores/player'
-import { CheckCheck, ScrollText, Timer, Trophy } from 'lucide-react'
-import { RewardBoard } from './components/RewardBoard'
+import { ScrollText, Sparkles, Timer, Trophy } from 'lucide-react'
+import { MemoryGallery } from './components/MemoryGallery'
 import { Milestones } from './components/Milestones'
 import { RewardTimeline } from './components/RewardTimeline'
 import { WeeklyProgress } from './components/WeeklyProgress'
@@ -29,7 +29,7 @@ export default function Growth() {
       <div className="mb-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
         {[
           { label: '完成的冒险', value: data.completedCount, unit: '项', Icon: ScrollText },
-          { label: '完成步骤', value: events.length, unit: '步', Icon: CheckCheck },
+          { label: '累计成长', value: data.progress.experience, unit: 'XP', Icon: Sparkles },
           { label: '本周专注', value: weekMinutes, unit: '分钟', Icon: Timer },
           { label: '专属纪念物', value: data.rewards.length, unit: '件', Icon: Trophy },
         ].map(({ label, value, unit, Icon }) => (
@@ -49,7 +49,7 @@ export default function Growth() {
         <WeeklyProgress data={data} max={max} />
         <Milestones data={data} events={events} />
       </div>
-      <RewardBoard rewards={data.rewards} />
+      <MemoryGallery data={data} />
       <RewardTimeline data={data} events={events} />
     </>
   )

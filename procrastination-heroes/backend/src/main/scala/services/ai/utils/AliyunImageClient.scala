@@ -65,6 +65,8 @@ private[ai] object AliyunImageClient:
     val subject = kind match
       case ImageAssetKind.reward =>
         "一件单独展示的任务专属战利品，主体居中，完整轮廓，像一件可以钉在公会奖品展板上的收藏品"
+      case ImageAssetKind.furniture =>
+        "一件单独展示的据点家具素材，主体居中，完整轮廓，方便放入自由画布；摆放位置只由应用记录，不改变家具外形"
     val dimensions = if size.equalsIgnoreCase("2K") then "约 2048×2048 像素" else "约 1024×1024 像素"
     s"用户要求优先：$description。$subject。$style 画面为 1:1 正方形，$dimensions，主体居中并留白。背景必须是单一纯白色 #FFFFFF，不要场景、纸张纹理或地面阴影，便于抠图。禁止任何文字、字母、logo、水印、印章、箭头、边框、拼贴和额外物品。"
 

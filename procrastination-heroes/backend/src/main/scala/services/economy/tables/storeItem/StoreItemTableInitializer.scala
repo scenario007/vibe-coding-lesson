@@ -1,0 +1,24 @@
+package services.economy.tables.storeItem
+import cats.effect.IO
+import java.sql.Connection
+import services.system.tables.Jdbc
+object StoreItemTableInitializer:
+  private val initializeSql =
+    """CREATE TABLE IF NOT EXISTS store_items(id text PRIMARY KEY,name text NOT NULL,description text NOT NULL,price integer NOT NULL CHECK(price>=0),slot text NOT NULL,symbol text NOT NULL,palette text NOT NULL,image_url text);
+      |ALTER TABLE store_items ADD COLUMN IF NOT EXISTS image_url text;
+      |INSERT INTO store_items(id,name,description,price,slot,symbol,palette) VALUES
+      |('lamp','暖光小台灯','给每个努力的夜晚留一盏灯',15,'lighting','lamp','gold'),
+      |('plant','窗边小盆栽','慢慢长大，也是一种前进',10,'window','leaf','sage'),
+      |('desk','勇者书桌','从这里写下新的篇章',25,'desk','book','sage'),
+      |('rug','星星地毯','让脚下也有星光',20,'floor','star','gold'),
+      |('chair','软绵绵座椅','休息好，再继续出发',20,'chair','cloud','rose'),
+      |('painting','山间纪念画','把远方挂在眼前',20,'wall','mountain','sky'),
+      |('lamp2','月光小夜灯','不慌不忙，夜色也温柔',25,'lighting','moon','lavender'),
+      |('plant2','铃兰花瓶','为小小胜利开一朵花',20,'window','flower','rose'),
+      |('desk2','橡木工作台','每一道纹理都记得你的努力',40,'desk','book','gold'),
+      |('rug2','森林圆毯','给房间留一片森林',30,'floor','leaf','sage'),
+      |('chair2','云朵椅','轻轻坐下，脑袋放空',35,'chair','cloud','sky'),
+      |('painting2','远望灯塔画','终点会慢慢靠近',35,'wall','lamp','lavender')
+      |ON CONFLICT DO NOTHING;""".stripMargin
+
+  def initialize(connection: Connection): IO[Unit] = Jdbc.initialize(connection, initializeSql)

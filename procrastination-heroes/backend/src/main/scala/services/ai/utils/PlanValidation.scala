@@ -4,6 +4,7 @@ import services.users.objects.*
 import services.quests.objects.*
 import services.quests.objects.apiTypes.*
 import services.economy.objects.*
+import services.economy.objects.apiTypes.*
 import services.ai.objects.*
 
 private[ai] object PlanValidation:

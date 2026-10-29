@@ -4,5 +4,7 @@ export interface RewardEvent {
   id: string
   questId: QuestId
   stepId: StepId
+  coins: number
+  experience: number
   createdAt: number
 }

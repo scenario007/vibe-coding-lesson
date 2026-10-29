@@ -12,6 +12,8 @@ import java.util.UUID
 import services.system.api.APIMessage
 import services.users.tables.user.UserTable
 import services.users.tables.session.SessionTable
+import services.economy.tables.wallet.WalletTable
+import services.adventure.tables.progress.ProgressTable
 
 import services.users.utils.Passwords
 final case class RegisterUserAPIMessage(username: String, password: String, nickname: String) extends APIMessage[AuthResponse]:
@@ -27,6 +29,8 @@ final case class RegisterUserAPIMessage(username: String, password: String, nick
       now <- IO.realTime.map(_.toMillis)
       profile = UserProfile(id,clean,nickname.trim,UserAvatar.leaf,3,25,now)
       _ <- UserTable.insert(connection,StoredUser(profile,hash,salt))
+      _ <- WalletTable.initializeForUser(connection,id)
+      _ <- ProgressTable.initializeForUser(connection,id)
       token <- IO.blocking(Passwords.token())
       _ <- SessionTable.insert(connection,Passwords.tokenHash(token),id,now+7L*24*3600*1000)
     yield AuthResponse(token,profile)

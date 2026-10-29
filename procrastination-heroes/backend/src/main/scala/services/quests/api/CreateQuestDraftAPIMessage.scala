@@ -31,8 +31,9 @@ final case class CreateQuestDraftAPIMessage(userId: UserId, title: String, categ
       now <- IO.realTime.map(_.toMillis)
       quest = QuestRecord(id,userId,title.trim,category,description,dueDate,tier,QuestStatus.draft,QuestStatus.draft,1,"",now,None)
       _ <- QuestTable.insert(connection,quest)
+      budget = QuestValidation.coinBudget(tier)
       _ <- stages.zipWithIndex.traverse_ { case (s,index) =>
-        IO(UUID.randomUUID().toString).flatMap(stepId => QuestStepTable.insert(connection,QuestStep(StepId(stepId),id,index,s.title.trim,s.description,s.checklist,s.minutes,s.criterion,s.dependsOn,None)))
+        IO(UUID.randomUUID().toString).flatMap(stepId => QuestStepTable.insert(connection,QuestStep(StepId(stepId),id,index,s.title.trim,s.description,s.checklist,s.minutes,s.criterion,s.dependsOn,None,budget/stages.size+(if index==stages.size-1 then budget%stages.size else 0))))
       }
       _ <- SetQuestRewardAPIMessage(userId,id,trustedReward,jobId.isEmpty).plan(connection)
       detail <- GetQuestAPIMessage(userId,id).plan(connection)

@@ -14,7 +14,7 @@ import {
 } from '@/components/ui'
 import type { QuestDetail } from '@/objects/quests/apiTypes/QuestDetail'
 import { categories, dateLabel, statuses, tiers } from '@/pages/objects/labels'
-import { touchPlayer } from '@/system/stores/player'
+import { setProgress, touchPlayer } from '@/system/stores/player'
 import {
   Archive,
   ArrowRight,
@@ -22,6 +22,7 @@ import {
   Check,
   Circle,
   CircleCheck,
+  Coins,
   LockKeyhole,
   RotateCcw,
   Timer,
@@ -49,13 +50,15 @@ export function QuestAdventure({
     try {
       const result = await new CompleteQuestStepAPI(quest.id, id).send()
       onChanged(result.detail)
+      setProgress(result.progress)
       touchPlayer()
       setNotice(
         result.alreadyCompleted
-          ? '这一步此前已记录。'
-          : result.rewardUnlocked
-            ? '任务完成，专属纪念物已解锁！'
-            : '这一小步，算数。进展已记录。',
+          ? '这一步此前已记录，没有重复结算。'
+          : result.awardedCoins
+            ? `这一小步，算数。+${result.awardedCoins * 2} XP · +${result.awardedCoins} 冒险币${result.rewardUnlocked ? '，专属纪念物已解锁！' : ''}`
+            : '进展已记录，今日奖励额度已用完。' +
+              (result.rewardUnlocked ? '专属纪念物仍已解锁！' : ''),
       )
     } catch (e) {
       setError(e instanceof Error ? e.message : '操作未完成')
@@ -177,6 +180,10 @@ export function QuestAdventure({
                         <span className="flex items-center gap-1 text-[10px] text-[#8a785d]">
                           <Timer className="size-3" />约 {step.minutes} 分钟
                         </span>
+                        <span className="flex items-center gap-1 text-[10px] text-[#716449]">
+                          <Coins className="size-3" />
+                          {step.coins} 币 · {step.coins * 2} XP
+                        </span>
                         {!completed && quest.status === 'active' && (
                           <div className="ml-auto flex gap-2">
                             <Link to={`/focus?step=${step.id}`}>
@@ -261,9 +268,9 @@ export function QuestAdventure({
             {quest.completedAt ? '已收入你的纪念图鉴' : '完成全部阶段后解锁'}
           </p>
           {quest.completedAt && (
-            <Link to="/growth" className="mt-5 block">
+            <Link to="/base" className="mt-5 block">
               <Button className="w-full" variant="secondary">
-                查看奖品展板
+                把它放进我的小屋
                 <ArrowRight className="size-3.5" />
               </Button>
             </Link>

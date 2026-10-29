@@ -12,6 +12,7 @@ export default function Dashboard() {
   if (state.status === 'loading') return <Loading />
   if (state.status === 'error') return <ErrorState message={state.message} retry={reload} />
   const data = state.data
+  const level = 1 + Math.floor(data.progress.experience / 100)
   const active = data.quests.filter((q) => q.quest.status === 'active')
   const draft = data.quests.filter((q) => q.quest.status === 'draft')
   const now = new Date()
@@ -51,7 +52,7 @@ export default function Dashboard() {
           <DailyChallenges data={data} />
         </div>
         <div className="space-y-6">
-          <HeroProfile data={data} />
+          <HeroProfile data={data} level={level} />
           <RecentMemories data={data} />
         </div>
       </div>

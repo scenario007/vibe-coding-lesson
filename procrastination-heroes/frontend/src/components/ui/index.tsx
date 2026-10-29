@@ -1,4 +1,5 @@
 import { RewardIllustration } from './RewardIllustration'
+import { FurnitureIllustration } from './FurnitureIllustration'
 import { createPortal } from 'react-dom'
 import { useEffect, useRef, useState } from 'react'
 import {
@@ -272,11 +273,13 @@ export function Emblem({
   symbol = 'star',
   palette = 'sage',
   size = 'normal',
+  itemId,
   imageUrl,
 }: {
   symbol?: string
   palette?: string
   size?: 'normal' | 'large' | 'small'
+  itemId?: string
   imageUrl?: string | null
 }) {
   const [imageFailed, setImageFailed] = useState(false)
@@ -293,6 +296,8 @@ export function Emblem({
           loading="lazy"
           onError={() => setImageFailed(true)}
         />
+      ) : itemId ? (
+        <FurnitureIllustration itemId={itemId} />
       ) : (
         <RewardIllustration symbol={symbol} palette={palette} compact={size === 'small'} />
       )}

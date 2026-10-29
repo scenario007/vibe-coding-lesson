@@ -7,7 +7,8 @@ import services.users.objects.*
 import services.quests.objects.*
 import services.quests.objects.apiTypes.*
 import services.economy.objects.*
-import services.users.tables.user.UserTable
+import services.economy.objects.apiTypes.*
+import services.economy.tables.wallet.WalletTable
 import services.ai.objects.*
 
 import services.focus.objects.*
@@ -28,7 +29,7 @@ private[focus] object FocusTiming:
     FocusSessionTable.current(c,userId).flatMap(_.traverse(s=>if s.status==FocusStatus.running && elapsed(s,now)>=s.targetSeconds then checkpoint(c,s,now,FocusStatus.completed) else IO.pure(s)))
   private[focus] def transition(c: Connection,userId: UserId,action: String): IO[FocusResponse] =
     for
-      _ <- UserTable.lock(c,userId)
+      _ <- WalletTable.lock(c,userId)
       now <- IO.realTime.map(_.toMillis)
       existing <- current(c,userId,now)
       s <- IO.fromOption(existing)(AppError(409,"当前没有进行中的专注"))

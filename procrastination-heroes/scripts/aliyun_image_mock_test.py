@@ -64,7 +64,7 @@ def main():
                 env=env,
                 check=True,
             )
-            assert len(requests) == 1
+            assert len(requests) == 2
             for path, body in requests:
                 assert path == "/api/v1/services/aigc/multimodal-generation/generation"
                 assert body["model"] == "wan2.7-image"
@@ -72,7 +72,9 @@ def main():
                 prompt = body["input"]["messages"][0]["content"][0]["text"]
                 assert "公会手账" in prompt and "1:1" in prompt and "禁止任何文字" in prompt
             assert "稿纸剑" in requests[0][1]["input"]["messages"][0]["content"][0]["text"]
+            assert "小桌子" in requests[1][1]["input"]["messages"][0]["content"][0]["text"]
             assert (Path(directory) / "reward/mock-reward.original.png").read_bytes() == PNG
+            assert (Path(directory) / "furniture/mock-furniture.original.png").read_bytes() == PNG
             print("PASS: model, size, prompts and local persistence verified without external calls")
     finally:
         server.shutdown()

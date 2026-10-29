@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise reward generation against local fake model services."""
+"""Exercise reward and furniture generation against local fake model services."""
 import base64
 import json
 import os
@@ -167,33 +167,75 @@ def main():
                 assert draft["reward"]["imageUrl"] == reward["imageUrl"] and len(image_requests) == 1
                 call(port, "StartQuestAPI", {"questId": draft["quest"]["id"]}, token)
                 call(port, "CompleteQuestStepAPI", {"questId": draft["quest"]["id"], "stepId": draft["steps"][0]["id"]}, token)
-                dashboard = call(port, "GetDashboardAPI", token=token)
-                assert len(dashboard["rewards"]) == 1
-                assert "coins" not in dashboard and "progress" not in dashboard
-                assert "稿纸剑" in reward_prompt
+                coins = call(port, "GetPlayerProgressAPI", token=token)["coins"]
+                preview = call(port, "CreateFurniturePreviewAPI", {"prompt": "用钻石做的桌子", "slot": "desk"}, token)
+                assert call(port, "GetPlayerProgressAPI", token=token)["coins"] == coins
+                assert "钻石" in preview["refinedDescription"]
+                assert preview["imageUrl"].endswith(".original.png")
+                assert any(item["id"] == preview["id"] for item in call(port, "ListFurniturePreviewsAPI", token=token))
+                base = call(port, "ConfirmFurniturePreviewAPI", {"previewId": preview["id"]}, token)
+                assert base["progress"]["coins"] == coins - 5
+                assert all(item["id"] != preview["id"] for item in call(port, "ListFurniturePreviewsAPI", token=token))
+                replay = call(port, "ConfirmFurniturePreviewAPI", {"previewId": preview["id"]}, token)
+                assert replay["progress"]["coins"] == coins - 5
+                furniture = next(item for item in base["items"] if item["id"].startswith("custom-"))
+                assert furniture["imageUrl"] and (root / "generated" / furniture["imageUrl"].removeprefix("/generated/")).read_bytes() == PNG
+                assert len(image_requests) == 2
+                assert "稿纸剑" in image_requests[0]["input"]["messages"][0]["content"][0]["text"]
+                assert "用钻石做的桌子" in image_requests[1]["input"]["messages"][0]["content"][0]["text"]
+                assert "钻石材质" in image_requests[1]["input"]["messages"][0]["content"][0]["text"]
+                other = call(port, "RegisterUserAPI", {"username": "other_" + uuid.uuid4().hex[:8], "password": "LocalTest2026!", "nickname": "另一位勇者"})["token"]
+                assert call(port, "ListFurniturePreviewsAPI", token=other) == []
+                assert not any(item["id"] == furniture["id"] for item in call(port, "GetBaseAPI", token=other)["items"])
+                try:
+                    call(port, "PurchaseStoreItemAPI", {"itemId": furniture["id"]}, other)
+                    raise AssertionError("another user could buy custom furniture")
+                except urllib.error.HTTPError as error:
+                    assert error.code == 403
 
                 request.update(requestKey=str(uuid.uuid4()), generateRewardImage=False)
                 fixed_job = wait_job(port, token, call(port, "RequestPlanGenerationAPI", request, token)["id"])
-                assert fixed_job["result"]["reward"]["imageUrl"] is None and len(image_requests) == 1
+                assert fixed_job["result"]["reward"]["imageUrl"] is None and len(image_requests) == 2
                 fixed_reward = {"name": "作业书本", "story": "把要交的东西一页页压平，今天也算推进。", "symbol": "book", "palette": "sage"}
                 fixed = call(port, "CreateQuestDraftAPI", {"title": "固定作业", "category": "study", "description": "固定模式", "dueDate": None, "tier": "daily", "stages": plan["stages"], "reward": fixed_reward, "jobId": fixed_job["id"]}, token)
-                assert fixed["reward"]["imageUrl"] is None and len(image_requests) == 1
+                assert fixed["reward"]["imageUrl"] is None and len(image_requests) == 2
 
                 request.update(goal="失败测试", requestKey=str(uuid.uuid4()), generateRewardImage=True)
                 failed_image_job = wait_job(port, token, call(port, "RequestPlanGenerationAPI", request, token)["id"])
-                assert failed_image_job["result"]["reward"]["imageUrl"] is None and len(image_requests) == 2
+                assert failed_image_job["result"]["reward"]["imageUrl"] is None and len(image_requests) == 3
                 failed_draft = call(port, "CreateQuestDraftAPI", {"title": "失败测试", "category": "study", "description": "图片失败时保留手绘", "dueDate": None, "tier": "challenge", "stages": plan["stages"], "reward": failed_image_job["result"]["reward"], "jobId": failed_image_job["id"]}, token)
-                assert failed_draft["reward"]["imageUrl"] is None and len(image_requests) == 2
+                assert failed_draft["reward"]["imageUrl"] is None and len(image_requests) == 3
 
                 request.update(goal="认证测试", requestKey=str(uuid.uuid4()), generateRewardImage=True)
                 auth_job = wait_job(port, token, call(port, "RequestPlanGenerationAPI", request, token)["id"])
                 assert auth_job["result"]["reward"]["imageUrl"] is None
-                assert "认证失败" in auth_job["result"]["reward"]["imageError"] and len(image_requests) == 3
+                assert "认证失败" in auth_job["result"]["reward"]["imageError"] and len(image_requests) == 4
                 auth_draft = call(port, "CreateQuestDraftAPI", {"title": "认证测试", "category": "study", "description": "保留已生成的文字计划", "dueDate": None, "tier": "challenge", "stages": plan["stages"], "reward": auth_job["result"]["reward"], "jobId": auth_job["id"]}, token)
-                assert auth_draft["reward"]["imageUrl"] is None and len(image_requests) == 3
+                assert auth_draft["reward"]["imageUrl"] is None and len(image_requests) == 4
+                before = call(port, "GetPlayerProgressAPI", token=token)["coins"]
+                try:
+                    call(port, "CreateFurniturePreviewAPI", {"prompt": "认证测试家具", "slot": "desk"}, token)
+                    raise AssertionError("invalid image credentials were accepted")
+                except urllib.error.HTTPError as error:
+                    body = json.load(error)
+                    assert error.code == 502 and "认证失败" in body["message"]
+                assert call(port, "GetPlayerProgressAPI", token=token)["coins"] == before
+                prior_image_count = len(image_requests)
+                try:
+                    call(port, "CreateFurniturePreviewAPI", {"prompt": "文本失败测试", "slot": "desk"}, token)
+                    raise AssertionError("invalid text refinement was accepted")
+                except urllib.error.HTTPError as error:
+                    assert error.code == 502
+                assert len(image_requests) == prior_image_count
+                assert call(port, "GetPlayerProgressAPI", token=token)["coins"] == before
                 report = call(port, "GetUsageReportAPI", token=token)
                 assert len(report["events"]) >= 6 and report["measuredTokens"] > 0
-                print("PASS: reward text refinement, image generation, persistence and failure handling")
+                cutout = call(port, "CreateFurniturePreviewAPI", {"prompt": "透明测试家具", "slot": "desk"}, token)
+                assert cutout["imageUrl"].endswith(".png") and not cutout["imageUrl"].endswith(".original.png")
+                original = call(port, "ConfirmFurniturePreviewAPI", {"previewId": cutout["id"], "useOriginal": True}, token)
+                chosen = next(item for item in original["items"] if item["id"] == "custom-" + cutout["id"])
+                assert chosen["imageUrl"].endswith(".original.png")
+                print("PASS: text refinement, image generation, preview, idempotent claim, privacy and failure handling")
     finally:
         if process and process.poll() is None:
             os.killpg(process.pid, signal.SIGTERM)

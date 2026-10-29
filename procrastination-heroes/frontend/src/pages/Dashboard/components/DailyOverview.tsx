@@ -1,6 +1,6 @@
 import { Card, Pill } from '@/components/ui'
 import type { DashboardResponse } from '@/objects/adventure/apiTypes/DashboardResponse'
-import { CheckCheck, ScrollText, Timer, Trophy } from 'lucide-react'
+import { CheckCheck, Coins, Flame, Timer } from 'lucide-react'
 export function DailyOverview({ data }: { data: DashboardResponse }) {
   return (
     <div className="mb-7 grid grid-cols-2 gap-3 xl:grid-cols-4">
@@ -20,13 +20,19 @@ export function DailyOverview({ data }: { data: DashboardResponse }) {
           tone: 'sky',
         },
         {
-          label: '已完成冒险',
-          value: data.completedCount,
-          unit: '项',
-          Icon: ScrollText,
+          label: '累积成长',
+          value: data.progress.experience,
+          unit: '经验值',
+          Icon: Flame,
           tone: 'rose',
         },
-        { label: '已获纪念物', value: data.rewards.length, unit: '件', Icon: Trophy, tone: 'gold' },
+        {
+          label: '我的积蓄',
+          value: data.progress.coins,
+          unit: '冒险币',
+          Icon: Coins,
+          tone: 'gold',
+        },
       ].map(({ label, value, unit, Icon, tone }) => (
         <Card key={label} className="p-4">
           <div className="flex items-center justify-between">

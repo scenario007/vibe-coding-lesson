@@ -124,7 +124,9 @@ export function QuestEditor({
                     }
                   >
                     <span className="block font-semibold">{item.label}</span>
-                    <span className="mt-1 block text-[10px]">{item.rarity}</span>
+                    <span className="mt-1 block text-[10px]">
+                      {item.rarity} · {item.coins} 币
+                    </span>
                   </button>
                 ))}
               </div>

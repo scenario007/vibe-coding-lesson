@@ -1,8 +1,8 @@
-import { Card, Emblem, Progress } from '@/components/ui'
+import { Card, Emblem } from '@/components/ui'
 import type { DashboardResponse } from '@/objects/adventure/apiTypes/DashboardResponse'
 import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
-export function HeroProfile({ data, level }: { data: DashboardResponse; level: number }) {
+export function HeroProfile({ data }: { data: DashboardResponse }) {
   return (
     <Card className="bg-[#eadcc1]">
       <p className="text-[9px] tracking-[.18em] text-[#716449]">YOUR HERO CARD</p>
@@ -10,22 +10,16 @@ export function HeroProfile({ data, level }: { data: DashboardResponse; level: n
         <Emblem symbol={data.user.avatar} palette="sage" />
       </div>
       <h3 className="text-center font-serif text-lg font-bold text-[#665d3e]">
-        Lv.{level} · {data.user.nickname}
+        {data.user.nickname}
       </h3>
       <p className="mt-2 text-center text-[10px] text-[#716449]">
         已经完成 {data.completedCount} 场自己的小冒险
       </p>
-      <div className="mt-5">
-        <Progress value={data.progress.experience % 100} />
-        <p className="mt-2 text-right text-[9px] text-[#716449]">
-          距离下一级还有 {100 - (data.progress.experience % 100)} XP
-        </p>
-      </div>
       <Link
-        to="/base"
+        to="/growth"
         className="mt-5 flex items-center justify-between rounded-xl bg-white/60 px-3 py-3 text-xs text-[#716449]"
       >
-        回我的小屋看看
+        看看我的奖品展板
         <ArrowRight className="size-3.5" />
       </Link>
     </Card>

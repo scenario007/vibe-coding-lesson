@@ -10,14 +10,14 @@ import java.sql.Connection
 import java.util.UUID
 import java.time.{LocalDate, Instant, ZoneId}
 import services.system.api.APIWithTokenMessage
-import services.economy.tables.wallet.WalletTable
+import services.users.tables.user.UserTable
 import services.ai.tables.generationJob.GenerationJobTable
 
 
 final case class RequestPlanGenerationAPIMessage(userId: UserId, goal: String, dueDate: Option[String], dailyMinutes: Option[Int], preference: String, feedback: String, requestKey: String, generateRewardImage: Option[Boolean]) extends APIWithTokenMessage[GenerationJob]:
   override def plan(connection: Connection): IO[GenerationJob] =
     for
-      _ <- WalletTable.lock(connection,userId)
+      _ <- UserTable.lock(connection,userId)
       _ <- if goal.trim.length>=2 && goal.length<=1500 && dailyMinutes.forall(m=>m>=5 && m<=480) && preference.length<=200 && feedback.length<=1000 && requestKey.matches("[a-zA-Z0-9-]{16,80}") && dueDate.forall(d=>scala.util.Try(LocalDate.parse(d)).isSuccess) then IO.unit else IO.raiseError(AppError(400,"请填写目标，投入时间可以留空，目标最多 1500 字"))
       existing <- GenerationJobTable.findByRequestKey(connection,requestKey,userId)
       result <- existing match

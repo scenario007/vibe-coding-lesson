@@ -14,14 +14,14 @@ import java.util.UUID
 import services.system.api.APIWithTokenMessage
 import services.quests.tables.quest.QuestTable
 import services.quests.tables.questStep.QuestStepTable
-import services.economy.tables.wallet.WalletTable
+import services.users.tables.user.UserTable
 
 import services.focus.tables.focusSession.FocusSessionTable
 import services.focus.utils.FocusTiming
 final case class StartFocusAPIMessage(userId: UserId, stepId: Option[StepId], minutes: Int) extends APIWithTokenMessage[FocusResponse]:
   override def plan(connection: Connection): IO[FocusResponse] =
     for
-      _ <- WalletTable.lock(connection,userId)
+      _ <- UserTable.lock(connection,userId)
       now <- IO.realTime.map(_.toMillis)
       current <- FocusTiming.current(connection,userId,now)
       _ <- if current.forall(s=>s.status==FocusStatus.completed) && Set(10,25,45).contains(minutes) then IO.unit else IO.raiseError(AppError(409,"已有一段专注正在进行，或时长不在支持范围内"))

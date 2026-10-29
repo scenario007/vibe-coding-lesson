@@ -30,8 +30,7 @@ final case class SaveQuestDraftAPIMessage(userId: UserId, questId: QuestId, vers
       trustedReward <- QuestValidation.trustedReward(connection,userId,jobId,reward)
       _ <- QuestTable.save(connection,current.copy(title=title.trim,category=category,description=description,dueDate=dueDate,tier=tier,version=version+1))
       _ <- QuestStepTable.deleteDraftSteps(connection,questId)
-      budget = QuestValidation.coinBudget(tier)
-      _ <- stages.zipWithIndex.traverse_ { case (s,index) => IO(UUID.randomUUID().toString).flatMap(id => QuestStepTable.insert(connection,QuestStep(StepId(id),questId,index,s.title.trim,s.description,s.checklist,s.minutes,s.criterion,s.dependsOn,None,budget/stages.size+(if index==stages.size-1 then budget%stages.size else 0)))) }
+      _ <- stages.zipWithIndex.traverse_ { case (s,index) => IO(UUID.randomUUID().toString).flatMap(id => QuestStepTable.insert(connection,QuestStep(StepId(id),questId,index,s.title.trim,s.description,s.checklist,s.minutes,s.criterion,s.dependsOn,None))) }
       _ <- SetQuestRewardAPIMessage(userId,questId,trustedReward,jobId.isEmpty).plan(connection)
       detail <- GetQuestAPIMessage(userId,questId).plan(connection)
     yield detail

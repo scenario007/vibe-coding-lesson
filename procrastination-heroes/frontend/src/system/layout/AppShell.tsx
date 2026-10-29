@@ -1,11 +1,9 @@
 import { UsageLedger } from './UsageLedger'
-import { Glyph, Progress } from '@/components/ui'
-import { refreshProgress, usePlayer } from '@/system/stores/player'
+import { Glyph } from '@/components/ui'
+import { usePlayer } from '@/system/stores/player'
 import {
   ArrowUpRight,
   ChartNoAxesCombined,
-  Coins,
-  House,
   LayoutDashboard,
   Leaf,
   Menu,
@@ -13,7 +11,6 @@ import {
   ScrollText,
   Settings2,
   Sparkles,
-  Store,
   Timer,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -22,22 +19,16 @@ const links = [
   ['/dashboard', '协会大厅', LayoutDashboard],
   ['/quests', '委托公告板', ScrollText],
   ['/focus', '史莱姆专注室', Timer],
-  ['/base', '我的据点', House],
-  ['/shop', '破烂补给铺', Store],
   ['/growth', '勇者手账', ChartNoAxesCombined],
   ['/profile', '勇者资料', Settings2],
 ] as const
 export function AppShell() {
-  const { user, progress } = usePlayer()
+  const { user } = usePlayer()
   const [open, setOpen] = useState(false)
   const location = useLocation()
   useEffect(() => {
     setOpen(false)
   }, [location.pathname])
-  useEffect(() => {
-    void refreshProgress()
-  }, [])
-  const level = 1 + Math.floor((progress?.experience || 0) / 100)
   return (
     <div className="guild-paper min-h-screen text-[#332820]">
       {open && (
@@ -99,7 +90,7 @@ export function AppShell() {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-xs font-medium">{user?.nickname}</span>
-              <span className="text-[10px] text-[#9aa68a]">Lv.{level} · 正在慢慢成长</span>
+              <span className="text-[10px] text-[#9aa68a]">正在慢慢成长</span>
             </span>
             <PanelLeftClose className="size-4 text-[#a1ad94]" />
           </Link>
@@ -119,18 +110,6 @@ export function AppShell() {
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
             <UsageLedger />
-            <div className="hidden w-32 md:block">
-              <div className="mb-1 flex justify-between text-[9px] text-[#8e9e7c]">
-                <span>Lv.{level} 勇者</span>
-                <span>{(progress?.experience || 0) % 100} / 100 XP</span>
-              </div>
-              <Progress value={(progress?.experience || 0) % 100} />
-            </div>
-            <div className="flex items-center gap-1.5 rounded-full border border-[#e9dfbd] bg-[#faf4e2] px-3 py-1.5 text-xs font-semibold text-[#b09150]">
-              <Coins className="size-3.5" />
-              {progress?.coins ?? '—'}
-              <span className="hidden text-[10px] font-normal sm:inline">冒险币</span>
-            </div>
             <Link
               to="/quests/new"
               className="flex items-center gap-1 text-xs font-medium text-[#4e6d43]"

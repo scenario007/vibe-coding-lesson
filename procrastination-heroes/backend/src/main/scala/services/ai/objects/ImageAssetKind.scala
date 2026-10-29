@@ -3,7 +3,7 @@ package services.ai.objects
 import io.circe.{Decoder, Encoder}
 
 enum ImageAssetKind:
-  case reward, furniture
+  case reward
 
 object ImageAssetKind:
   def fromString(value: String): Either[String, ImageAssetKind] =

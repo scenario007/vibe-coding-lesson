@@ -1,13 +1,11 @@
 import { ErrorState, Loading } from '@/components/ui'
 import Auth from '@/pages/Auth'
-import Base from '@/pages/Base'
 import Dashboard from '@/pages/Dashboard'
 import Focus from '@/pages/Focus'
 import Growth from '@/pages/Growth'
 import Profile from '@/pages/Profile'
 import Quests from '@/pages/Quests'
 import QuestWorkbench from '@/pages/QuestWorkbench'
-import Shop from '@/pages/Shop'
 import { AppShell } from '@/system/layout/AppShell'
 import { bootPlayer, usePlayer } from '@/system/stores/player'
 import { createBrowserRouter, Link, Navigate, Outlet, useLocation } from 'react-router-dom'
@@ -44,8 +42,6 @@ export const router = createBrowserRouter([
           { path: '/quests/new', element: <QuestWorkbench /> },
           { path: '/quests/:id', element: <QuestWorkbench /> },
           { path: '/focus', element: <Focus /> },
-          { path: '/base', element: <Base /> },
-          { path: '/shop', element: <Shop /> },
           { path: '/growth', element: <Growth /> },
           { path: '/profile', element: <Profile /> },
           {

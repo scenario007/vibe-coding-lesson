@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui'
 import type { DashboardResponse } from '@/objects/adventure/apiTypes/DashboardResponse'
 import type { RewardEvent } from '@/objects/economy/RewardEvent'
-import { Coins, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 export function RewardTimeline({
   data,
   events,
@@ -30,10 +30,6 @@ export function RewardTimeline({
                   {new Date(e.createdAt).toLocaleString('zh-CN')}
                 </p>
               </div>
-              <span className="text-xs text-[#716449]">+{e.experience} XP</span>
-              <span className="flex items-center gap-1 text-xs text-[#716449]">
-                <Coins className="size-3" />+{e.coins}
-              </span>
             </div>
           ))}
         </div>

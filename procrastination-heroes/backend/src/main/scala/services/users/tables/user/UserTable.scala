@@ -11,6 +11,11 @@ object UserTable:
   def findById(connection: Connection, id: UserId): IO[Option[StoredUser]] =
     Jdbc.query(connection,findByIdSql,List(id.value))(read).map(_.headOption)
 
+  // Serialize per-user operations that must not run concurrently.
+  private val lockSql = """SELECT * FROM users WHERE id=? FOR UPDATE"""
+  def lock(connection: Connection, id: UserId): IO[Option[StoredUser]] =
+    Jdbc.query(connection,lockSql,List(id.value))(read).map(_.headOption)
+
   private val findByUsernameSql = """SELECT * FROM users WHERE username=?"""
   def findByUsername(connection: Connection, username: String): IO[Option[StoredUser]] =
     Jdbc.query(connection,findByUsernameSql,List(username))(read).map(_.headOption)

@@ -14,7 +14,7 @@ object QuestStepTable:
 
   private val insertSql = """INSERT INTO quest_steps VALUES(?,?,?,?,?,?,?,?,?,?,?)"""
   def insert(connection: Connection, v: QuestStep): IO[Int] =
-    Jdbc.update(connection,insertSql,List(v.id.value,v.questId.value,v.position,v.title,v.description,v.checklist.asJson.noSpaces,v.minutes,v.criterion,v.dependsOn.asJson.noSpaces,v.completedAt.map(Long.box).orNull,v.coins))
+    Jdbc.update(connection,insertSql,List(v.id.value,v.questId.value,v.position,v.title,v.description,v.checklist.asJson.noSpaces,v.minutes,v.criterion,v.dependsOn.asJson.noSpaces,v.completedAt.map(Long.box).orNull,0))
 
   private val completeSql = """UPDATE quest_steps SET completed_at=? WHERE id=? AND completed_at IS NULL"""
   def complete(connection: Connection, id: StepId, at: Long): IO[Int] =
@@ -24,4 +24,4 @@ object QuestStepTable:
   def deleteDraftSteps(connection: Connection, id: QuestId): IO[Int] =
     Jdbc.update(connection,deleteDraftStepsSql,List(id.value))
 
-  private def read(r: ResultSet): QuestStep = QuestStep(StepId(r.getString("id")),QuestId(r.getString("quest_id")),r.getInt("position"),r.getString("title"),r.getString("description"),decode[List[String]](r.getString("checklist")).toOption.get,r.getInt("minutes"),r.getString("criterion"),decode[List[Int]](r.getString("depends_on")).toOption.get,Option(r.getObject("completed_at")).map(_ => r.getLong("completed_at")),r.getInt("coins"))
+  private def read(r: ResultSet): QuestStep = QuestStep(StepId(r.getString("id")),QuestId(r.getString("quest_id")),r.getInt("position"),r.getString("title"),r.getString("description"),decode[List[String]](r.getString("checklist")).toOption.get,r.getInt("minutes"),r.getString("criterion"),decode[List[Int]](r.getString("depends_on")).toOption.get,Option(r.getObject("completed_at")).map(_ => r.getLong("completed_at")))

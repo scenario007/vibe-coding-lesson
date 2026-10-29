@@ -15,11 +15,6 @@ private[quests] object QuestValidation:
       s.title.trim.nonEmpty && s.title.length<=120 && s.description.length<=1200 && s.minutes>=1 && s.minutes<=480 && s.checklist.size<=5 && s.checklist.forall(v=>v.nonEmpty && v.length<=200) && s.criterion.trim.nonEmpty && s.criterion.length<=300 && s.dependsOn.distinct==s.dependsOn && s.dependsOn.forall(i=>i>=0 && i<index)
     }
     if valid then IO.unit else IO.raiseError(AppError(400,"请检查标题、日期与 1–5 个步骤；前置步骤必须排在当前步骤之前"))
-  private[quests] def coinBudget(tier: RewardTier): Int = tier match
-    case RewardTier.daily => 10
-    case RewardTier.challenge => 20
-    case RewardTier.longTerm => 30
-
   /** A client may only attach the image returned by its own completed AI job. */
   private[quests] def trustedReward(connection: Connection, userId: UserId, jobId: Option[JobId], reward: RewardDraft): IO[RewardDraft] =
     jobId match

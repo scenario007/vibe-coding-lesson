@@ -11,5 +11,4 @@ export interface QuestStep {
   criterion: string
   dependsOn: number[]
   completedAt: number | null
-  coins: number
 }

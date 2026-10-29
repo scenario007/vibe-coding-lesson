@@ -1,6 +1,6 @@
 import { LoginUserAPI } from '@/apis/users/LoginUserAPI'
 import { RegisterUserAPI } from '@/apis/users/RegisterUserAPI'
-import { refreshProgress, setPlayer } from '@/system/stores/player'
+import { setPlayer } from '@/system/stores/player'
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 export function useAuth() {
@@ -22,7 +22,6 @@ export function useAuth() {
           : new LoginUserAPI(username, password)
       ).send()
       setPlayer(response.user, response.token)
-      await refreshProgress()
       const redirect = search.get('next')
       navigate(redirect?.startsWith('/') && !redirect.startsWith('//') ? redirect : '/dashboard', {
         replace: true,

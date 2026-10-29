@@ -7,7 +7,7 @@ import { Check, Leaf, LogOut } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 export default function Profile() {
-  const { user, progress } = usePlayer()
+  const { user } = usePlayer()
   const navigate = useNavigate()
   const [nickname, setNickname] = useState(user?.nickname || '')
   const [avatar, setAvatar] = useState<UserAvatar>(user?.avatar || 'leaf')
@@ -52,9 +52,7 @@ export default function Profile() {
             <Emblem symbol={avatar} palette="sage" size="large" />
           </div>
           <h2 className="font-serif text-xl font-bold text-[#716449]">{user?.nickname}</h2>
-          <p className="mt-2 text-xs text-[#716449]">
-            Lv.{1 + Math.floor((progress?.experience || 0) / 100)} · 正在慢慢成长
-          </p>
+          <p className="mt-2 text-xs text-[#716449]">正在慢慢成长</p>
           <p className="mt-5 text-[10px] leading-7 text-[#8a785d]">
             加入协会于 {new Date(user?.createdAt || Date.now()).toLocaleDateString('zh-CN')}
             <br />
@@ -125,7 +123,7 @@ export default function Profile() {
               </label>
             </div>
             <p className="mt-4 text-[10px] leading-6 text-[#8a785d]">
-              每日目标是一份温柔的提醒，未完成也不会扣除成长或装饰。
+              每日目标是一份温柔的提醒，按自己的节奏就好。
             </p>
             <Button className="mt-5" disabled={busy} onClick={() => void save()}>
               <Check className="size-4" />
@@ -137,7 +135,7 @@ export default function Profile() {
               <div>
                 <h2 className="text-sm font-medium">暂时离开协会</h2>
                 <p className="mt-2 text-[10px] text-[#8a785d]">
-                  任务和小屋已经保存在后端，下次登录继续。
+                  任务与纪念物已经保存，下次登录继续。
                 </p>
               </div>
               <Button variant="ghost" disabled={busy} onClick={() => void logout()}>

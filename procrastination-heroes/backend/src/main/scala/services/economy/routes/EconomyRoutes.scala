@@ -12,7 +12,9 @@ object EconomyRoutes:
     RegisteredAPIMessage.register[GetPlayerProgressAPIMessage,PlayerProgress](true),
     RegisteredAPIMessage.register[GetBaseAPIMessage,BaseResponse](true),
     RegisteredAPIMessage.register[PurchaseStoreItemAPIMessage,BaseResponse](true),
-    RegisteredAPIMessage.register[CreateCustomFurnitureAPIMessage,BaseResponse](true),
+    RegisteredAPIMessage.register[CreateFurniturePreviewAPIMessage,services.economy.objects.FurniturePreview](true),
+    RegisteredAPIMessage.register[ConfirmFurniturePreviewAPIMessage,BaseResponse](true),
+    RegisteredAPIMessage.register[ListFurniturePreviewsAPIMessage,List[services.economy.objects.FurniturePreview]](true),
     RegisteredAPIMessage.register[PlaceItemAPIMessage,BaseResponse](true),
     RegisteredAPIMessage.register[MovePlacementAPIMessage,BaseResponse](true),
     RegisteredAPIMessage.register[ListRewardHistoryAPIMessage,List[RewardEvent]](true)

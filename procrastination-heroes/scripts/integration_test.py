@@ -18,7 +18,7 @@ def call(name,body=None,token=None,expect=200):
 def stages():
     return [{'title':'清空桌面','description':'把物品按用途分组','checklist':['归拢书本','整理杂物'],'minutes':10,'criterion':'桌面清空并完成分类','dependsOn':[]},{'title':'清洁并归位','description':'擦拭后放回常用物品','checklist':['擦拭桌面','有序摆放'],'minutes':10,'criterion':'桌面清洁且物品归位','dependsOn':[0]}]
 def draft(token,tier='normal',label='整理书桌',parts=None,job=None,reward=None):
-    return call('CreateQuestDraftAPI',{'title':label,'category':'life','description':'本机集成测试创建的数据','dueDate':None,'tier':tier,'stages':parts or stages(),'reward':reward or {'name':'小小整理家','story':'纪念你给生活留出一点整洁的空间。','symbol':'leaf','palette':'sage'},'jobId':job},token)
+    return call('CreateQuestDraftAPI',{'title':label,'category':'life','description':'本机集成测试创建的数据','dueDate':None,'tier':tier,'stages':parts or stages(),'reward':reward or {'name':'作业书本','story':'固定模式测试奖励，不调用图片模型。','symbol':'book','palette':'sage'},'jobId':job},token)
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--ai',action='store_true');args=parser.parse_args()
     suffix=uuid.uuid4().hex[:10]
@@ -30,7 +30,7 @@ def main():
     logged=call('LoginUserAPI',{'username':'qa_'+suffix,'password':'LocalTest2026!'});check(logged['user']['id']==a['user']['id'],'登录返回正确账户')
     generated=None;jobid=None
     if args.ai:
-        job=call('RequestPlanGenerationAPI',{'goal':'整理书桌，分成两个能立即开始的小阶段','dueDate':None,'dailyMinutes':20,'preference':'温暖手账','feedback':'每个阶段都要有具体完成标准，并设计一个整理主题纪念画。','requestKey':str(uuid.uuid4())},token)
+        job=call('RequestPlanGenerationAPI',{'goal':'整理书桌，分成两个能立即开始的小阶段','dueDate':None,'dailyMinutes':20,'preference':'温暖手账','feedback':'每个阶段都要有具体完成标准，并设计一个整理主题纪念画。','requestKey':str(uuid.uuid4()),'generateRewardImage':False},token)
         jobid=job['id']
         for _ in range(100):
             job=call('GetGenerationJobAPI',{'jobId':jobid},token)

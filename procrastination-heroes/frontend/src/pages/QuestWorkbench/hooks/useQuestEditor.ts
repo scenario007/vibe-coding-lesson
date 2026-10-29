@@ -133,9 +133,11 @@ export function useQuestEditor(initial: QuestDetail | null, onSaved: (q: QuestDe
               ? '计划已生成，固定模式使用协会预制奖品。'
               : plan.reward.imageError
                 ? `计划和奖励文案已保留。${plan.reward.imageError}`
-                : plan.reward.imageUrl
-                  ? '计划和专属奖励图片已生成，可以继续修改。'
-                  : '计划与奖励文案已生成；图片服务未配置或暂时不可用，当前显示公会手绘部件。',
+                : plan.reward.imageUrl?.endsWith('.original.png')
+                  ? '奖励图片已生成，但背景未能自动去除，当前显示原图。'
+                  : plan.reward.imageUrl
+                    ? '计划和专属奖励图片已生成，可以继续修改。'
+                    : '计划与奖励文案已生成；图片服务未配置或暂时不可用，当前显示公会手绘部件。',
           )
           return
         }

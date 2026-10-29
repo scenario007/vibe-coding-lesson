@@ -14,6 +14,7 @@ private[system] object Schema:
     services.economy.tables.rewardDesign.RewardDesignTableInitializer.initialize(c),
     services.economy.tables.taskReward.TaskRewardTableInitializer.initialize(c),
     services.economy.tables.storeItem.StoreItemTableInitializer.initialize(c),
+    services.economy.tables.furniturePreview.FurniturePreviewTableInitializer.initialize(c),
     services.economy.tables.playerItem.PlayerItemTableInitializer.initialize(c),
     services.economy.tables.roomPlacement.RoomPlacementTableInitializer.initialize(c),
     services.focus.tables.focusSession.FocusSessionTableInitializer.initialize(c),

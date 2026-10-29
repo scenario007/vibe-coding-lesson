@@ -33,10 +33,11 @@ final case class SetQuestRewardAPIMessage(userId: UserId,questId: QuestId,reward
       else
         IO(UUID.randomUUID().toString).flatMap { imageId =>
           GenerateImageAPIMessage(
+            userId,
             ImageAssetKind.reward,
             s"任务主题：${quest.title}。任务等级：${quest.tier.toString}。战利品名称：${reward.name.trim}。战利品故事与外观线索：${reward.story.trim}。根据任务和名称创造独特的物件轮廓与细节，不要默认重复锅盖盾；如果名称明确要求某种形状，就保留其形状并做出独特设计。日常任务要轻巧朴素，挑战任务要有更多装饰细节，长期任务要华丽但仍保持手绘可读性。",
             imageId
-          ).plan(connection)
+          ).plan(connection).map(_.imageUrl)
         }
       _ <- existing match
         case Some(_) => RewardDesignTable.updateDraft(connection,questId,reward,image).void

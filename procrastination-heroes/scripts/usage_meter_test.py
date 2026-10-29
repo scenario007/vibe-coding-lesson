@@ -17,6 +17,8 @@ def main():
             # No real key reaches this process; these checks never invoke TokenHub.
             test_env.pop('TOKENHUB_API_KEY',None)
             test_env.pop('TOKENHUB_CONFIG_FILE',None)
+            test_env.pop('ALIYUN_DASHSCOPE_API_KEY',None)
+            test_env.pop('DASHSCOPE_API_KEY',None)
             subprocess.run(['sbt','-batch','Test / runMain services.ai.UsageMeterChecks'],cwd=ROOT/'backend',env=test_env,check=True)
     finally:
         subprocess.run(['dropdb',*base,db],check=True)

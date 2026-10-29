@@ -29,7 +29,7 @@ private[ai] object AliyunImageClient:
   private val size = sys.env.getOrElse("ALIYUN_IMAGE_SIZE", "1K")
   private val assetRoot = Path.of(sys.env.getOrElse("ALIYUN_IMAGE_ASSET_DIR", "../frontend/public/generated"))
   private val style =
-    "公会手账＋废柴勇者原创游戏素材，羊皮纸底色，炭黑手绘线稿，暗红印章，橄榄绿、暖金、砖红和旧木色配色，轻微不对称的手工纸张质感，轮廓清楚，细节温暖幽默，二维插画，不要照片写实，不要 3D 渲染。"
+    "公会手账＋废柴勇者游戏素材，只使用手绘墨线和温暖的二维插画笔触统一风格。用户明确指定的材质、颜色、形状、功能和数量优先，不得用未经要求的材料或颜色替换它们。"
 
   private def key: Option[String] =
     sys.env
@@ -40,6 +40,8 @@ private[ai] object AliyunImageClient:
 
   private def enabled: Boolean =
     key.nonEmpty && sys.env.get("ALIYUN_IMAGE_GENERATION_ENABLED").forall(!_.equalsIgnoreCase("false"))
+
+  private[ai] def available: Boolean = enabled
 
   private def required: Boolean =
     sys.env.get("ALIYUN_IMAGE_GENERATION_REQUIRED").exists(_.equalsIgnoreCase("true"))
@@ -66,7 +68,7 @@ private[ai] object AliyunImageClient:
       case ImageAssetKind.furniture =>
         "一件单独展示的据点家具素材，主体居中，完整轮廓，方便放入自由画布；摆放位置只由应用记录，不改变家具外形"
     val dimensions = if size.equalsIgnoreCase("2K") then "约 2048×2048 像素" else "约 1024×1024 像素"
-    s"$style $subject。$description 画面为 1:1 正方形，$dimensions，四周留出适度留白。禁止任何文字、字母、logo、水印、边框、拼贴、多主体和场景截图。"
+    s"用户要求优先：$description。$subject。$style 画面为 1:1 正方形，$dimensions，主体居中并留白。背景必须是单一纯白色 #FFFFFF，不要场景、纸张纹理或地面阴影，便于抠图。禁止任何文字、字母、logo、水印、印章、箭头、边框、拼贴和额外物品。"
 
   private def payload(kind: ImageAssetKind, description: String): String =
     Json
@@ -92,13 +94,15 @@ private[ai] object AliyunImageClient:
 
   private def copyResult(kind: ImageAssetKind, assetId: String, url: String): IO[String] =
     IO.blocking {
+      val original = assetRoot.resolve(kind.toString).resolve(assetId + ".original.png")
       val target = assetRoot.resolve(kind.toString).resolve(assetId + ".png")
-      Files.createDirectories(target.getParent)
+      Files.createDirectories(original.getParent)
       val request = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(60)).GET().build()
       val response = downloadClient.send(request, HttpResponse.BodyHandlers.ofByteArray())
       if response.statusCode() != 200 then throw AppError(502, "阿里云图片结果下载失败，已回退到公会手绘素材")
-      Files.write(target, response.body())
-      "/generated/" + kind.toString + "/" + assetId + ".png"
+      Files.write(original, response.body())
+      val transparent = scala.util.Try(FlatBackground.remove(original,target)).getOrElse(false)
+      "/generated/" + kind.toString + "/" + assetId + (if transparent then ".png" else ".original.png")
     }
 
   private def request(kind: ImageAssetKind, description: String, assetId: String, apiKey: String): IO[String] =

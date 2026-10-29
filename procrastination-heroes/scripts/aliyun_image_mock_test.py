@@ -73,8 +73,8 @@ def main():
                 assert "公会手账" in prompt and "1:1" in prompt and "禁止任何文字" in prompt
             assert "稿纸剑" in requests[0][1]["input"]["messages"][0]["content"][0]["text"]
             assert "小桌子" in requests[1][1]["input"]["messages"][0]["content"][0]["text"]
-            assert (Path(directory) / "reward/mock-reward.png").read_bytes() == PNG
-            assert (Path(directory) / "furniture/mock-furniture.png").read_bytes() == PNG
+            assert (Path(directory) / "reward/mock-reward.original.png").read_bytes() == PNG
+            assert (Path(directory) / "furniture/mock-furniture.original.png").read_bytes() == PNG
             print("PASS: model, size, prompts and local persistence verified without external calls")
     finally:
         server.shutdown()

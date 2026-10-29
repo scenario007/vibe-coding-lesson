@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import signal
 import socket
+import struct
 import subprocess
 import tempfile
 import threading
@@ -13,11 +14,23 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+import zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = Path(__file__).resolve().parents[1]
 PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X9n8AAAAASUVORK5CYII=")
+
+
+def square_png():
+    def chunk(tag, data):
+        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xffffffff)
+    pixels = b"".join(b"\0" + b"".join(bytes((50, 80, 180, 255)) if 10 <= x < 30 and 10 <= y < 30 else bytes((255, 255, 255, 255)) for x in range(40)) for y in range(40))
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 40, 40, 8, 6, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(pixels)) + chunk(b"IEND", b"")
+
+
+SQUARE_PNG = square_png()
 image_requests = []
+text_requests = []
 plan = {
     "title": "完成论文初稿",
     "category": "study",
@@ -42,7 +55,10 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         if self.path == "/v1/chat/completions":
-            self.reply({"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(plan, ensure_ascii=False)}}], "usage": {"prompt_tokens": 100, "completion_tokens": 100}})
+            text_requests.append(body)
+            content = body["messages"][1]["content"]
+            result = ({ } if "文本失败测试" in content else {"visualDescription": "完整保留用户指定的钻石材质和物件形状，手绘清晰轮廓。"}) if "visualDescription" in body["messages"][0]["content"] else plan
+            self.reply({"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(result, ensure_ascii=False)}}], "usage": {"prompt_tokens": 100, "completion_tokens": 100}})
         elif self.path == "/api/v1/services/aigc/multimodal-generation/generation":
             image_requests.append(body)
             prompt = body["input"]["messages"][0]["content"][0]["text"]
@@ -53,17 +69,19 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(data)
                 return
-            url = f"http://127.0.0.1:{self.server.server_port}/result.png"
+            path = "square.png" if "透明测试" in prompt else "result.png"
+            url = f"http://127.0.0.1:{self.server.server_port}/{path}"
             self.reply({"output": {"choices": [{"message": {"content": [{"type": "image", "image": url}]}}]}})
         else:
             self.send_error(404)
 
     def do_GET(self):
+        image = SQUARE_PNG if self.path == "/square.png" else PNG
         self.send_response(200)
         self.send_header("Content-Type", "image/png")
-        self.send_header("Content-Length", str(len(PNG)))
+        self.send_header("Content-Length", str(len(image)))
         self.end_headers()
-        self.wfile.write(PNG)
+        self.wfile.write(image)
 
 
 def available_port():
@@ -138,21 +156,36 @@ def main():
                 request = {"goal": "完成论文初稿", "dueDate": None, "dailyMinutes": None, "preference": "公会手账", "feedback": "任务等级：challenge", "requestKey": str(uuid.uuid4()), "generateRewardImage": True}
                 job = wait_job(port, token, call(port, "RequestPlanGenerationAPI", request, token)["id"])
                 reward = job["result"]["reward"]
-                assert reward["imageUrl"] == f"/generated/reward/{job['id']}.png"
-                assert (root / "generated/reward" / f"{job['id']}.png").read_bytes() == PNG
+                assert reward["imageUrl"] == f"/generated/reward/{job['id']}.original.png"
+                assert (root / "generated/reward" / f"{job['id']}.original.png").read_bytes() == PNG
                 assert len(image_requests) == 1
+                assert len(text_requests) == 2
+                reward_prompt = image_requests[0]["input"]["messages"][0]["content"][0]["text"]
+                assert "整理后的视觉描述" in reward_prompt and "原始需求" in reward_prompt
 
                 draft = call(port, "CreateQuestDraftAPI", {"title": plan["title"], "category": "study", "description": plan["summary"], "dueDate": None, "tier": "challenge", "stages": plan["stages"], "reward": reward, "jobId": job["id"]}, token)
                 assert draft["reward"]["imageUrl"] == reward["imageUrl"] and len(image_requests) == 1
                 call(port, "StartQuestAPI", {"questId": draft["quest"]["id"]}, token)
                 call(port, "CompleteQuestStepAPI", {"questId": draft["quest"]["id"], "stepId": draft["steps"][0]["id"]}, token)
-                base = call(port, "CreateCustomFurnitureAPI", {"prompt": "会提醒我喝水的小桌子", "slot": "desk"}, token)
+                coins = call(port, "GetPlayerProgressAPI", token=token)["coins"]
+                preview = call(port, "CreateFurniturePreviewAPI", {"prompt": "用钻石做的桌子", "slot": "desk"}, token)
+                assert call(port, "GetPlayerProgressAPI", token=token)["coins"] == coins
+                assert "钻石" in preview["refinedDescription"]
+                assert preview["imageUrl"].endswith(".original.png")
+                assert any(item["id"] == preview["id"] for item in call(port, "ListFurniturePreviewsAPI", token=token))
+                base = call(port, "ConfirmFurniturePreviewAPI", {"previewId": preview["id"]}, token)
+                assert base["progress"]["coins"] == coins - 5
+                assert all(item["id"] != preview["id"] for item in call(port, "ListFurniturePreviewsAPI", token=token))
+                replay = call(port, "ConfirmFurniturePreviewAPI", {"previewId": preview["id"]}, token)
+                assert replay["progress"]["coins"] == coins - 5
                 furniture = next(item for item in base["items"] if item["id"].startswith("custom-"))
                 assert furniture["imageUrl"] and (root / "generated" / furniture["imageUrl"].removeprefix("/generated/")).read_bytes() == PNG
                 assert len(image_requests) == 2
                 assert "稿纸剑" in image_requests[0]["input"]["messages"][0]["content"][0]["text"]
-                assert "小桌子" in image_requests[1]["input"]["messages"][0]["content"][0]["text"]
+                assert "用钻石做的桌子" in image_requests[1]["input"]["messages"][0]["content"][0]["text"]
+                assert "钻石材质" in image_requests[1]["input"]["messages"][0]["content"][0]["text"]
                 other = call(port, "RegisterUserAPI", {"username": "other_" + uuid.uuid4().hex[:8], "password": "LocalTest2026!", "nickname": "另一位勇者"})["token"]
+                assert call(port, "ListFurniturePreviewsAPI", token=other) == []
                 assert not any(item["id"] == furniture["id"] for item in call(port, "GetBaseAPI", token=other)["items"])
                 try:
                     call(port, "PurchaseStoreItemAPI", {"itemId": furniture["id"]}, other)
@@ -181,13 +214,28 @@ def main():
                 assert auth_draft["reward"]["imageUrl"] is None and len(image_requests) == 4
                 before = call(port, "GetPlayerProgressAPI", token=token)["coins"]
                 try:
-                    call(port, "CreateCustomFurnitureAPI", {"prompt": "认证测试家具", "slot": "desk"}, token)
+                    call(port, "CreateFurniturePreviewAPI", {"prompt": "认证测试家具", "slot": "desk"}, token)
                     raise AssertionError("invalid image credentials were accepted")
                 except urllib.error.HTTPError as error:
                     body = json.load(error)
                     assert error.code == 502 and "认证失败" in body["message"]
                 assert call(port, "GetPlayerProgressAPI", token=token)["coins"] == before
-                print("PASS: images, private furniture, fixed mode, 401 reporting and no automatic retry")
+                prior_image_count = len(image_requests)
+                try:
+                    call(port, "CreateFurniturePreviewAPI", {"prompt": "文本失败测试", "slot": "desk"}, token)
+                    raise AssertionError("invalid text refinement was accepted")
+                except urllib.error.HTTPError as error:
+                    assert error.code == 502
+                assert len(image_requests) == prior_image_count
+                assert call(port, "GetPlayerProgressAPI", token=token)["coins"] == before
+                report = call(port, "GetUsageReportAPI", token=token)
+                assert len(report["events"]) >= 6 and report["measuredTokens"] > 0
+                cutout = call(port, "CreateFurniturePreviewAPI", {"prompt": "透明测试家具", "slot": "desk"}, token)
+                assert cutout["imageUrl"].endswith(".png") and not cutout["imageUrl"].endswith(".original.png")
+                original = call(port, "ConfirmFurniturePreviewAPI", {"previewId": cutout["id"], "useOriginal": True}, token)
+                chosen = next(item for item in original["items"] if item["id"] == "custom-" + cutout["id"])
+                assert chosen["imageUrl"].endswith(".original.png")
+                print("PASS: text refinement, image generation, preview, idempotent claim, privacy and failure handling")
     finally:
         if process and process.poll() is None:
             os.killpg(process.pid, signal.SIGTERM)

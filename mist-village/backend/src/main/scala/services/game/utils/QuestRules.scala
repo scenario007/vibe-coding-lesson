@@ -32,7 +32,12 @@ private[game] object QuestRules:
         Some(Right((finish(a,"smith_map","smith",Some("oil"),0),"铁匠收下旧图，并给你一份灯油。")))
       case "find:mia_letter" if a.place=="forest" && active(a,"mia_letter") =>
         val clue="矿工来信：矿工提到事故前曾听到异常响声。"
-        Some(Right((addClue(a,clue,2),clue)))
+        val route="矿工手绘路线：东侧检修井通向矿工休息处。"
+        val found=addClue(a,clue,2)
+        if found.sealedEnding then Some(Right((found,"寻找来信期间黑雾失控，村庄进入危机结局。")))
+        else
+          val next=if found.clues.contains(route) then found else found.copy(clues=found.clues :+ route,events=found.events :+ route)
+          Some(Right((next,s"$clue 信里还夹着一张通往休息处的路线图。")))
       case "deliver:mia_letter" if active(a,"mia_letter") && present(a,"mia") && a.clues.contains("矿工来信：矿工提到事故前曾听到异常响声。") =>
         Some(Right((finish(a,"mia_letter","mia",None,0),"米娅收下信，感谢你带回消息。")))
       case "find:merchant_supply" if a.place=="camp" && Locations.safe(a) && active(a,"merchant_supply") =>

@@ -293,6 +293,13 @@ object RuleChecks extends IOApp.Simple:
     val miaAccept=Rules.perform(miaTalk,"accept:mia_letter").toOption.get._1
     val miaForest=Rules.perform(miaAccept,"move:forest").toOption.get._1
     val letter=Rules.perform(miaForest,"find:mia_letter").toOption.get._1
+    val route="矿工手绘路线：东侧检修井通向矿工休息处。"
+    assert(letter.clues.contains(route) && Evidence.fromText(route,None).kind==EvidenceKind.document)
+    val narrowWindow=minerStart.copy(hour=67)
+    assert(Rules.perform(narrowWindow,"rescue:miner").toOption.get._1.minerStatus==MinerStatus.lost)
+    assert(Rules.perform(narrowWindow.copy(clues=List(route)),"rescue:miner").toOption.get._1.minerStatus==MinerStatus.rescued)
+    val tooLateLetter=Rules.perform(miaForest.copy(hour=80),"find:mia_letter").toOption.get._1
+    assert(tooLateLetter.sealedEnding && tooLateLetter.events.last.contains("黑雾扩散失控") && !tooLateLetter.clues.contains(route))
     val miaBack=Rules.perform(letter,"move:forge").toOption.get._1
     assert(Rules.perform(miaBack,"deliver:mia_letter").toOption.get._1.quests.exists(q=>q.id=="mia_letter" && q.status==QuestStatus.completed))
     val merchantTalk=Rules.perform(a.copy(place="hall",quests=Nil),"talk:merchant").toOption.get._1

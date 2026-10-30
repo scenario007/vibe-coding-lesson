@@ -25,10 +25,12 @@ private[game] object Rules:
   private val chemicalArchive = "药剂账册：事故前，一批污染处理药剂被运往地下。"
   private val mineWorkOrder = "铁匠铺工单：矿道风机的紧急手柄位于东侧检修井。"
   private val chemicalWorkOrder = "铁匠铺工单：地下处理管路的手动截断阀位于东侧检修井。"
+  private val minerRoute = "矿工手绘路线：东侧检修井通向矿工休息处。"
   private[game] def hasInquiryRecord(a: Adventure): Boolean =
     a.clues.exists(c=>c==reportClue || c==mineArchive || c==chemicalArchive)
   private[game] def knowsEquipment(a: Adventure): Boolean =
     a.clues.contains(if a.truth=="mine_accident" then mineWorkOrder else chemicalWorkOrder)
+  private[game] def rescueHours(a: Adventure): Int = if a.clues.contains(minerRoute) then 1 else 2
 
   private def recordMinerLoss(a: Adventure): Adventure =
     val witnesses=a.npcs.map(n=>if n.place==a.place && n.condition!=NpcCondition.deceased && !n.facts.exists(_.text==lossClue) then n.copy(facts=n.facts :+ NpcFact(lossClue,"亲眼所见")) else n)
@@ -390,7 +392,7 @@ private[game] object Rules:
       if a.minerStatus!=MinerStatus.missing then Left(AppError(409,"当前没有可救援的矿工"))
       else if quantity(a,"medicine")<1 then Left(AppError(409,"救援需要一份药品"))
       else
-        val progressed=advance(adjust(a,"medicine",-1).copy(hour=a.hour+2,events=a.events :+ "尝试救援失踪矿工"))
+        val progressed=advance(adjust(a,"medicine",-1).copy(hour=a.hour+rescueHours(a),events=a.events :+ "尝试救援失踪矿工"))
         if progressed.sealedEnding then Right((progressed,"黑雾失控，危机进入结局。",None,None,None))
         else if progressed.minerStatus==MinerStatus.lost then Right((recordMinerLoss(progressed.copy(events=progressed.events :+ "赶到时矿工已无法获救。")),"赶到时矿工已无法获救。",None,None,None))
         else

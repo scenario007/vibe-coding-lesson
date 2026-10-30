@@ -311,10 +311,11 @@ private[game] object Rules:
         case Some(_) => Right((a.copy(quests=a.quests.map(q => if q.id==id then q.copy(status=QuestStatus.active) else q)),"你接受了这个请求。",None,None,None))
     else if action == "gather:herbs" && a.place == "forest" && a.quests.exists(q => q.id == "herbs" && q.status == QuestStatus.active) then
       Right(addClue(a,"获得药草：可以交给药师。",1))
-    else if action == "deliver:herbs" && a.place == "clinic" && a.clues.contains("获得药草：可以交给药师。") && a.quests.exists(q => q.id == "herbs" && q.status == QuestStatus.active) && a.npcs.exists(n => n.id=="healer" && n.place==a.place && n.condition==NpcCondition.healthy) then
+    else if action == "deliver:herbs" && a.clues.contains("获得药草：可以交给药师。") && a.quests.exists(q => q.id == "herbs" && q.status == QuestStatus.active) && a.npcs.exists(n => n.id=="healer" && n.place==a.place && n.condition==NpcCondition.healthy) then
       val quests = a.quests.map(q => if q.id == "herbs" then q.copy(status=QuestStatus.completed) else q)
       val npcs = a.npcs.map(n => if n.id == "healer" then n.copy(trust=math.min(100,n.trust+10),knownTrust=Some(math.min(100,n.trust+10)),memories=n.memories :+ "玩家按约带回药草") else n)
-      Right((a.copy(quests=quests,npcs=npcs,events=a.events :+ "将药草交给药师"),"药师收下药草，信任有所增加。",None,None,None))
+      val rewarded=adjust(a,"filter",1)
+      Right((rewarded.copy(quests=quests,npcs=npcs,events=a.events :+ "将药草交给药师，获得备用净水滤芯"),"药师收下药草，将一份备用净水滤芯交给你，信任也有所增加。",None,None,None))
     else if action.startsWith("negotiate:") || action.startsWith("abandon:") then
       val negotiating=action.startsWith("negotiate:"); val id=action.dropWhile(_ != ':').drop(1)
       a.quests.find(q=>q.id==id && Set(QuestStatus.active,QuestStatus.paused).contains(q.status)) match

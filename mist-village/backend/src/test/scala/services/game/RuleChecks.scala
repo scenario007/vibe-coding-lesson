@@ -136,6 +136,11 @@ object RuleChecks extends IOApp.Simple:
     assert(awayFromHealer.npcs.find(_.id=="guard").get.facts.exists(_.text=="药师在村口协助伤者。"))
     val witnessedArrival=Rules.perform(a.copy(place="clinic",hour=35,npcs=clinicKnown),"rest").toOption.get._1
     assert(witnessedArrival.events.exists(_.contains("前往村口协助")) && witnessedArrival.npcs.find(_.id=="healer").exists(_.lastKnownPlace=="gate"))
+    val herbs=Quest("herbs","寻找药草",QuestStatus.active,Some(50),"交给药师",issuer=Some("healer"))
+    val meetHealer=awayFromHealer.copy(place="gate",quests=List(herbs),clues=List("获得药草：可以交给药师。"),aiEnabled=false)
+    val supplied=Rules.perform(meetHealer,"deliver:herbs").toOption.get._1
+    assert(supplied.quests.head.status==QuestStatus.completed && supplied.items.find(_.id=="filter").exists(_.quantity==1))
+    assert(Rules.perform(supplied.copy(stage=1),"resolve:water").toOption.get._1.sealedEnding)
     val forest=a.copy(place="forest")
     val begun=Rules.perform(forest,"start:beast").toOption.get._1
     assert(begun.battle.nonEmpty && Rules.perform(begun,"move:gate").isLeft)

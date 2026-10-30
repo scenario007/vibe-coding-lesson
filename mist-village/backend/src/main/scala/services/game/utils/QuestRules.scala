@@ -6,7 +6,7 @@ private[game] object QuestRules:
     case "smith" => Some(Quest("smith_map","寻找铁匠的旧图",QuestStatus.offered,Some(hour+18),"寻找铁匠铺中的旧矿图，再交给铁匠。",issuer=Some("smith")))
     case "mia" => Some(Quest("mia_letter","送回未寄出的信",QuestStatus.offered,Some(hour+24),"在森林寻找矿工留下的信，再交给米娅。",issuer=Some("mia")))
     case "merchant" => Some(Quest("merchant_supply","取回营地补给",QuestStatus.offered,Some(hour+18),"前往安全的营地取回补给，再交给旅商。",issuer=Some("merchant")))
-    case "healer" => Some(Quest("herbs","为药师寻找药草",QuestStatus.offered,Some(hour+12),"在森林寻找药草，在期限前交给药师。",issuer=Some("healer")))
+    case "healer" => Some(Quest("herbs","为药师寻找药草",QuestStatus.offered,Some(hour+12),"在森林寻找药草，在期限前交给药师；她会提供一份备用净水滤芯。",issuer=Some("healer")))
     case _ => None
   private def active(a: Adventure,id: String): Boolean = a.quests.exists(q=>q.id==id && q.status==QuestStatus.active)
   private def present(a: Adventure,id: String): Boolean = a.npcs.exists(n=>n.id==id && n.place==a.place && n.condition==NpcCondition.healthy)

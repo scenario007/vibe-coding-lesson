@@ -52,7 +52,8 @@ c=cact('accept:herbs'); assert c['quests'][0]['status']=='active'
 c=cact('pause:herbs'); assert c['quests'][0]['status']=='paused'
 c=cact('resume:herbs'); assert c['quests'][0]['status']=='active'
 cact('move:forest'); c=cact('gather:herbs'); cact('move:clinic'); c=cact('deliver:herbs')
-assert c['quests'][0]['status']=='completed' and c['npcs'][0]['attitude']=='友善'
+assert c['quests'][0]['status']=='completed' and c['npcs'][0]['attitude']=='友善' and any(x['id']=='filter' and x['quantity']==1 for x in c['items'])
+post('performactionapi',{'id':id,'action':'deliver:herbs'},400)
 print('PASS: NPC interaction, quest, pause, delivery, AI missing configuration fails closed')
 
 failed=post('proposeactionapi',{'id':id,'input':'查看告示'})

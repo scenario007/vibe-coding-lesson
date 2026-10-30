@@ -48,9 +48,8 @@ final case class ListActionsAPIMessage(id: String) extends APIMessage[List[Actio
       else Nil
     }
     herbsProgress=if a.quests.exists(q=>q.id=="herbs" && q.status==services.game.objects.QuestStatus.active) then
-      if a.place=="forest" then List(ActionOption("gather:herbs","寻找药草",1,None))
-      else if a.place=="clinic" && a.npcs.exists(n=>n.id=="healer" && n.place==a.place && n.condition==services.game.objects.NpcCondition.healthy) && a.clues.contains("获得药草：可以交给药师。") then List(ActionOption("deliver:herbs","交付药草",0,None))
-      else Nil
+      (if a.place=="forest" && !a.clues.contains("获得药草：可以交给药师。") then List(ActionOption("gather:herbs","寻找药草",1,None)) else Nil) ++
+      (if a.npcs.exists(n=>n.id=="healer" && n.place==a.place && n.condition==services.game.objects.NpcCondition.healthy) && a.clues.contains("获得药草：可以交给药师。") then List(ActionOption("deliver:herbs","交付药草",0,None)) else Nil)
     else Nil
     access=if a.place=="gate" && a.stage>=1 then
       (if a.npcs.exists(n=>n.id=="guard" && n.condition==services.game.objects.NpcCondition.deceased) && !a.events.contains("矿洞封锁已解除") then List(ActionOption("open_gate","移开封锁",0,None)) else Nil) ++

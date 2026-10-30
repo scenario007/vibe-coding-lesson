@@ -1,23 +1,30 @@
 package services.game
 import cats.effect.{IO,IOApp}
+import io.circe.syntax.*
 import services.game.objects.*
 import services.game.utils.{Rules,OutcomeSummary}
 object RuleChecks extends IOApp.Simple:
   def run: IO[Unit] = IO {
     val npc=NpcState.initial.map(n => if n.id=="healer" then n.copy(met=true,lastKnownPlace="clinic") else n)
     val q=Quest("q1","调查请求",QuestStatus.offered,Some(30),"查看告示",Some("inspect_gate"),Some("healer"),Some("trust"))
+    val oldQuest=io.circe.parser.decode[Quest]("""{"id":"old","title":"旧请求","status":"active","deadline":30,"description":"查看告示","goal":"inspect_gate","issuer":"healer","reward":"trust"}""")
+    assert(oldQuest.exists(q=> !q.goalReached))
     val a=Adventure("a","旅人","调查员","标准","mine_accident",1,9,"clinic",100,0,Nil,Nil,0,false,npc,List(q),true)
     val accepted=Rules.perform(a,"accept:q1").toOption.get._1
     assert(accepted.quests.head.status==QuestStatus.active)
     val atGate=Rules.perform(accepted,"move:gate").toOption.get._1
     val outcome=Rules.perform(atGate,"inspect_gate").toOption.get
     val result=Rules.applyQuestRewards(atGate,outcome._1,"inspect_gate",outcome._3,outcome._4,outcome._5)
-    assert(result.quests.head.status==QuestStatus.active && result.events.contains("已达成请求目标：q1"))
+    assert(result.quests.head.status==QuestStatus.active && result.quests.head.goalReached && result.events.contains("调查目标已达成：调查请求。"))
     assert(result.npcs.find(_.id=="healer").get.trust==50 && Rules.perform(result,"report:q1").isLeft)
     val returnToHealer=Rules.perform(result,"move:clinic").toOption.get._1
     val report=Rules.perform(returnToHealer,"report:q1").toOption.get
     val reported=Rules.applyQuestRewards(returnToHealer,report._1,"report:q1",report._3,report._4,report._5)
     assert(reported.quests.head.status==QuestStatus.completed && reported.npcs.find(_.id=="healer").get.trust==55)
+    val legacy=returnToHealer.copy(quests=returnToHealer.quests.map(_.copy(goalReached=false)),events=returnToHealer.events :+ "已达成请求目标：q1")
+    assert(io.circe.parser.decode[Adventure](legacy.asJson.noSpaces).toOption.get.quests.head.goalReached)
+    val legacyReport=Rules.perform(legacy,"report:q1").toOption.get
+    assert(Rules.applyQuestRewards(legacy,legacyReport._1,"report:q1",legacyReport._3,legacyReport._4,legacyReport._5).quests.head.status==QuestStatus.completed)
     val together=atGate.copy(npcs=atGate.npcs.map(n=>if n.id=="healer" then n.copy(place="gate") else n))
     val observed=Rules.perform(together,"inspect_gate").toOption.get
     val witnessed=Rules.applyQuestRewards(together,observed._1,"inspect_gate",observed._3,observed._4,observed._5)

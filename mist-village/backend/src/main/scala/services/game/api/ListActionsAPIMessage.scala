@@ -42,7 +42,7 @@ final case class ListActionsAPIMessage(id: String) extends APIMessage[List[Actio
         val toggle=if q.status == services.game.objects.QuestStatus.active then ActionOption(s"pause:${q.id}",s"搁置请求：${q.title}",0,None) else ActionOption(s"resume:${q.id}",s"重新关注：${q.title}",0,None)
         val present=q.issuer.exists(id=>a.npcs.exists(n=>n.id==id && n.place==a.place && n.condition==services.game.objects.NpcCondition.healthy))
         val discussion=if present then List(ActionOption(s"abandon:${q.id}",s"向委托人说明放弃：${q.title}",0,Some("可能影响信任"))) ++ (if q.deadline.nonEmpty && !a.events.contains(s"已协商请求：${q.id}") then List(ActionOption(s"negotiate:${q.id}",s"协商延长：${q.title}",1,Some("对方可能拒绝"))) else Nil) else Nil
-        val report=if present && q.status==services.game.objects.QuestStatus.active && q.goal.nonEmpty && a.events.contains(s"已达成请求目标：${q.id}") then List(ActionOption(s"report:${q.id}",s"汇报调查结果：${q.title}",0,None)) else Nil
+        val report=if present && q.status==services.game.objects.QuestStatus.active && q.goal.nonEmpty && (q.goalReached || a.events.contains(s"已达成请求目标：${q.id}")) then List(ActionOption(s"report:${q.id}",s"汇报调查结果：${q.title}",0,None)) else Nil
         toggle :: (discussion ++ report)
       else Nil
     }

@@ -278,7 +278,7 @@ private[game] object Rules:
         case Some(q) => Right((a.copy(quests=a.quests.map(item=>if item.id==id then item.copy(status=QuestStatus.declined) else item),events=a.events :+ s"暂不接受请求：${q.title}"),"你决定暂不接受这个请求，没有作出承诺。",None,None,None))
     else if action.startsWith("report:") then
       val id=action.stripPrefix("report:")
-      val quest=a.quests.find(q=>q.id==id && q.status==QuestStatus.active && q.goal.nonEmpty && a.events.contains(s"已达成请求目标：$id"))
+      val quest=a.quests.find(q=>q.id==id && q.status==QuestStatus.active && q.goal.nonEmpty && (q.goalReached || a.events.contains(s"已达成请求目标：$id")))
       val issuer=quest.flatMap(_.issuer).flatMap(i=>a.npcs.find(n=>n.id==i && n.place==a.place && n.condition==NpcCondition.healthy))
       if quest.isEmpty || issuer.isEmpty || quest.exists(_.deadline.exists(a.hour>_)) then Left(AppError(409,"没有可在此汇报的请求"))
       else Right((a,s"你向${issuer.get.name}汇报了调查结果。",None,None,None))
@@ -458,9 +458,9 @@ private[game] object Rules:
 
   private[game] def applyQuestRewards(before: Adventure, after: Adventure, action: String, die: Option[Int], modifier: Option[Int], difficulty: Option[Int]): Adventure =
     val succeeded = die.isEmpty || die.get + modifier.getOrElse(0) >= difficulty.getOrElse(0)
-    val reached=if succeeded && !after.sealedEnding then before.quests.filter(q=>q.status==QuestStatus.active && q.goal.nonEmpty && (q.goal.contains(action) || (q.goal.contains("search_forest") && action=="thorough_search")) && q.deadline.forall(after.hour<=_)) else Nil
-    val marked=after.copy(events=after.events ++ reached.map(q=>s"已达成请求目标：${q.id}").filterNot(after.events.contains))
-    val completed=if !marked.sealedEnding then before.quests.filter(q=>q.status==QuestStatus.active && q.goal.nonEmpty && q.deadline.forall(marked.hour<=_) && marked.events.contains(s"已达成请求目标：${q.id}") && (reached.exists(_.id==q.id) || action==s"report:${q.id}") && q.issuer.exists(i=>marked.npcs.exists(n=>n.id==i && n.place==marked.place && n.condition==NpcCondition.healthy))) else Nil
+    val reached=if succeeded && !after.sealedEnding then before.quests.filter(q=>q.status==QuestStatus.active && q.goal.nonEmpty && !q.goalReached && !before.events.contains(s"已达成请求目标：${q.id}") && (q.goal.contains(action) || (q.goal.contains("search_forest") && action=="thorough_search")) && q.deadline.forall(after.hour<=_)) else Nil
+    val marked=after.copy(quests=after.quests.map(q=>if reached.exists(_.id==q.id) then q.copy(goalReached=true) else q),events=after.events ++ reached.map(q=>s"调查目标已达成：${q.title}。"))
+    val completed=if !marked.sealedEnding then before.quests.filter(q=>q.status==QuestStatus.active && q.goal.nonEmpty && q.deadline.forall(marked.hour<=_) && (q.goalReached || before.events.contains(s"已达成请求目标：${q.id}") || reached.exists(_.id==q.id)) && (reached.exists(_.id==q.id) || action==s"report:${q.id}") && q.issuer.exists(i=>marked.npcs.exists(n=>n.id==i && n.place==marked.place && n.condition==NpcCondition.healthy))) else Nil
     val ids=completed.map(_.id).toSet
     val bonus=completed.count(_.reward.contains("recovery"))*10
     val trustByIssuer=completed.filter(_.reward.contains("trust")).flatMap(_.issuer).groupMapReduce(identity)(_ => 5)(_+_)

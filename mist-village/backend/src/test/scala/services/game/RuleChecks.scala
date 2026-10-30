@@ -184,6 +184,13 @@ object RuleChecks extends IOApp.Simple:
     val rescuedMiner=Rules.perform(minerStart,"rescue:miner").toOption.get._1
     assert(rescuedMiner.minerStatus==MinerStatus.rescued && rescuedMiner.knownMinerStatus==MinerStatus.rescued)
     assert(!rescuedMiner.items.exists(_.id=="medicine"))
+    val miaKnows=rescuedMiner.npcs.map(n=>if n.id=="mia" then n.copy(met=true,place="forge",lastKnownPlace="forge",knownTrust=Some(50)) else n)
+    val tellMia=rescuedMiner.copy(place="forge",npcs=miaKnows)
+    val rescueIndexForMia=tellMia.clues.indexOf("救援记录：失踪矿工已获救。")
+    val sharedRescue=Rules.perform(tellMia,s"share:mia:$rescueIndexForMia").toOption.get._1
+    assert(sharedRescue.npcs.find(_.id=="mia").exists(_.trust==60))
+    assert(Rules.perform(sharedRescue,s"share:mia:$rescueIndexForMia").toOption.get._1.npcs.find(_.id=="mia").exists(_.trust==60))
+    assert(Rules.perform(sharedRescue,"talk:mia").toOption.get._2.contains("获救"))
     val clinicRescue=rescuedMiner.copy(place="clinic",npcs=npc)
     val rescueIndex=clinicRescue.clues.indexOf("救援记录：失踪矿工已获救。")
     val toldHealer=Rules.perform(clinicRescue,s"share:healer:$rescueIndex").toOption.get._1

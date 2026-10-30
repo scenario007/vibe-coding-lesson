@@ -229,12 +229,13 @@ private[game] object Rules:
           val updated = a.npcs.map(n => if n.id == id then n.copy(met=true,lastKnownPlace=n.place,lastSeenHour=Some(a.hour),knownTrust=Some(n.trust),knownCondition=Some(n.condition),memories=(n.memories :+ memory).distinct) else n)
           val missedPromise=person.facts.find(f=>f.source=="亲身经历" && f.text.startsWith("玩家未能按期完成请求：") && !a.dialogue.exists(d=>d.speaker==person.name && d.text.contains(f.text.replaceFirst("玩家", "你"))))
           val line = if person.condition==NpcCondition.injured then "我在矿洞受了伤，恐怕不能独自返回村庄。" else if missedPromise.nonEmpty then s"${missedPromise.get.text.replaceFirst("玩家", "你")} 我原以为你会按时回来。" else id match
-            case "smith" if person.facts.exists(_.text==rescueClue) => "我听说人已经获救了，谢谢你告诉我。"
+            case "smith" if person.facts.exists(_.text==rescueClue) => "我听说矿工获救了，要去确认弟弟是否平安。"
             case "smith" if a.hour>=24 => "我准备去矿洞寻找弟弟，不能再等下去了。"
             case "smith" => "我的弟弟进了矿洞，还没有回来。"
             case "healer" => "病人出现咳嗽，需要干净的水和休息。"
             case "guard" => "村长要求封锁矿洞，我不能让人擅自进去。"
             case "mayor" => "我们正努力保护村庄，请小心行事。"
+            case "mia" if person.facts.exists(_.text==rescueClue) => "听说矿工获救了，我终于可以去确认父亲的消息。希望他也平安。"
             case "mia" => "我父亲是矿工，我想知道他在哪里。"
             case "visitor:courier" => "我负责运送物资，封路让补给变得困难。"
             case "visitor:apprentice" => "我是来帮忙的学徒，知道的事情并不多。"
@@ -292,7 +293,14 @@ private[game] object Rules:
         (person,index.flatMap(a.clues.lift)) match
           case (Some(npc),Some(clue)) =>
             val memory=s"玩家分享了线索：$clue"
-            val npcs=a.npcs.map(n => if n.id==npcId then n.copy(memories=(n.memories :+ memory).distinct,facts=if n.facts.exists(_.text==clue) then n.facts else n.facts :+ NpcFact(clue,"玩家")) else n)
+            val npcs=a.npcs.map { n =>
+              if n.id!=npcId then n
+              else
+                val fresh= !n.facts.exists(_.text==clue)
+                val appreciation=if fresh && clue==rescueClue && Set("smith","mia").contains(n.id) then 10 else 0
+                val trust=math.min(100,n.trust+appreciation)
+                n.copy(trust=trust,knownTrust=if appreciation>0 then Some(trust) else n.knownTrust,memories=(n.memories :+ memory).distinct,facts=if fresh then n.facts :+ NpcFact(clue,"玩家") else n.facts)
+            }
             Right((a.copy(npcs=npcs,events=a.events :+ s"向${npc.name}分享线索",dialogue=a.dialogue :+ DialogueEntry(a.name,clue,a.hour,a.place)),s"你向${npc.name}说明了这条线索。",None,None,None))
           case _ => Left(AppError(400,"人物不在场或线索不存在"))
     else if action == "ask:aid:healer" then

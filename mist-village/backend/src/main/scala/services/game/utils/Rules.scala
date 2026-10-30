@@ -30,19 +30,24 @@ private[game] object Rules:
     val hash = MessageDigest.getInstance("SHA-256").digest(state.getBytes(StandardCharsets.UTF_8))
     (BigInt(1,hash) % 20).toInt + 1
 
-  private[game] def advance(a: Adventure): Adventure =
+  private[game] def advance(a: Adventure, timePassed: Boolean = true): Adventure =
     val nextStage = if a.stage == 0 && a.clues.contains(gateClue) && (a.clues.contains(clinicClue) || a.clues.contains(clinicRecordClue)) then 1
       else if a.stage == 1 && hasInquiryRecord(a) && a.clues.exists(c => c == mineClue || c == chemicalClue) then 2
       else a.stage
-    val expired = a.quests.map(q => if Set(QuestStatus.offered,QuestStatus.active,QuestStatus.paused).contains(q.status) && q.deadline.exists(a.hour > _) then q.copy(status=QuestStatus.expired) else q)
-    val missed=a.quests.filter(q=>Set(QuestStatus.active,QuestStatus.paused).contains(q.status) && q.deadline.exists(a.hour > _))
+    val expired = if timePassed then a.quests.map(q => if Set(QuestStatus.offered,QuestStatus.active,QuestStatus.paused).contains(q.status) && q.deadline.exists(a.hour > _) then q.copy(status=QuestStatus.expired) else q) else a.quests
+    val missed=if timePassed then a.quests.filter(q=>Set(QuestStatus.active,QuestStatus.paused).contains(q.status) && q.deadline.exists(a.hour > _)) else Nil
     val disappointed=a.npcs.map { n =>
       val promises=missed.filter(_.issuer.contains(n.id))
       if promises.isEmpty || n.condition==NpcCondition.deceased then n
       else n.copy(trust=math.max(0,n.trust-10*promises.size),facts=n.facts ++ promises.map(q=>NpcFact(s"玩家未能按期完成请求：${q.title}。","亲身经历")))
     }
-    val moved = disappointed.map { n =>
-      if n.id != "smith" || a.companion.contains(n.id) || n.condition==NpcCondition.deceased then n
+    val moved = if !timePassed then disappointed else disappointed.map { n =>
+      if a.companion.contains(n.id) || n.condition!=NpcCondition.healthy && n.id!="smith" then n
+      else if n.id=="healer" then
+        val fact=NpcFact("药师在村口协助伤者。","亲身经历")
+        val destination=if a.hour>=36 && a.hour<48 && n.place=="clinic" then "gate" else if a.hour>=48 && n.place=="gate" && n.facts.exists(_.text==fact.text) then "clinic" else n.place
+        n.copy(place=destination,facts=if destination=="gate" && a.hour>=36 && a.hour<48 && !n.facts.exists(_.text==fact.text) then n.facts :+ fact else n.facts)
+      else if n.id != "smith" || n.condition==NpcCondition.deceased then n
       else
         val returned=if n.condition==NpcCondition.healthy && n.expeditionStarted.isEmpty && a.hour>=24 && a.hour<36 then n.copy(place="forge") else n
         val leaving=if returned.condition==NpcCondition.healthy && returned.expeditionStarted.isEmpty && a.hour>=36 && !returned.memories.contains("玩家救助了我") && !returned.facts.exists(_.text==rescueClue) then returned.copy(place="mine",expeditionStarted=Some(a.hour)) else returned
@@ -51,19 +56,26 @@ private[game] object Rules:
         else if elapsed>=12 then leaving.copy(condition=NpcCondition.injured)
         else leaving
     }
-    val relationships=Set(("smith","guard"),("guard","mayor"),("healer","mayor"),("mia","smith"),("merchant","guard"))
-    val informed=moved.map { listener =>
+    val relationships=Set(("smith","guard"),("guard","mayor"),("healer","mayor"),("healer","guard"),("mia","smith"),("merchant","guard"))
+    val informed=if !timePassed then moved else moved.map { listener =>
       val learned=moved.filter(speaker=>speaker.id!=listener.id && speaker.place==listener.place && speaker.condition!=NpcCondition.deceased && listener.condition!=NpcCondition.deceased && (relationships.contains((speaker.id,listener.id)) || speaker.contacts.contains(listener.id) || listener.contacts.contains(speaker.id)))
         .flatMap(speaker=>speaker.facts.map(f=>NpcFact(f.text,speaker.name)))
         .filterNot(f=>listener.facts.exists(_.text==f.text))
         .groupBy(_.text).values.map(_.head).toList.sortBy(_.text)
       listener.copy(facts=listener.facts ++ learned)
     }
+    val healerBefore=a.npcs.find(_.id=="healer")
+    val healerAfter=informed.find(_.id=="healer")
+    val healerMovement=(healerBefore,healerAfter) match
+      case (Some(old),Some(now)) if old.place!=now.place && (old.place==a.place || now.place==a.place) =>
+        List(if now.place=="gate" then "药师林婆带着药箱前往村口协助伤者。" else "药师林婆收起药箱，返回诊所。")
+      case _ => Nil
+    val observed=informed.map(n=>if n.met && (n.place==a.place || (n.id=="healer" && healerMovement.nonEmpty)) then n.copy(lastKnownPlace=n.place,lastSeenHour=Some(a.hour),knownTrust=Some(n.trust),knownCondition=Some(n.condition)) else n)
     val warning1="雾开始蔓延到村庄外围，空气里的刺激气味更重了。"
     val warning2="雾已逼近村庄，留给大家行动的时间正在减少。"
     val visibleWarnings=List((33,warning1),(57,warning2)).filter((at,message)=>a.hour>=at && !a.events.contains(message)).map(_._2)
     val miner=if a.hour>=69 && a.minerStatus==MinerStatus.missing then MinerStatus.lost else a.minerStatus
-    val prepared = a.copy(stage=nextStage, quests=expired, npcs=informed, events=a.events ++ visibleWarnings,minerStatus=miner)
+    val prepared = a.copy(stage=nextStage, quests=expired, npcs=observed, events=a.events ++ healerMovement ++ visibleWarnings,minerStatus=miner)
     if a.dead then prepared
     else if a.hour >= 81 && !a.sealedEnding then prepared.copy(stage=3,sealedEnding=true,events=prepared.events :+ "黑雾扩散失控，村庄被迫撤离。")
     else prepared
@@ -73,7 +85,7 @@ private[game] object Rules:
   private[game] def unknownFactor(a: Adventure, action: String): Boolean = action=="persuade:guard" && guardFact(a).exists(f=> !guardFactKnown(a,f))
   private def addClue(a: Adventure, clue: String, hours: Int): (Adventure,String,Option[Int],Option[Int],Option[Int]) =
     if a.clues.contains(clue) then (a,"你已经记录了这条线索。",None,None,None)
-    else (advance(a.copy(hour=a.hour+hours,clues=a.clues :+ clue,events=a.events :+ clue)),clue,None,None,None)
+    else (advance(a.copy(hour=a.hour+hours,clues=a.clues :+ clue,events=a.events :+ clue),hours>0),clue,None,None,None)
 
   private[game] def perform(a: Adventure, action: String): Either[AppError,(Adventure,String,Option[Int],Option[Int],Option[Int])] =
     if a.sealedEnding then Left(AppError(409,"故事已结束，此档案已封存"))
@@ -118,7 +130,7 @@ private[game] object Rules:
           val damage=math.max(0,pending.damage-(if choice=="food" then 10 else if choice=="delay" then 5 else 0))
           val remaining=math.max(0,a.health-damage)
           val consumed=if choice=="food" then adjust(a,"food",-1) else a
-          val next=advance(consumed.copy(hour=a.hour+(if choice=="delay" then 1 else 0),health=remaining,dead=remaining==0,injury=if damage>=20 && remaining>0 then Some("leg") else a.injury,pendingRecovery=None,events=a.events :+ (if remaining==0 then "矿洞中受伤过重，旅程在此结束。" else s"处理危险后损失 $damage 点生命。")))
+          val next=advance(consumed.copy(hour=a.hour+(if choice=="delay" then 1 else 0),health=remaining,dead=remaining==0,injury=if damage>=20 && remaining>0 then Some("leg") else a.injury,pendingRecovery=None,events=a.events :+ (if remaining==0 then "矿洞中受伤过重，旅程在此结束。" else s"处理危险后损失 $damage 点生命。")),choice=="delay")
           Right((next,if remaining==0 then "角色在矿洞中死亡，可以读取存档。" else s"危险已处理，损失 $damage 点生命。",None,None,None))
     else if QuestRules.perform(a,action).nonEmpty then QuestRules.perform(a,action).get
     else if action == "move:mine_via_map" && a.place=="forest" && a.stage>=1 && a.clues.contains("铁匠旧图：矿道侧线通往森林一侧。") then

@@ -25,7 +25,7 @@ object RuleChecks extends IOApp.Simple:
     assert(io.circe.parser.decode[Adventure](legacy.asJson.noSpaces).toOption.get.quests.head.goalReached)
     val legacyReport=Rules.perform(legacy,"report:q1").toOption.get
     assert(Rules.applyQuestRewards(legacy,legacyReport._1,"report:q1",legacyReport._3,legacyReport._4,legacyReport._5).quests.head.status==QuestStatus.completed)
-    val together=atGate.copy(npcs=atGate.npcs.map(n=>if n.id=="healer" then n.copy(place="gate") else n))
+    val together=atGate.copy(companion=Some("healer"),npcs=atGate.npcs.map(n=>if n.id=="healer" then n.copy(place="gate") else n))
     val observed=Rules.perform(together,"inspect_gate").toOption.get
     val witnessed=Rules.applyQuestRewards(together,observed._1,"inspect_gate",observed._3,observed._4,observed._5)
     assert(witnessed.quests.head.status==QuestStatus.completed && witnessed.npcs.find(_.id=="healer").get.trust==55)
@@ -65,6 +65,12 @@ object RuleChecks extends IOApp.Simple:
     val returned=Rules.perform(later,"move:gate").toOption.get._1
     val conversation=Rules.perform(returned,"ask:knowledge:guard").toOption.get
     assert(conversation._2.contains("铁匠阿岚"))
+    val zeroStart=a.copy(place="gate",clues=List("玩家发现的物件"),npcs=both)
+    val zeroShared=Rules.perform(zeroStart,"share:smith:0").toOption.get._1
+    val noTime=Rules.perform(zeroShared,"inspect_gate").toOption.get._1
+    assert(noTime.hour==zeroShared.hour && !noTime.npcs.find(_.id=="guard").get.facts.exists(_.text=="玩家发现的物件"))
+    val timePassed=Rules.perform(noTime,"move:clinic").toOption.get._1
+    assert(timePassed.npcs.find(_.id=="guard").get.facts.exists(_.text=="玩家发现的物件"))
     val guardWithRumor=NpcState.initial.map(n=>if n.id=="guard" then n.copy(met=true,facts=List(NpcFact("玩家攻击了铁匠阿岚","药师林婆"))) else n)
     val hiddenFactor=a.copy(place="gate",npcs=guardWithRumor)
     assert(Rules.unknownFactor(hiddenFactor,"persuade:guard"))
@@ -109,6 +115,13 @@ object RuleChecks extends IOApp.Simple:
     val early=Rules.perform(a.copy(place="gate",hour=20),"move:forest").toOption.get._1
     val foggy=Rules.perform(a.copy(place="gate",hour=40),"move:forest").toOption.get._1
     assert(early.hour==22 && foggy.hour==43)
+    val clinicKnown=NpcState.initial.map(n=>if n.id=="healer" then n.copy(met=true,lastKnownPlace="clinic",knownTrust=Some(50)) else n)
+    val awayFromHealer=Rules.perform(a.copy(place="forest",hour=35,npcs=clinicKnown),"thorough_search").toOption.get._1
+    assert(awayFromHealer.npcs.find(_.id=="healer").exists(n=>n.place=="gate" && n.lastKnownPlace=="clinic"))
+    assert(!awayFromHealer.events.exists(_.contains("前往村口协助")))
+    assert(awayFromHealer.npcs.find(_.id=="guard").get.facts.exists(_.text=="药师在村口协助伤者。"))
+    val witnessedArrival=Rules.perform(a.copy(place="clinic",hour=35,npcs=clinicKnown),"rest").toOption.get._1
+    assert(witnessedArrival.events.exists(_.contains("前往村口协助")) && witnessedArrival.npcs.find(_.id=="healer").exists(_.lastKnownPlace=="gate"))
     val forest=a.copy(place="forest")
     val begun=Rules.perform(forest,"start:beast").toOption.get._1
     assert(begun.battle.nonEmpty && Rules.perform(begun,"move:gate").isLeft)

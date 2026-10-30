@@ -77,12 +77,13 @@ final case class ListActionsAPIMessage(id: String) extends APIMessage[List[Actio
     rest=if Locations.safe(a) then List(ActionOption("rest","休息",4,None)) else Nil
     sideRoute=if a.place=="forest" && a.stage>=1 && a.clues.contains("铁匠旧图：矿道侧线通往森林一侧。") then List(ActionOption("move:mine_via_map","沿旧矿图侧线进入矿洞",Locations.travelHours(a,"mine")+1,Some("路线较远，黑雾可能继续扩散"))) else Nil
     water=if a.stage>=1 && a.items.exists(i=>i.id=="filter" && i.quantity>0) then List(ActionOption("resolve:water","保护水源并结束本局",2,Some("消耗净水滤芯与一份灯油；行动期间黑雾继续扩散"))) else Nil
-    ending=(if a.stage>=1 then List(ActionOption("resolve:evacuate","组织撤离并结束本局",2,Some("消耗一份食物；行动期间黑雾继续扩散"))) else Nil) ++ (if a.stage==2 then List(ActionOption("resolve:contain","控制黑雾并结束本局",2,Some("消耗一份灯油；行动期间黑雾继续扩散"))) else Nil)
+    preparation=if a.place=="mine" && a.stage==2 && !a.events.contains("已准备控制污染源") then List(ActionOption("prepare:quick","迅速准备现场",2,Some("需要检定，失败可能受伤")),ActionOption("prepare:careful","谨慎准备现场",4,Some("黑雾和其他事件会继续发展"))) else Nil
+    ending=(if a.stage>=1 then List(ActionOption("resolve:evacuate","组织撤离并结束本局",2,Some("消耗一份食物；行动期间黑雾继续扩散"))) else Nil) ++ (if a.stage==2 && a.events.contains("已准备控制污染源") then List(ActionOption("resolve:contain","控制黑雾并结束本局",2,Some("消耗一份灯油；行动期间黑雾继续扩散"))) else Nil)
     recovery=a.pendingRecovery.toList.flatMap { _ =>
       List(ActionOption("recover:accept","承担伤害",0,None),ActionOption("recover:delay","花费一小时减轻伤害",1,Some("黑雾和其他事件继续发展"))) ++ (if a.items.exists(i=>i.id=="food" && i.quantity>0) then List(ActionOption("recover:food","消耗一份食物减轻伤害",0,None)) else Nil)
     }
     combat=a.battle.toList.flatMap(_ => List(ActionOption("combat:attack","攻击",0,None),ActionOption("combat:defend","防御",0,None),ActionOption("combat:flee","尝试撤离",0,Some("可能被阻拦"))) ++ (if a.items.exists(i=>i.id=="medicine" && i.quantity>0) && a.health<100 then List(ActionOption("combat:medicine","使用药品",0,Some("野兽可能反击"))) else Nil))
-  yield if a.aiPause.nonEmpty then Nil else if a.battle.nonEmpty then combat else if a.pendingRecovery.nonEmpty then recovery else people ++ questions ++ knowledge ++ join ++ leave ++ rescue ++ conflict ++ local ++ herbsProgress ++ quests ++ questActions ++ treatment ++ aid ++ rest ++ travel ++ access ++ sideRoute ++ water ++ ending
+  yield if a.aiPause.nonEmpty then Nil else if a.battle.nonEmpty then combat else if a.pendingRecovery.nonEmpty then recovery else people ++ questions ++ knowledge ++ join ++ leave ++ rescue ++ conflict ++ local ++ herbsProgress ++ quests ++ questActions ++ treatment ++ aid ++ rest ++ travel ++ access ++ sideRoute ++ water ++ preparation ++ ending
 object ListActionsAPIMessage:
   given Encoder[ListActionsAPIMessage] = deriveEncoder
   given Decoder[ListActionsAPIMessage] = deriveDecoder

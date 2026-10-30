@@ -272,7 +272,7 @@ private[game] object Rules:
       val id=action.stripPrefix("decline:")
       a.quests.find(q=>q.id==id && q.status==QuestStatus.offered) match
         case None => Left(AppError(400,"没有待回应的请求"))
-        case Some(q) => Right((a.copy(quests=a.quests.map(item=>if item.id==id then item.copy(status=QuestStatus.abandoned) else item),events=a.events :+ s"暂不接受请求：${q.title}"),"你决定暂不接受这个请求，没有作出承诺。",None,None,None))
+        case Some(q) => Right((a.copy(quests=a.quests.map(item=>if item.id==id then item.copy(status=QuestStatus.declined) else item),events=a.events :+ s"暂不接受请求：${q.title}"),"你决定暂不接受这个请求，没有作出承诺。",None,None,None))
     else if action.startsWith("accept:") then
       val id=action.stripPrefix("accept:")
       a.quests.find(q => q.id == id && q.status == QuestStatus.offered && q.issuer.exists(n => a.npcs.exists(p => p.id==n && p.place==a.place && p.condition==NpcCondition.healthy))) match
@@ -353,6 +353,19 @@ private[game] object Rules:
         val next=advance(a.copy(hour=a.hour+2,clues=if success then a.clues :+ clue else a.clues,pendingRecovery=if success then None else Some(Recovery("dark_search",10)),events=a.events :+ (if success then "摸黑查明矿洞记录" else "摸黑调查时发生危险")))
         val settled=if next.sealedEnding then next.copy(pendingRecovery=None) else next
         Right((settled,if success then clue else if settled.sealedEnding then "黑雾失控，危机已进入结局。" else "摸黑调查发生危险，可能受伤。",Some(die),Some(mod),Some(target)))
+    else if (action == "prepare:quick" || action == "prepare:careful") && a.place=="mine" && a.stage==2 then
+      if a.events.contains("已准备控制污染源") then Left(AppError(409,"现场准备已经完成"))
+      else
+        val quick=action=="prepare:quick"
+        val die=if quick then Some(roll(a,action)) else None
+        val stats=a.stats.getOrElse(PlayerStats.forRole(a.role))
+        val modifier=stats.body+(if stats.talents.contains("mine_sense") then 2 else 0)+(if a.companion.contains("smith") then 2 else 0)-(if a.fatigue>=60 then 2 else 0)
+        val success=die.forall(_+modifier>=13)
+        val preparation=if a.truth=="mine_accident" then "检查通风与封堵位置" else "检查药剂阀门与隔离位置"
+        val next=advance(a.copy(hour=a.hour+(if quick then 2 else 4),events=a.events ++ List(preparation) ++ (if success then List("已准备控制污染源") else Nil),pendingRecovery=if success then None else Some(Recovery("site_preparation",10))))
+        val settled=if next.sealedEnding then next.copy(pendingRecovery=None) else next
+        val message=if settled.sealedEnding then "准备过程中黑雾失控，村庄进入危机结局。" else if success then s"$preparation，现场已经准备就绪。" else "现场准备时发生危险，需要先处理后果。"
+        Right((settled,message,die,if quick then Some(modifier) else None,if quick then Some(13) else None))
     else if action.startsWith("buy:") || action.startsWith("sell:") then
       val buying=action.startsWith("buy:"); val id=action.dropWhile(_ != ':').drop(1)
       if !a.npcs.exists(n => n.id=="merchant" && n.place==a.place && n.condition==NpcCondition.healthy) then Left(AppError(409,"旅商目前无法交易"))
@@ -425,7 +438,7 @@ private[game] object Rules:
         val progressed=advance(next.copy(hour=a.hour+2,events=next.events :+ "开始保护水源"))
         if progressed.sealedEnding then Right((progressed,"保护水源时黑雾失控，村庄进入危机结局。",None,None,None))
         else Right((progressed.copy(stage=3,sealedEnding=true,events=progressed.events :+ "净化水源并组织村民避险，危机得到暂时控制。"),"水源得到保护，村庄暂时安全。",None,None,None))
-    else if action == "resolve:contain" && a.stage == 2 then
+    else if action == "resolve:contain" && a.stage == 2 && a.events.contains("已准备控制污染源") then
       if quantity(a,"oil")<1 then Left(AppError(409,"控制危机需要一份灯油"))
       else
         val conclusion = if a.truth == "mine_accident" then "依据矿洞记录组织封堵与通风，村庄危机得到控制。" else "依据处理记录停止药剂投放并隔离污染源，村庄危机得到控制。"

@@ -141,6 +141,13 @@ object RuleChecks extends IOApp.Simple:
       val mine=Rules.perform(permitted,"move:mine").toOption.get._1
       val investigated=Rules.perform(mine,"inspect_mine").toOption.get._1
       assert(investigated.stage==2 && !investigated.clues.exists(_.startsWith("矿洞报告")))
+      assert(Rules.perform(investigated,"resolve:contain").isLeft)
+      val prepared=Rules.perform(investigated,"prepare:careful").toOption.get._1
+      assert(prepared.hour==investigated.hour+4 && prepared.events.contains("已准备控制污染源"))
+      assert(Rules.perform(prepared,"prepare:careful").isLeft)
+      val risky=(1L to 100L).map(seed=>investigated.copy(seed=seed)).find(v=>Rules.roll(v,"prepare:quick")+PlayerStats.forRole(v.role).body<13).get
+      val failedPrep=Rules.perform(risky,"prepare:quick").toOption.get._1
+      assert(failedPrep.pendingRecovery.nonEmpty && !failedPrep.events.contains("已准备控制污染源"))
     val deadGuard=NpcState.initial.map(n=>if n.id=="guard" then n.copy(condition=NpcCondition.deceased) else n)
     val open=Rules.perform(a.copy(place="gate",stage=1,npcs=deadGuard),"open_gate").toOption.get._1
     assert(Rules.perform(open,"move:mine").isRight)
@@ -150,7 +157,7 @@ object RuleChecks extends IOApp.Simple:
     assert(!Rules.perform(crowded,"talk:healer").toOption.get._1.quests.exists(_.id=="herbs"))
     assert(Rules.perform(crowded,"accept:herbs").isLeft)
     val declined=Rules.perform(crowded,"decline:smith_map").toOption.get._1
-    assert(declined.quests.find(_.id=="smith_map").exists(_.status==QuestStatus.abandoned))
+    assert(declined.quests.find(_.id=="smith_map").exists(_.status==QuestStatus.declined))
     assert(Rules.perform(declined,"talk:healer").toOption.get._1.quests.exists(q=>q.id=="herbs" && q.status==QuestStatus.offered))
     val full=List.tabulate(3)(i=>q.copy(id=s"active-$i",status=QuestStatus.active))
     assert(!Rules.perform(a.copy(place="clinic",quests=full),"talk:healer").toOption.get._1.quests.exists(_.id=="herbs"))

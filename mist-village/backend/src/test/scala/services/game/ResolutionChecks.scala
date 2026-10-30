@@ -24,7 +24,8 @@ object ResolutionChecks extends IOApp.Simple:
     assert(CustomResolution.preview(escort,ResolutionPlan("evacuate","person",Some("guard"))).isRight)
     assert(CustomResolution.execute(escort,ResolutionPlan("evacuate","person",Some("guard"))).toOption.get._1.events.last.contains("仍未得到解决"))
     assert(CustomResolution.preview(escort.copy(place="forest"),ResolutionPlan("evacuate","person",Some("guard"))).isLeft)
-    val chemical=base.copy(stage=2,truth="chemical_accident")
+    val chemical=base.copy(stage=2,truth="chemical_accident",events=List("已准备控制污染源"))
+    assert(CustomResolution.preview(chemical.copy(events=Nil),ResolutionPlan("contain","oil",None)).isLeft)
     assert(CustomResolution.execute(chemical,ResolutionPlan("contain","oil",None)).toOption.get._1.events.last.contains("停止药剂投放"))
     println("PASS: AI solution prerequisites, alternative helper, consumption and timeout")
   }

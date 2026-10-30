@@ -18,12 +18,13 @@ private[game] object ResolutionRules:
     val available = (p.method,p.support,p.person) match
       case ("evacuate","supplies",None) if a.stage>=1 && count(a,"food")>=1 => Some(("使用一份食物，组织村民撤离；黑雾来源可能仍未解决。",2))
       case ("evacuate","person",Some("guard")) if a.stage>=1 && helper(a,"guard") => Some(("与在场且信任你的守卫组织撤离；黑雾来源可能仍未解决。",4))
-      case ("contain","oil",None) if a.stage==2 && count(a,"oil")>=1 => Some(("使用一份灯油，依据已查明的矿洞记录控制污染源。",2))
-      case ("contain","person",Some(id)) if a.stage==2 && Set("guard","smith").contains(id) && helper(a,id) => Some(("与在场且信任你的村民协作，依据已查明的矿洞记录控制污染源。",4))
+      case ("contain","oil",None) if a.stage==2 && a.events.contains("已准备控制污染源") && count(a,"oil")>=1 => Some(("使用一份灯油，依据已查明的矿洞记录控制污染源。",2))
+      case ("contain","person",Some(id)) if a.stage==2 && a.events.contains("已准备控制污染源") && Set("guard","smith").contains(id) && helper(a,id) => Some(("与在场且信任你的村民协作，依据已查明的矿洞记录控制污染源。",4))
       case ("water","oil",None) if a.stage>=1 && count(a,"filter")>=1 && count(a,"oil")>=1 => Some(("使用净水滤芯与一份灯油保护水源，争取村庄暂时安全。",2))
       case ("water","person",Some(id)) if a.stage>=1 && count(a,"filter")>=1 && Set("healer","smith").contains(id) && helper(a,id) => Some(("与在场且信任你的村民使用净水滤芯保护水源，争取村庄暂时安全。",4))
       case _ => None
     available match
+      case None if p.method=="contain" && a.stage==2 && !a.events.contains("已准备控制污染源") => Left(AppError(422,"控制污染源前需要先在矿洞准备现场"))
       case None => Left(AppError(422,"方案与已知线索、在场人物或可用资源不符"))
       case Some((description,hours)) => Right(ResolutionPreview(p,description,hours,if a.hour+hours>=81 then Some("执行期间危机可能失控") else None))
   private[game] def execute(a: Adventure, p: ResolutionPlan): Either[AppError,(Adventure,Boolean)] = preview(a,p).map { v =>

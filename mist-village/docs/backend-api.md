@@ -23,6 +23,7 @@ AI 还需要本机凭据路径 `TOKENHUB_CONFIG_FILE`、现有课程项目账本
 - `listactionsapi`：`{id}`，返回当前位置的可用行动、预计耗时和已知风险。移动行动为 `move:gate`、`move:clinic`、`move:forge`、`move:hall`、`move:forest`、`move:mine`、`move:camp`；矿洞需许可或从村口潜入。
 - `getmapapi`：`{id}`，只读返回七个地点、当前位置、普通路线是否开放和当前预计耗时。不会在地图上标记人物请求；暂停时仍可查看。特殊绕行路线以行动列表为准。
 - 调查阶段可在议事厅花两小时查找事故档案；记录随本局真相变化，也可作为报告以外申请进入矿洞、推进调查的书面依据。
+- 查明事故后，控制污染源前需在矿洞准备现场：快速准备耗时两小时并需检定，失败可能受伤；谨慎准备耗时四小时。撤离和保护水源不依赖这项准备。
 - `performactionapi`：`{id, action, confirmed}`；最终行动 `resolve:evacuate`、`resolve:contain`、`resolve:water` 以及 `harm:<npc>`、`kill:<npc>` 需要 `confirmed: true`。行动是否可行、消耗和后果由服务端检查。
 - 三种预设最终行动耗费两小时；如果执行过程中黑雾失控，结局记为失败，不能算作剧情通关。撤离和保护水源的结局不代表黑雾源头已经消除。
 - `talk:<npc>`、`question:<npc>`、`share:<npc>:<线索索引>`、`join:<npc>` 等受在场和规则限制；NPC 最近已知位置不会自动追踪未被玩家看到的移动。受限请求可以接受、搁置和恢复；期限照常推进。

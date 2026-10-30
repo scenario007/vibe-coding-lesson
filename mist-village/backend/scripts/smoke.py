@@ -35,6 +35,7 @@ r=act('ask_clinic'); assert r['adventure']['stage']==1
 saved=post('loadadventureapi',{'id':id,'slot':0}); assert saved['stage']==1
 act('move:hall'); act('buy:oil'); act('read_report'); act('move:gate'); act('secure_permit'); act('move:mine')
 r=act('inspect_mine'); assert r['adventure']['stage']==2
+act('prepare:careful')
 r=act('resolve:contain'); assert r['adventure']['stage']==3 and r['adventure']['sealedEnding']
 post('loadadventureapi',{'id':id,'slot':0},409)
 post('performactionapi',{'id':id,'action':'rest'},409)

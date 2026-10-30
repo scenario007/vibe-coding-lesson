@@ -221,6 +221,9 @@ object RuleChecks extends IOApp.Simple:
     val deadSmith=NpcState.initial.map(n=>if n.id=="smith" then n.copy(condition=NpcCondition.deceased,place="gate") else n)
     val afterDeath=Rules.perform(a.copy(place="clinic",hour=40,npcs=deadSmith),"move:gate").toOption.get._1
     assert(afterDeath.npcs.find(_.id=="smith").exists(n=>n.condition==NpcCondition.deceased && n.place=="gate"))
+    val independentMap=Rules.perform(a.copy(place="forge",stage=1,npcs=deadSmith,quests=Nil),"inspect:old_map").toOption.get._1
+    assert(independentMap.clues.contains("铁匠旧图：矿道侧线通往森林一侧。"))
+    assert(Rules.perform(independentMap.copy(place="forest"),"move:mine_via_map").toOption.get._1.place=="mine")
     val noHealer=NpcState.initial.map(n=>if n.id=="healer" then n.copy(condition=NpcCondition.deceased) else n)
     val records=Rules.perform(a.copy(place="clinic",npcs=noHealer),"inspect:clinic_records").toOption.get._1
     assert(records.clues.exists(_.startsWith("诊所记录")))
@@ -295,6 +298,9 @@ object RuleChecks extends IOApp.Simple:
     val letter=Rules.perform(miaForest,"find:mia_letter").toOption.get._1
     val route="矿工手绘路线：东侧检修井通向矿工休息处。"
     assert(letter.clues.contains(route) && Evidence.fromText(route,None).kind==EvidenceKind.document)
+    val noMia=miaForest.npcs.map(n=>if n.id=="mia" then n.copy(condition=NpcCondition.deceased) else n)
+    val independentLetter=Rules.perform(miaForest.copy(stage=1,npcs=noMia,quests=Nil),"inspect:lost_letter").toOption.get._1
+    assert(independentLetter.clues.contains(route))
     val narrowWindow=minerStart.copy(hour=67)
     assert(Rules.perform(narrowWindow,"rescue:miner").toOption.get._1.minerStatus==MinerStatus.lost)
     assert(Rules.perform(narrowWindow.copy(clues=List(route)),"rescue:miner").toOption.get._1.minerStatus==MinerStatus.rescued)

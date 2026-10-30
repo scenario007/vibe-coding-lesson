@@ -413,6 +413,11 @@ private[game] object Rules:
         Right((next,discovered.mkString(" "),None,None,None))
     else if action == "inspect:work_order" && a.place == "forge" && a.stage>=1 then
       Right(addClue(a,if a.truth=="mine_accident" then mineWorkOrder else chemicalWorkOrder,2))
+    else if action == "inspect:old_map" && a.place == "forge" && a.stage>=1 then
+      Right(addClue(a,"铁匠旧图：矿道侧线通往森林一侧。",1))
+    else if action == "inspect:lost_letter" && a.place == "forest" && a.stage>=1 then
+      val (next,message)=QuestRules.findMinerLetter(a)
+      Right((next,message,None,None,None))
     else if action == "inspect_mine" && a.place == "mine" && a.stage >= 1 then
       val clue=if a.truth == "mine_accident" then mineClue else chemicalClue
       if a.clues.contains(clue) then Right((a,"你已经记录了这条线索。",None,None,None))

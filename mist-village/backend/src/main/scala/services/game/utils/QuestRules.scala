@@ -13,6 +13,14 @@ private[game] object QuestRules:
   private def present(a: Adventure,id: String): Boolean = a.npcs.exists(n=>n.id==id && n.place==a.place && n.condition==NpcCondition.healthy)
   private def addClue(a: Adventure,text: String,hours: Int): Adventure =
     if a.clues.contains(text) then a else Rules.advance(a.copy(hour=a.hour+hours,clues=a.clues :+ text,events=a.events :+ text))
+  private[game] def findMinerLetter(a: Adventure): (Adventure,String) =
+    val clue="矿工来信：矿工提到事故前曾听到异常响声。"
+    val route="矿工手绘路线：东侧检修井通向矿工休息处。"
+    val found=addClue(a,clue,2)
+    if found.sealedEnding then (found,"寻找来信期间黑雾失控，村庄进入危机结局。")
+    else
+      val next=if found.clues.contains(route) then found else found.copy(clues=found.clues :+ route,events=found.events :+ route)
+      (next,s"$clue 信里还夹着一张通往休息处的路线图。")
   private def finish(a: Adventure,id: String,person: String,reward: Option[String],gold: Int): Adventure =
     val newItems=reward match
       case None => a.items
@@ -31,13 +39,7 @@ private[game] object QuestRules:
       case "deliver:smith_map" if active(a,"smith_map") && present(a,"smith") && a.clues.contains("铁匠旧图：矿道侧线通往森林一侧。") =>
         Some(Right((finish(a,"smith_map","smith",Some("oil"),0),"铁匠收下旧图，并给你一份灯油。")))
       case "find:mia_letter" if a.place=="forest" && active(a,"mia_letter") =>
-        val clue="矿工来信：矿工提到事故前曾听到异常响声。"
-        val route="矿工手绘路线：东侧检修井通向矿工休息处。"
-        val found=addClue(a,clue,2)
-        if found.sealedEnding then Some(Right((found,"寻找来信期间黑雾失控，村庄进入危机结局。")))
-        else
-          val next=if found.clues.contains(route) then found else found.copy(clues=found.clues :+ route,events=found.events :+ route)
-          Some(Right((next,s"$clue 信里还夹着一张通往休息处的路线图。")))
+        Some(Right(findMinerLetter(a)))
       case "deliver:mia_letter" if active(a,"mia_letter") && present(a,"mia") && a.clues.contains("矿工来信：矿工提到事故前曾听到异常响声。") =>
         Some(Right((finish(a,"mia_letter","mia",None,0),"米娅收下信，感谢你带回消息。")))
       case "find:merchant_supply" if a.place=="camp" && Locations.safe(a) && active(a,"merchant_supply") =>

@@ -66,7 +66,7 @@ def main():
             patch="UPDATE mist_adventures SET state=state || '{\"hour\":80,\"place\":\"gate\"}'::jsonb WHERE id='"+new['id']+"'"
             run(['psql','-h','127.0.0.1','-p',str(pg_port),'-U','mist_test','-d','mist_test','-c',patch],stdout=subprocess.DEVNULL)
             end=request(f'http://127.0.0.1:{api_port}/api/performactionapi',{'id':new['id'],'action':'move:clinic'})
-            assert end['adventure']['sealedEnding']
+            assert end['adventure']['sealedEnding'] and '黑雾扩散失控' in end['message']
             progress=request(f'http://127.0.0.1:{api_port}/api/liststoryprogressapi',{})
             assert all(x['experienced'] for x in progress) and sum(x['cleared'] for x in progress)==1
             uncleared=next(x['storyId'] for x in progress if not x['cleared'])

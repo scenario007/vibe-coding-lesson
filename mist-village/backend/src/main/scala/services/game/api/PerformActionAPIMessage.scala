@@ -32,7 +32,9 @@ final case class PerformActionAPIMessage(id: String, action: String, confirmed: 
     _ <- if auto then GenerateQuestAPIMessage(id).plan(c).void else IO.unit
     finalState <- if auto then AdventureTable.find(c,id).flatMap(v=>IO.fromOption(v)(AppError(500,"自动事件状态不可用"))) else IO.pure(prepared)
     _ <- if finalState.stage != a.stage then AdventureTable.save(c,finalState,0).void else IO.unit
-    displayed=if auto && finalState.aiPause.nonEmpty then message+" AI 事件生成失败，请手动重试。" else message
+    expired= !a.sealedEnding && finalState.sealedEnding && finalState.events.contains("黑雾扩散失控，村庄被迫撤离。")
+    outcomeMessage=if expired && !(message.contains("黑雾") && message.contains("失控")) then message+" 黑雾扩散失控，村庄被迫撤离。" else message
+    displayed=if auto && finalState.aiPause.nonEmpty then outcomeMessage+" AI 事件生成失败，请手动重试。" else outcomeMessage
   yield ActionResult(AdventureView.from(finalState),displayed,die,modifier,difficulty,Rules.unknownFactor(a,action))
 object PerformActionAPIMessage:
   given Encoder[PerformActionAPIMessage] = deriveEncoder

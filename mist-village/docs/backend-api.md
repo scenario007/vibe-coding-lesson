@@ -41,10 +41,11 @@ AI 还需要本机凭据路径 `TOKENHUB_CONFIG_FILE`、现有课程项目账本
 - `draftcharacterapi`：`{background}`，生成四项属性草案并检查总点数；用于创建前的确认，不会自动创建角色。其调用记录在共享账本中，不属于某个已创建的冒险档案。
 - `proposeactionapi`：`{id, input}`，只提出受限动作，不直接执行；`generatequestapi`：`{id}`，基于在场已认识人物和可执行目标生成一条待接受请求；这两项要求本局开启 AI 动态玩法。
 - 启用 AI 时，故事进入调查阶段后，每阶段至多自动尝试生成一次支线；只有存在适合提出请求的在场熟人、可用目标，且请求数量允许时才触发。生成失败不会撤销触发它的行动，但会暂停改变世界的操作，使用 `generatequestapi` 手动重试。当前自动支线由有限目标和奖励组合构成，不是无限制的新剧情。
+- 动态请求的调查目标达成后，如委托人不在现场，需在期限内找到对方并用 `report:<请求ID>` 汇报，才能完成请求和领取奖励；在场时可直接完成。不会隔空改变委托人的信任或发放物品。
 - `generatevisitorapi`：`{id}`，由在场且已认识的相关人物引荐新人物，每局最多两人；目前需要显式调用，身份与关联由限定选项组成。
 - `gethintapi`：`{id, level: "direction" | "connection", confirmed: true}`；只发送玩家已知线索及笔记，成功后耗费一小时。AI 不掌握本局隐藏真相，但生成的自然语言仍可能推测错误。
 - `proposeresolutionapi`：`{id, input}`，AI 模式下将自由描述转换为规则内的方案预览；返回的计划必须通过 `executeresolutionapi` 的 `{id, proposal, confirmed: true}` 再次校验后执行。支持的组合有限，不表示支持任意行动；执行期间可能因时间耗尽而进入失败结局。
-- 本局 AI 接口返回 `status: "ready" | "failed"`。请求失败时会记录暂停状态；读取档案仍可用，改变世界的操作需要先手动重试相同类型的请求。自由行动重试时可修改输入。发送失败、超时、未知用量等情况可能保留费用预留。
+- 本局 AI 接口通常返回 `status: "ready" | "failed"`；自由行动和最终方案还可能返回 `unsupported`（无法映射）或 `unavailable`（当前条件不满足），这两种情况不暂停游戏。服务请求失败时会记录暂停状态；读取档案仍可用，改变世界的操作需要先手动重试相同类型的请求。自由行动重试时可修改输入。发送失败、超时、未知用量等情况可能保留费用预留。
 - `getusagereportapi`：`{id}`；返回该档案内请求数、已知 token、估算费用和未确认预留。角色创建前的草案调用、创建失败的挑战请求只在共享账本中，不属于已创建档案。
 
 ## 验证
@@ -52,7 +53,7 @@ AI 还需要本机凭据路径 `TOKENHUB_CONFIG_FILE`、现有课程项目账本
 `backend/scripts/smoke.py` 会创建三个档案，**只能对空白、专用于测试的数据库运行**。可使用 `python3 scripts/integration_test.py` 自动创建并清理隔离数据库，它不使用云端凭据。Scala 检查可运行：
 
 ```sh
-sbt 'Test / runMain services.game.RuleChecks' 'Test / runMain services.game.ResolutionChecks' 'Test / runMain services.ai.ChallengeCheck' 'Test / runMain services.ai.QuestPlanCheck' 'Test / runMain services.ai.HintPlanCheck' 'Test / runMain services.ai.VisitorCheck'
+sbt 'Test / runMain services.game.RuleChecks' 'Test / runMain services.game.ResolutionChecks' 'Test / runMain services.ai.ActionCheck' 'Test / runMain services.ai.ChallengeCheck' 'Test / runMain services.ai.QuestPlanCheck' 'Test / runMain services.ai.HintPlanCheck' 'Test / runMain services.ai.VisitorCheck'
 ```
 
 另有 `SharedLedgerCheck` 和 `ConcurrencyCheck`，需要单独配置隔离 PostgreSQL 测试库。测试不会使用或打印真实密钥。文本真实联调曾成功，详细费用以共享账本为准。

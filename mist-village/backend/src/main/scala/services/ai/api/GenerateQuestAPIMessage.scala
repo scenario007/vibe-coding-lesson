@@ -46,7 +46,7 @@ final case class GenerateQuestAPIMessage(id: String) extends APIMessage[QuestRep
           case _ => "寻找森林踪迹"
         for
           questId <- IO(UUID.randomUUID().toString)
-          q=Quest(questId,title,QuestStatus.offered,Some(a.hour+24),description+reason.map(r=>s"对方提及：$r").getOrElse("")+rewardText,Some(plan.goal),Some(plan.issuer),Some(plan.reward))
+          q=Quest(questId,title,QuestStatus.offered,Some(a.hour+24),description+reason.map(r=>s"对方提及：$r").getOrElse("")+rewardText+"如果对方不在现场，需要在期限内当面汇报。",Some(plan.goal),Some(plan.issuer),Some(plan.reward))
           updatedNpcs=a.npcs.map(n=>if n.id==issuer.id then n.copy(memories=n.memories ++ reason.map(r=>s"对方向玩家提及：$r")) else n)
           next=a.copy(quests=a.quests :+ q,npcs=updatedNpcs,events=a.events :+ s"${issuer.name}提出一项调查请求",aiPause=None)
           _ <- AdventureTable.update(c,next)

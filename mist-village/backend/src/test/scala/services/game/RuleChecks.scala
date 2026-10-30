@@ -12,12 +12,24 @@ object RuleChecks extends IOApp.Simple:
     val atGate=Rules.perform(accepted,"move:gate").toOption.get._1
     val outcome=Rules.perform(atGate,"inspect_gate").toOption.get
     val result=Rules.applyQuestRewards(atGate,outcome._1,"inspect_gate",outcome._3,outcome._4,outcome._5)
-    assert(result.quests.head.status==QuestStatus.completed)
-    assert(result.npcs.find(_.id=="healer").get.trust==55)
+    assert(result.quests.head.status==QuestStatus.active && result.events.contains("已达成请求目标：q1"))
+    assert(result.npcs.find(_.id=="healer").get.trust==50 && Rules.perform(result,"report:q1").isLeft)
+    val returnToHealer=Rules.perform(result,"move:clinic").toOption.get._1
+    val report=Rules.perform(returnToHealer,"report:q1").toOption.get
+    val reported=Rules.applyQuestRewards(returnToHealer,report._1,"report:q1",report._3,report._4,report._5)
+    assert(reported.quests.head.status==QuestStatus.completed && reported.npcs.find(_.id=="healer").get.trust==55)
+    val together=atGate.copy(npcs=atGate.npcs.map(n=>if n.id=="healer" then n.copy(place="gate") else n))
+    val observed=Rules.perform(together,"inspect_gate").toOption.get
+    val witnessed=Rules.applyQuestRewards(together,observed._1,"inspect_gate",observed._3,observed._4,observed._5)
+    assert(witnessed.quests.head.status==QuestStatus.completed && witnessed.npcs.find(_.id=="healer").get.trust==55)
     val filterQuest=q.copy(id="filter-test",status=QuestStatus.active,reward=Some("filter"))
     val before=atGate.copy(quests=List(filterQuest))
     val next=Rules.perform(before,"inspect_gate").toOption.get
-    val filtered=Rules.applyQuestRewards(before,next._1,"inspect_gate",next._3,next._4,next._5)
+    val found=Rules.applyQuestRewards(before,next._1,"inspect_gate",next._3,next._4,next._5)
+    assert(!found.items.exists(_.id=="filter"))
+    val back=Rules.perform(found,"move:clinic").toOption.get._1
+    val reportFilter=Rules.perform(back,"report:filter-test").toOption.get
+    val filtered=Rules.applyQuestRewards(back,reportFilter._1,"report:filter-test",reportFilter._3,reportFilter._4,reportFilter._5)
     assert(filtered.items.exists(i=>i.id=="filter" && i.quantity==1))
     val conclusion=Rules.perform(filtered.copy(stage=1),"resolve:water").toOption.get._1
     assert(conclusion.sealedEnding && conclusion.hour==filtered.hour+2 && !conclusion.items.exists(_.id=="filter"))

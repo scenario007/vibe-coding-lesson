@@ -164,7 +164,7 @@ private[game] object Rules:
       val die=roll(a,action); val stats=a.stats.getOrElse(PlayerStats.forRole(a.role)); val fact=guardFact(a)
       val knownPenalty=if fact.exists(f=>guardFactKnown(a,f)) then 2 else 0
       val hiddenPenalty=if fact.exists(f=> !guardFactKnown(a,f)) then 2 else 0
-      val mod=stats.social + (if a.clues.contains(reportClue) then 2 else 0)-knownPenalty; val target=14
+      val mod=stats.social + (if stats.talents.contains("mediator") then 2 else 0) + (if a.clues.contains(reportClue) then 2 else 0)-knownPenalty; val target=14
       val success=die+mod-hiddenPenalty>=target
       val next=advance(a.copy(hour=a.hour+1,events=if success then (a.events :+ "获得矿洞通行许可").distinct else a.events :+ "尝试说服守卫未果"))
       Right((next,if success then "守卫同意你进入矿洞。" else "守卫没有同意；也许新的证据能改变他的决定。",Some(die),Some(mod),Some(target)))
@@ -306,7 +306,7 @@ private[game] object Rules:
             case Some(n) if negotiating && a.events.contains(s"已协商请求：$id") => Left(AppError(409,"这个请求已经协商过期限"))
             case Some(n) if negotiating && q.deadline.isEmpty => Left(AppError(409,"这个请求没有固定期限"))
             case Some(n) if negotiating =>
-              val die=roll(a,action); val stats=a.stats.getOrElse(PlayerStats.forRole(a.role)); val mod=stats.social + (if n.trust>=60 then 2 else 0); val target=12
+              val die=roll(a,action); val stats=a.stats.getOrElse(PlayerStats.forRole(a.role)); val mod=stats.social + (if stats.talents.contains("mediator") then 2 else 0) + (if n.trust>=60 then 2 else 0); val target=12
               val success=die+mod>=target
               val quests=a.quests.map(x=>if x.id==id && success then x.copy(deadline=x.deadline.map(_+6)) else x)
               val next=advance(a.copy(hour=a.hour+1,quests=quests,events=a.events :+ s"已协商请求：$id"))

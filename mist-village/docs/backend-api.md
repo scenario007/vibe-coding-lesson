@@ -34,7 +34,7 @@ AI 还需要本机凭据路径 `TOKENHUB_CONFIG_FILE`、现有课程项目账本
 - `getshopapi`：`{id}`；NPC 在场时返回固定价格和库存。交易、药品、食物和严重伤势处理都由行动接口执行。
 - 森林中的 `start:beast` 启动简化回合遭遇，随后只接受 `combat:attack`、`combat:defend`、`combat:flee` 或 `combat:medicine`。矿洞危险失败时可能要求 `recover:accept`、`recover:food` 或 `recover:delay`；完成选择前不能进行其他世界行动。
 - 战斗攻击掷出 20 且正常命中时造成双倍伤害；掷出 1 且未命中时会露出破绽。极端点数本身不会改变行动的先决条件或把不可能的行动变成可能。
-- `spendgrowthapi`：`{id, choice}`；里程碑获得成长机会，当前支持 `body`、`insight` 和符合经历条件的 `mine_sense`、`investigator`。
+- `listgrowthoptionsapi`：`{id}`，列出成长选项、可用性和未解锁原因；`spendgrowthapi`：`{id, choice}` 消耗里程碑成长机会。可选四项属性，以及需要相应调查或交谈经历的 `mine_sense`、`investigator`、`mediator`；后者改善说服与协商检定。
 
 ## AI
 

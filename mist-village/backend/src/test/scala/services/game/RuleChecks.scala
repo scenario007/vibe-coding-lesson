@@ -2,7 +2,7 @@ package services.game
 import cats.effect.{IO,IOApp}
 import io.circe.syntax.*
 import services.game.objects.*
-import services.game.utils.{Rules,OutcomeSummary}
+import services.game.utils.{Rules,OutcomeSummary,GrowthRules}
 object RuleChecks extends IOApp.Simple:
   def run: IO[Unit] = IO {
     val npc=NpcState.initial.map(n => if n.id=="healer" then n.copy(met=true,lastKnownPlace="clinic") else n)
@@ -72,6 +72,11 @@ object RuleChecks extends IOApp.Simple:
     val candidate=(1L to 1000L).map(seed=>hiddenFactor.copy(seed=seed)).find(v=>Rules.roll(v,"persuade:guard")==14).get
     val hiddenAttempt=Rules.perform(candidate,"persuade:guard").toOption.get
     assert(hiddenAttempt._3.contains(14) && hiddenAttempt._4.contains(0) && !hiddenAttempt._1.events.contains("获得矿洞通行许可"))
+    val experienced=candidate.copy(stats=Some(PlayerStats.forRole(candidate.role).copy(growthPoints=1)),dialogue=List(DialogueEntry("守卫罗恩","你好",9,"gate"),DialogueEntry("药师林婆","你好",9,"clinic")))
+    assert(GrowthRules.options(experienced).find(_.id=="mediator").exists(_.available))
+    val mediator=experienced.copy(stats=experienced.stats.map(s=>s.copy(talents=List("mediator"))))
+    assert(Rules.perform(mediator,"persuade:guard").toOption.get._4.contains(2))
+    assert(!GrowthRules.options(mediator).find(_.id=="mediator").get.available)
     val disclosed=Rules.perform(candidate,"ask:knowledge:guard").toOption.get._1
     assert(!Rules.unknownFactor(disclosed,"persuade:guard"))
     assert(Rules.perform(disclosed,"persuade:guard").toOption.get._4.contains(-2))

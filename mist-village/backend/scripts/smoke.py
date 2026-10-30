@@ -33,6 +33,9 @@ def act(action):
 act('inspect_gate'); act('move:clinic')
 r=act('ask_clinic'); assert r['adventure']['stage']==1
 saved=post('loadadventureapi',{'id':id,'slot':0}); assert saved['stage']==1
+options=post('listgrowthoptionsapi',{'id':id})
+assert next(x for x in options if x['id']=='agility')['available'] and not next(x for x in options if x['id']=='mediator')['available']
+grown=post('spendgrowthapi',{'id':id,'choice':'agility'}); assert grown['stats']['agility']==1 and grown['stats']['growthPoints']==0
 act('move:hall'); act('buy:oil'); act('read_report'); act('move:gate'); act('secure_permit'); act('move:mine')
 r=act('inspect_mine'); assert r['adventure']['stage']==2
 act('prepare:careful')

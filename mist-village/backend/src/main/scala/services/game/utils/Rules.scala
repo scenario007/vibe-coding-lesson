@@ -16,6 +16,7 @@ private[game] object Rules:
   private val clinicClue = "药师证词：症状在矿洞事故后出现，净化水暂时有用。"
   private val clinicRecordClue = "诊所记录：药师记载症状在矿洞事故后出现，净化水暂时有用。"
   private val rescueClue = "救援记录：失踪矿工已获救。"
+  private val lossClue = "搜救记录：失踪矿工已无法获救。"
   private val reportClue = "矿洞报告：事故前曾出现异常警报。"
   private val forestClue = "森林足迹：有人近期从森林走向矿洞。"
   private val mineClue = "矿洞记录：近期安全报告被人压下，地下气体正在泄漏。"
@@ -29,13 +30,17 @@ private[game] object Rules:
   private[game] def knowsEquipment(a: Adventure): Boolean =
     a.clues.contains(if a.truth=="mine_accident" then mineWorkOrder else chemicalWorkOrder)
 
+  private def recordMinerLoss(a: Adventure): Adventure =
+    val witnesses=a.npcs.map(n=>if n.place==a.place && n.condition!=NpcCondition.deceased && !n.facts.exists(_.text==lossClue) then n.copy(facts=n.facts :+ NpcFact(lossClue,"亲眼所见")) else n)
+    a.copy(knownMinerStatus=MinerStatus.lost,clues=(a.clues :+ lossClue).distinct,npcs=witnesses)
+
   private[game] def roll(a: Adventure, action: String): Int =
     val state = s"${a.seed}|${a.place}|${a.health}|${a.fatigue}|$action"
     val hash = MessageDigest.getInstance("SHA-256").digest(state.getBytes(StandardCharsets.UTF_8))
     (BigInt(1,hash) % 20).toInt + 1
 
   private def willShare(a: Adventure, speaker: NpcState, listener: NpcState, fact: NpcFact): Boolean =
-    if speaker.id!="smith" || fact.source!="玩家" || fact.text==rescueClue then true
+    if speaker.id!="smith" || fact.source!="玩家" || fact.text==rescueClue || fact.text==lossClue then true
     else Math.floorMod(s"${a.seed}|${fact.text}|${listener.id}".hashCode,2)==0
 
   private[game] def advance(a: Adventure, timePassed: Boolean = true): Adventure =
@@ -59,7 +64,7 @@ private[game] object Rules:
       else if n.id != "smith" || n.condition==NpcCondition.deceased then n
       else
         val returned=if n.condition==NpcCondition.healthy && n.expeditionStarted.isEmpty && a.hour>=24 && a.hour<36 then n.copy(place="forge") else n
-        val leaving=if returned.condition==NpcCondition.healthy && returned.expeditionStarted.isEmpty && a.hour>=36 && !returned.memories.contains("玩家救助了我") && !returned.facts.exists(_.text==rescueClue) then returned.copy(place="mine",expeditionStarted=Some(a.hour)) else returned
+        val leaving=if returned.condition==NpcCondition.healthy && returned.expeditionStarted.isEmpty && a.hour>=36 && !returned.memories.contains("玩家救助了我") && !returned.facts.exists(f=>f.text==rescueClue || f.text==lossClue) then returned.copy(place="mine",expeditionStarted=Some(a.hour)) else returned
         val elapsed=leaving.expeditionStarted.map(a.hour-_).getOrElse(0)
         if elapsed>=36 then leaving.copy(condition=NpcCondition.deceased)
         else if elapsed>=12 then leaving.copy(condition=NpcCondition.injured)
@@ -233,12 +238,14 @@ private[game] object Rules:
           val updated = a.npcs.map(n => if n.id == id then n.copy(met=true,lastKnownPlace=n.place,lastSeenHour=Some(a.hour),knownTrust=Some(n.trust),knownCondition=Some(n.condition),memories=(n.memories :+ memory).distinct) else n)
           val missedPromise=person.facts.find(f=>f.source=="亲身经历" && f.text.startsWith("玩家未能按期完成请求：") && !a.dialogue.exists(d=>d.speaker==person.name && d.text.contains(f.text.replaceFirst("玩家", "你"))))
           val line = if person.condition==NpcCondition.injured then "我在矿洞受了伤，恐怕不能独自返回村庄。" else if missedPromise.nonEmpty then s"${missedPromise.get.text.replaceFirst("玩家", "你")} 我原以为你会按时回来。" else id match
+            case "smith" if person.facts.exists(_.text==lossClue) => "我听说已经太晚了……我得去确认弟弟的消息。"
             case "smith" if person.facts.exists(_.text==rescueClue) => "我听说矿工获救了，要去确认弟弟是否平安。"
             case "smith" if a.hour>=24 => "我准备去矿洞寻找弟弟，不能再等下去了。"
             case "smith" => "我的弟弟进了矿洞，还没有回来。"
             case "healer" => "病人出现咳嗽，需要干净的水和休息。"
             case "guard" => "村长要求封锁矿洞，我不能让人擅自进去。"
             case "mayor" => "我们正努力保护村庄，请小心行事。"
+            case "mia" if person.facts.exists(_.text==lossClue) => "听说搜救没能赶上……我还想确认父亲的消息。"
             case "mia" if person.facts.exists(_.text==rescueClue) => "听说矿工获救了，我终于可以去确认父亲的消息。希望他也平安。"
             case "mia" => "我父亲是矿工，我想知道他在哪里。"
             case "visitor:courier" => "我负责运送物资，封路让补给变得困难。"
@@ -374,7 +381,8 @@ private[game] object Rules:
         case MinerStatus.missing => "你在矿洞深处听到微弱的求救声。"
         case MinerStatus.rescued => "失踪矿工已经获救。"
         case MinerStatus.lost => "搜救线索显示，失踪矿工已无法获救。"
-      val next=a.copy(knownMinerStatus=a.minerStatus,events=(a.events :+ message).distinct)
+      val heard=a.copy(knownMinerStatus=a.minerStatus,events=(a.events :+ message).distinct)
+      val next=if a.minerStatus==MinerStatus.lost then recordMinerLoss(heard) else heard
       Right((next,message,None,None,None))
     else if action == "rescue:miner" && a.place=="mine" && a.stage>=1 && a.events.contains("你在矿洞深处听到微弱的求救声。") then
       if a.minerStatus!=MinerStatus.missing then Left(AppError(409,"当前没有可救援的矿工"))
@@ -382,7 +390,7 @@ private[game] object Rules:
       else
         val progressed=advance(adjust(a,"medicine",-1).copy(hour=a.hour+2,events=a.events :+ "尝试救援失踪矿工"))
         if progressed.sealedEnding then Right((progressed,"黑雾失控，危机进入结局。",None,None,None))
-        else if progressed.minerStatus==MinerStatus.lost then Right((progressed.copy(knownMinerStatus=MinerStatus.lost,events=progressed.events :+ "赶到时矿工已无法获救。"),"赶到时矿工已无法获救。",None,None,None))
+        else if progressed.minerStatus==MinerStatus.lost then Right((recordMinerLoss(progressed.copy(events=progressed.events :+ "赶到时矿工已无法获救。")),"赶到时矿工已无法获救。",None,None,None))
         else
           val witnesses=progressed.npcs.map(n=>if n.place=="mine" && n.condition!=NpcCondition.deceased then n.copy(facts=if n.facts.exists(_.text==rescueClue) then n.facts else n.facts :+ NpcFact(rescueClue,"亲眼所见")) else n)
           val next=progressed.copy(minerStatus=MinerStatus.rescued,knownMinerStatus=MinerStatus.rescued,clues=(progressed.clues :+ rescueClue).distinct,npcs=witnesses,events=progressed.events :+ "救出失踪矿工")

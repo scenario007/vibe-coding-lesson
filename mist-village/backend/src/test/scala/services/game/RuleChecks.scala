@@ -108,6 +108,10 @@ object RuleChecks extends IOApp.Simple:
     assert(publicNpc.lastKnownPlace=="gate" && publicNpc.attitude=="中立" && publicNpc.knownCondition.contains(NpcCondition.healthy))
     val recap=OutcomeSummary.describe(a.copy(npcs=known,events=List("村民撤离。")))
     assert(recap.startsWith("村民撤离。") && recap.contains("铁匠阿岚（中立）") && !recap.contains("受伤"))
+    val hiddenRecap=OutcomeSummary.describe(a.copy(minerStatus=MinerStatus.lost,knownMinerStatus=MinerStatus.missing,events=List("危机结束。")))
+    assert(!hiddenRecap.contains("无法获救"))
+    val informedRecap=OutcomeSummary.describe(a.copy(minerStatus=MinerStatus.lost,knownMinerStatus=MinerStatus.lost,events=List("危机结束。")))
+    assert(informedRecap.contains("无法获救"))
     val promise=Quest("late","采集药草",QuestStatus.paused,Some(10),"寻找药草",issuer=Some("healer"))
     val awareHealer=npc.map(n=>if n.id=="healer" then n.copy(trust=45,knownTrust=Some(45)) else n)
     val delayed=Rules.perform(a.copy(quests=List(promise),hour=10,npcs=awareHealer),"move:gate").toOption.get._1
@@ -199,9 +203,17 @@ object RuleChecks extends IOApp.Simple:
     assert(aid.items.find(_.id=="medicine").exists(_.quantity==1) && Rules.perform(aid,"ask:aid:healer").isLeft)
     val lateMiner=minerStart.copy(hour=68)
     val lostMiner=Rules.perform(lateMiner,"rescue:miner").toOption.get._1
-    assert(lostMiner.minerStatus==MinerStatus.lost && lostMiner.knownMinerStatus==MinerStatus.lost)
+    assert(lostMiner.minerStatus==MinerStatus.lost && lostMiner.knownMinerStatus==MinerStatus.lost && lostMiner.clues.contains("搜救记录：失踪矿工已无法获救。"))
     val hiddenLoss=lateMiner.copy(hour=70,minerStatus=MinerStatus.lost,knownMinerStatus=MinerStatus.missing)
     assert(AdventureView.from(hiddenLoss).knownMinerStatus==MinerStatus.missing)
+    assert(!AdventureView.from(hiddenLoss).clues.exists(_.startsWith("搜救记录")))
+    val foundLoss=Rules.perform(hiddenLoss,"listen:mine").toOption.get._1
+    assert(foundLoss.knownMinerStatus==MinerStatus.lost && foundLoss.clues.contains("搜救记录：失踪矿工已无法获救。"))
+    val waitingSmith=foundLoss.copy(place="gate",npcs=NpcState.initial.map(n=>if n.id=="smith" then n.copy(met=true,lastKnownPlace="gate") else n))
+    val lossIndex=waitingSmith.clues.indexOf("搜救记录：失踪矿工已无法获救。")
+    val toldSmith=Rules.perform(waitingSmith,s"share:smith:$lossIndex").toOption.get._1
+    val afterTold=Rules.perform(toldSmith,"move:clinic").toOption.get._1
+    assert(afterTold.npcs.find(_.id=="smith").exists(_.expeditionStarted.isEmpty))
     val injuredSmith=NpcState.initial.map(n=>if n.id=="smith" then n.copy(place="mine",condition=NpcCondition.injured,expeditionStarted=Some(36)) else n)
     val rescueStart=a.copy(place="mine",hour=49,npcs=injuredSmith)
     val rescued=Rules.perform(rescueStart,"rescue:smith").toOption.get._1

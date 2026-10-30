@@ -2,7 +2,7 @@ package services.game.routes
 import services.system.api.RegisteredAPIMessage
 import services.game.api.*
 import services.game.objects.*
-import services.game.objects.apiTypes.{MapLocation,GrowthOption,WorldClock}
+import services.game.objects.apiTypes.{MapLocation,GrowthOption,WorldClock,SceneView}
 object GameRoutes:
   val apiMessages: List[RegisteredAPIMessage] = List(
     RegisteredAPIMessage.register[CreateAdventureAPIMessage,AdventureView],
@@ -13,6 +13,7 @@ object GameRoutes:
     RegisteredAPIMessage.register[GetAdventureAPIMessage,AdventureView],
     RegisteredAPIMessage.register[GetMapAPIMessage,List[MapLocation]],
     RegisteredAPIMessage.register[GetWorldClockAPIMessage,WorldClock],
+    RegisteredAPIMessage.register[GetSceneAPIMessage,SceneView],
     RegisteredAPIMessage.register[ListActionsAPIMessage,List[ActionOption]],
     RegisteredAPIMessage.register[GetShopAPIMessage,List[ShopItem]],
     RegisteredAPIMessage.register[AddJournalNoteAPIMessage,AdventureView],

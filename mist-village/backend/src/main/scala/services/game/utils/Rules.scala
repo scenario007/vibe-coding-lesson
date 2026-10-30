@@ -34,6 +34,10 @@ private[game] object Rules:
     val hash = MessageDigest.getInstance("SHA-256").digest(state.getBytes(StandardCharsets.UTF_8))
     (BigInt(1,hash) % 20).toInt + 1
 
+  private def willShare(a: Adventure, speaker: NpcState, listener: NpcState, fact: NpcFact): Boolean =
+    if speaker.id!="smith" || fact.source!="玩家" || fact.text==rescueClue then true
+    else Math.floorMod(s"${a.seed}|${fact.text}|${listener.id}".hashCode,2)==0
+
   private[game] def advance(a: Adventure, timePassed: Boolean = true): Adventure =
     val nextStage = if a.stage == 0 && a.clues.contains(gateClue) && (a.clues.contains(clinicClue) || a.clues.contains(clinicRecordClue)) then 1
       else if a.stage == 1 && hasInquiryRecord(a) && a.clues.exists(c => c == mineClue || c == chemicalClue) then 2
@@ -63,7 +67,7 @@ private[game] object Rules:
     val relationships=Set(("smith","guard"),("guard","mayor"),("healer","mayor"),("healer","guard"),("mia","smith"),("merchant","guard"))
     val informed=if !timePassed then moved else moved.map { listener =>
       val learned=moved.filter(speaker=>speaker.id!=listener.id && speaker.place==listener.place && speaker.condition!=NpcCondition.deceased && listener.condition!=NpcCondition.deceased && (relationships.contains((speaker.id,listener.id)) || speaker.contacts.contains(listener.id) || listener.contacts.contains(speaker.id)))
-        .flatMap(speaker=>speaker.facts.map(f=>NpcFact(f.text,speaker.name)))
+        .flatMap(speaker=>speaker.facts.filter(f=>willShare(a,speaker,listener,f)).map(f=>NpcFact(f.text,speaker.name)))
         .filterNot(f=>listener.facts.exists(_.text==f.text))
         .groupBy(_.text).values.map(_.head).toList.sortBy(_.text)
       listener.copy(facts=listener.facts ++ learned)

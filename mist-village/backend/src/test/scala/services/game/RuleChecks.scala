@@ -60,7 +60,18 @@ object RuleChecks extends IOApp.Simple:
     val visited=a.copy(place="gate",clues=List("村口告示"),npcs=NpcState.initial :+ visitor)
     assert(Rules.perform(visited,"share:visitor:courier:0").toOption.get._1.npcs.last.facts.exists(_.text=="村口告示"))
     val both=NpcState.initial.map(n=>if Set("smith","guard").contains(n.id) then n.copy(met=true,lastKnownPlace="gate",knownTrust=Some(50)) else n)
-    val factStart=a.copy(place="gate",clues=List("封锁告示：矿洞因安全事故关闭。"),npcs=both)
+    val spreading=(1L to 40L).map(seed=>a.copy(seed=seed,place="gate",clues=List("封锁告示：矿洞因安全事故关闭。"),npcs=both)).map { state =>
+      val told=Rules.perform(state,"share:smith:0").toOption.get._1
+      val next=Rules.perform(told,"move:clinic").toOption.get._1
+      (state.seed,next.npcs.find(_.id=="guard").get.facts.exists(_.text==state.clues.head))
+    }
+    assert(spreading.exists(_._2) && spreading.exists(!_._2))
+    val factStart=a.copy(seed=spreading.find(_._2).get._1,place="gate",clues=List("封锁告示：矿洞因安全事故关闭。"),npcs=both)
+    val privateStart=factStart.copy(seed=spreading.find(!_._2).get._1)
+    val privateShared=Rules.perform(privateStart,"share:smith:0").toOption.get._1
+    val privateAway=Rules.perform(privateShared,"move:clinic").toOption.get._1
+    val privateReturn=Rules.perform(privateAway,"move:gate").toOption.get._1
+    assert(!privateReturn.npcs.find(_.id=="guard").get.facts.exists(_.text==privateStart.clues.head))
     val shared=Rules.perform(factStart,"share:smith:0").toOption.get._1
     val later=Rules.perform(shared,"move:clinic").toOption.get._1
     assert(later.npcs.find(_.id=="guard").get.facts.exists(_.source=="铁匠阿岚"))
@@ -68,12 +79,12 @@ object RuleChecks extends IOApp.Simple:
     val returned=Rules.perform(later,"move:gate").toOption.get._1
     val conversation=Rules.perform(returned,"ask:knowledge:guard").toOption.get
     assert(conversation._2.contains("铁匠阿岚"))
-    val zeroStart=a.copy(place="gate",clues=List("玩家发现的物件"),npcs=both)
+    val zeroStart=factStart.copy(clues=List("封锁告示：矿洞因安全事故关闭。"),events=Nil)
     val zeroShared=Rules.perform(zeroStart,"share:smith:0").toOption.get._1
-    val noTime=Rules.perform(zeroShared,"inspect_gate").toOption.get._1
-    assert(noTime.hour==zeroShared.hour && !noTime.npcs.find(_.id=="guard").get.facts.exists(_.text=="玩家发现的物件"))
+    val noTime=Rules.perform(zeroShared.copy(clues=List("玩家发现的物件")),"inspect_gate").toOption.get._1
+    assert(noTime.hour==zeroShared.hour && !noTime.npcs.find(_.id=="guard").get.facts.exists(_.text=="封锁告示：矿洞因安全事故关闭。"))
     val timePassed=Rules.perform(noTime,"move:clinic").toOption.get._1
-    assert(timePassed.npcs.find(_.id=="guard").get.facts.exists(_.text=="玩家发现的物件"))
+    assert(timePassed.npcs.find(_.id=="guard").get.facts.exists(_.text=="封锁告示：矿洞因安全事故关闭。"))
     val guardWithRumor=NpcState.initial.map(n=>if n.id=="guard" then n.copy(met=true,facts=List(NpcFact("玩家攻击了铁匠阿岚","药师林婆"))) else n)
     val hiddenFactor=a.copy(place="gate",npcs=guardWithRumor)
     assert(Rules.unknownFactor(hiddenFactor,"persuade:guard"))

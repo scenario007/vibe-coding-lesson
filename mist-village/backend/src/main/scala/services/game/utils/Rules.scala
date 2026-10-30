@@ -50,7 +50,8 @@ private[game] object Rules:
       else n.copy(trust=math.max(0,n.trust-10*promises.size),facts=n.facts ++ promises.map(q=>NpcFact(s"玩家未能按期完成请求：${q.title}。","亲身经历")))
     }
     val moved = if !timePassed then disappointed else disappointed.map { n =>
-      if a.companion.contains(n.id) || n.condition!=NpcCondition.healthy && n.id!="smith" then n
+      if a.companion.contains(n.id) || n.condition==NpcCondition.deceased || n.condition!=NpcCondition.healthy && n.id!="smith" then n
+      else if n.returnTo.nonEmpty && n.condition==NpcCondition.healthy then n.copy(place=n.returnTo.get,returnTo=None)
       else if n.id=="healer" then
         val fact=NpcFact("药师在村口协助伤者。","亲身经历")
         val destination=if a.hour>=36 && a.hour<48 && n.place=="clinic" then "gate" else if a.hour>=48 && n.place=="gate" && n.facts.exists(_.text==fact.text) then "clinic" else n.place
@@ -74,16 +75,20 @@ private[game] object Rules:
     }
     val healerBefore=a.npcs.find(_.id=="healer")
     val healerAfter=informed.find(_.id=="healer")
+    val visibleReturns=informed.flatMap { now =>
+      a.npcs.find(_.id==now.id).filter(old=>old.returnTo.contains(now.place) && old.place!=now.place && (old.place==a.place || now.place==a.place)).map(_=>now)
+    }
+    val returnEvents=visibleReturns.map(n=>s"${n.name}返回${Locations.names.toMap.getOrElse(n.place,"原来的地点")}。")
     val healerMovement=(healerBefore,healerAfter) match
-      case (Some(old),Some(now)) if old.place!=now.place && (old.place==a.place || now.place==a.place) =>
+      case (Some(old),Some(now)) if old.returnTo.isEmpty && old.place!=now.place && (old.place==a.place || now.place==a.place) =>
         List(if now.place=="gate" then "药师林婆带着药箱前往村口协助伤者。" else "药师林婆收起药箱，返回诊所。")
       case _ => Nil
-    val observed=informed.map(n=>if n.met && (n.place==a.place || (n.id=="healer" && healerMovement.nonEmpty)) then n.copy(lastKnownPlace=n.place,lastSeenHour=Some(a.hour),knownTrust=Some(n.trust),knownCondition=Some(n.condition)) else n)
+    val observed=informed.map(n=>if n.met && (n.place==a.place || visibleReturns.exists(_.id==n.id) || (n.id=="healer" && healerMovement.nonEmpty)) then n.copy(lastKnownPlace=n.place,lastSeenHour=Some(a.hour),knownTrust=Some(n.trust),knownCondition=Some(n.condition)) else n)
     val warning1="雾开始蔓延到村庄外围，空气里的刺激气味更重了。"
     val warning2="雾已逼近村庄，留给大家行动的时间正在减少。"
     val visibleWarnings=List((33,warning1),(57,warning2)).filter((at,message)=>a.hour>=at && !a.events.contains(message)).map(_._2)
     val miner=if a.hour>=69 && a.minerStatus==MinerStatus.missing then MinerStatus.lost else a.minerStatus
-    val prepared = a.copy(stage=nextStage, quests=expired, npcs=observed, events=a.events ++ healerMovement ++ visibleWarnings,minerStatus=miner)
+    val prepared = a.copy(stage=nextStage, quests=expired, npcs=observed, events=a.events ++ returnEvents ++ healerMovement ++ visibleWarnings,minerStatus=miner)
     if a.dead then prepared
     else if a.hour >= 81 && !a.sealedEnding then prepared.copy(stage=3,sealedEnding=true,events=prepared.events :+ "黑雾扩散失控，村庄被迫撤离。")
     else prepared
@@ -207,7 +212,14 @@ private[game] object Rules:
     else if action == "leave_companion" then
       if !safe.contains(a.place) then Left(AppError(409,"请返回村庄结束同行"))
       else if a.companion.isEmpty then Left(AppError(409,"当前没有同行者"))
-      else Right((a.copy(companion=None,events=a.events :+ "结束同行"),"同行结束。",None,None,None))
+      else a.npcs.find(n=>a.companion.contains(n.id)) match
+        case None => Left(AppError(409,"同行者资料不可用"))
+        case Some(companion) =>
+          val homes=Map("smith"->"forge","guard"->"gate","merchant"->"hall","healer"->"clinic")
+          val home=homes.get(companion.id)
+          val npcs=a.npcs.map(n=>if n.id==companion.id then n.copy(returnTo=home.filter(_!=n.place)) else n)
+          val message=home.filter(_!=companion.place).map(p=>s"${companion.name}与你告别，准备返回${Locations.names.toMap.getOrElse(p,"原来的地点")}。").getOrElse(s"${companion.name}与你告别，回到自己的职责中。")
+          Right((a.copy(companion=None,npcs=npcs,events=a.events :+ message),message,None,None,None))
     else if action.startsWith("talk:") then
       val id = action.stripPrefix("talk:")
       a.npcs.find(n => n.id == id && n.place == a.place && n.condition != NpcCondition.deceased) match

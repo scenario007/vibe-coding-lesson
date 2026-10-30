@@ -9,6 +9,8 @@ object RuleChecks extends IOApp.Simple:
     assert(WorldClock.at(9).day==1 && WorldClock.at(9).period=="上午" && WorldClock.at(9).time=="09:00")
     assert(WorldClock.at(24).day==2 && WorldClock.at(24).period=="深夜" && WorldClock.at(24).time=="00:00")
     val npc=NpcState.initial.map(n => if n.id=="healer" then n.copy(met=true,lastKnownPlace="clinic") else n)
+    val oldNpc=npc.head.asJson.mapObject(_.remove("returnTo")).noSpaces
+    assert(io.circe.parser.decode[NpcState](oldNpc).exists(_.returnTo.isEmpty))
     val q=Quest("q1","调查请求",QuestStatus.offered,Some(30),"查看告示",Some("inspect_gate"),Some("healer"),Some("trust"))
     val oldQuest=io.circe.parser.decode[Quest]("""{"id":"old","title":"旧请求","status":"active","deadline":30,"description":"查看告示","goal":"inspect_gate","issuer":"healer","reward":"trust"}""")
     assert(oldQuest.exists(q=> !q.goalReached))
@@ -121,6 +123,13 @@ object RuleChecks extends IOApp.Simple:
     assert(away.npcs.find(_.id=="smith").get.place=="forest")
     assert(Rules.perform(away,"leave_companion").isLeft)
     assert(Rules.perform(away,"join:guard").isLeft)
+    val metGuard=a.copy(place="gate",npcs=NpcState.initial.map(n=>if n.id=="guard" then n.copy(met=true,lastKnownPlace="gate") else n))
+    val withGuard=Rules.perform(metGuard,"join:guard").toOption.get._1
+    val clinicTrip=Rules.perform(withGuard,"move:clinic").toOption.get._1
+    val goodbye=Rules.perform(clinicTrip,"leave_companion").toOption.get._1
+    assert(goodbye.npcs.find(_.id=="guard").exists(n=>n.place=="clinic" && n.returnTo.contains("gate")))
+    val backToGate=Rules.perform(goodbye,"move:gate").toOption.get._1
+    assert(backToGate.npcs.find(_.id=="guard").exists(n=>n.place=="gate" && n.returnTo.isEmpty && n.lastKnownPlace=="gate"))
     val critical=(1L to 1000L).map(seed=>a.copy(seed=seed,place="forest")).find(v=>Rules.roll(v,"search_forest")==20).get
     val lucky=Rules.perform(critical,"search_forest").toOption.get._1
     assert(lucky.items.find(_.id=="food").get.quantity==3)

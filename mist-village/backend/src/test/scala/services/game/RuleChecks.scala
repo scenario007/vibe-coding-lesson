@@ -146,6 +146,14 @@ object RuleChecks extends IOApp.Simple:
     assert(Rules.perform(open,"move:mine").isRight)
     val smithTalk=Rules.perform(a.copy(place="gate",quests=Nil),"talk:smith").toOption.get._1
     assert(smithTalk.quests.exists(q=>q.id=="smith_map" && q.status==QuestStatus.offered))
+    val crowded=smithTalk.copy(place="clinic")
+    assert(!Rules.perform(crowded,"talk:healer").toOption.get._1.quests.exists(_.id=="herbs"))
+    assert(Rules.perform(crowded,"accept:herbs").isLeft)
+    val declined=Rules.perform(crowded,"decline:smith_map").toOption.get._1
+    assert(declined.quests.find(_.id=="smith_map").exists(_.status==QuestStatus.abandoned))
+    assert(Rules.perform(declined,"talk:healer").toOption.get._1.quests.exists(q=>q.id=="herbs" && q.status==QuestStatus.offered))
+    val full=List.tabulate(3)(i=>q.copy(id=s"active-$i",status=QuestStatus.active))
+    assert(!Rules.perform(a.copy(place="clinic",quests=full),"talk:healer").toOption.get._1.quests.exists(_.id=="herbs"))
     val smithAccept=Rules.perform(smithTalk,"accept:smith_map").toOption.get._1
     val smithForge=Rules.perform(smithAccept,"move:forge").toOption.get._1
     val foundMap=Rules.perform(smithForge,"find:smith_map").toOption.get._1

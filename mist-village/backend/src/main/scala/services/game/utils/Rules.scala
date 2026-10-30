@@ -205,7 +205,8 @@ private[game] object Rules:
             case "visitor:apprentice" => "我是来帮忙的学徒，知道的事情并不多。"
             case "visitor:woodcutter" => "我常走森林小路，最近雾让道路很危险。"
             case _ => "道路封锁后，补充物资变得困难。"
-          val offer=QuestRules.offer(id,a.hour).filterNot(q=>a.quests.exists(_.id==q.id)).toList
+          val roomForRequest=a.quests.count(_.status==QuestStatus.active)<3 && !a.quests.exists(_.status==QuestStatus.offered)
+          val offer=if roomForRequest then QuestRules.offer(id,a.hour).filterNot(q=>a.quests.exists(_.id==q.id)).toList else Nil
           val next = a.copy(npcs=updated,quests=a.quests ++ offer,events=a.events :+ s"与${person.name}交谈",dialogue=a.dialogue :+ DialogueEntry(person.name,line,a.hour,a.place))
           Right((next,line,None,None,None))
     else if action == "inspect:smith" then
@@ -267,12 +268,11 @@ private[game] object Rules:
       else
         val next=adjust(a,"medicine",1).copy(events=a.events :+ "药师赠予救援药品",dialogue=a.dialogue :+ DialogueEntry("药师林婆","既然有人救回来了，这份药你带上，路上可能还用得着。",a.hour,a.place))
         Right((next,"药师赠予你一份药品，用于后续救援。",None,None,None))
-    else if action == "accept:herbs" && !a.quests.exists(_.id=="herbs") && a.place == "clinic" && a.npcs.exists(n => n.id == "healer" && n.met && n.place==a.place && n.condition==NpcCondition.healthy) then
-      if a.quests.exists(_.id == "herbs") then Left(AppError(409,"这个请求已记录"))
-      else if a.quests.count(_.status == QuestStatus.active) >= 3 then Left(AppError(409,"进行中的请求已达上限"))
-      else
-        val q = Quest("herbs","为药师寻找药草",QuestStatus.active,Some(a.hour+12),"在森林寻找药草，在期限前交给药师。",issuer=Some("healer"))
-        Right((a.copy(quests=a.quests :+ q,events=a.events :+ "答应药师寻找药草"),"你答应了药师。",None,None,None))
+    else if action.startsWith("decline:") then
+      val id=action.stripPrefix("decline:")
+      a.quests.find(q=>q.id==id && q.status==QuestStatus.offered) match
+        case None => Left(AppError(400,"没有待回应的请求"))
+        case Some(q) => Right((a.copy(quests=a.quests.map(item=>if item.id==id then item.copy(status=QuestStatus.abandoned) else item),events=a.events :+ s"暂不接受请求：${q.title}"),"你决定暂不接受这个请求，没有作出承诺。",None,None,None))
     else if action.startsWith("accept:") then
       val id=action.stripPrefix("accept:")
       a.quests.find(q => q.id == id && q.status == QuestStatus.offered && q.issuer.exists(n => a.npcs.exists(p => p.id==n && p.place==a.place && p.condition==NpcCondition.healthy))) match

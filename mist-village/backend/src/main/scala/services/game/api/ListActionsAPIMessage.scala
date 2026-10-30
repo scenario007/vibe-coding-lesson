@@ -35,7 +35,9 @@ final case class ListActionsAPIMessage(id: String) extends APIMessage[List[Actio
       case "camp" if !Locations.safe(a) => List(ActionOption("clear:camp","检查营地并排除危险",1,Some("可能无法确认安全")))
       case _ => Nil
     quests=a.quests.flatMap { q =>
-      if q.status == services.game.objects.QuestStatus.offered && q.issuer.exists(i => a.npcs.exists(n => n.id==i && n.place==a.place)) then List(ActionOption(s"accept:${q.id}",s"接受请求：${q.title}",0,None))
+      if q.status == services.game.objects.QuestStatus.offered then
+        val accept=if q.issuer.exists(i => a.npcs.exists(n => n.id==i && n.place==a.place && n.condition==services.game.objects.NpcCondition.healthy)) then List(ActionOption(s"accept:${q.id}",s"接受请求：${q.title}",0,None)) else Nil
+        accept :+ ActionOption(s"decline:${q.id}",s"暂不接受请求：${q.title}",0,None)
       else if q.status == services.game.objects.QuestStatus.active || q.status == services.game.objects.QuestStatus.paused then
         val toggle=if q.status == services.game.objects.QuestStatus.active then ActionOption(s"pause:${q.id}",s"搁置请求：${q.title}",0,None) else ActionOption(s"resume:${q.id}",s"重新关注：${q.title}",0,None)
         val present=q.issuer.exists(id=>a.npcs.exists(n=>n.id==id && n.place==a.place && n.condition==services.game.objects.NpcCondition.healthy))
@@ -43,7 +45,6 @@ final case class ListActionsAPIMessage(id: String) extends APIMessage[List[Actio
         toggle :: discussion
       else Nil
     }
-    herbsOffer=if a.place=="clinic" && a.npcs.exists(n=>n.id=="healer" && n.met && n.place==a.place && n.condition==services.game.objects.NpcCondition.healthy) && !a.quests.exists(_.id=="herbs") then List(ActionOption("accept:herbs","接受药师的药草请求",0,None)) else Nil
     herbsProgress=if a.quests.exists(q=>q.id=="herbs" && q.status==services.game.objects.QuestStatus.active) then
       if a.place=="forest" then List(ActionOption("gather:herbs","寻找药草",1,None))
       else if a.place=="clinic" && a.npcs.exists(n=>n.id=="healer" && n.place==a.place && n.condition==services.game.objects.NpcCondition.healthy) && a.clues.contains("获得药草：可以交给药师。") then List(ActionOption("deliver:herbs","交付药草",0,None))
@@ -81,7 +82,7 @@ final case class ListActionsAPIMessage(id: String) extends APIMessage[List[Actio
       List(ActionOption("recover:accept","承担伤害",0,None),ActionOption("recover:delay","花费一小时减轻伤害",1,Some("黑雾和其他事件继续发展"))) ++ (if a.items.exists(i=>i.id=="food" && i.quantity>0) then List(ActionOption("recover:food","消耗一份食物减轻伤害",0,None)) else Nil)
     }
     combat=a.battle.toList.flatMap(_ => List(ActionOption("combat:attack","攻击",0,None),ActionOption("combat:defend","防御",0,None),ActionOption("combat:flee","尝试撤离",0,Some("可能被阻拦"))) ++ (if a.items.exists(i=>i.id=="medicine" && i.quantity>0) && a.health<100 then List(ActionOption("combat:medicine","使用药品",0,Some("野兽可能反击"))) else Nil))
-  yield if a.aiPause.nonEmpty then Nil else if a.battle.nonEmpty then combat else if a.pendingRecovery.nonEmpty then recovery else people ++ questions ++ knowledge ++ join ++ leave ++ rescue ++ conflict ++ local ++ herbsOffer ++ herbsProgress ++ quests ++ questActions ++ treatment ++ aid ++ rest ++ travel ++ access ++ sideRoute ++ water ++ ending
+  yield if a.aiPause.nonEmpty then Nil else if a.battle.nonEmpty then combat else if a.pendingRecovery.nonEmpty then recovery else people ++ questions ++ knowledge ++ join ++ leave ++ rescue ++ conflict ++ local ++ herbsProgress ++ quests ++ questActions ++ treatment ++ aid ++ rest ++ travel ++ access ++ sideRoute ++ water ++ ending
 object ListActionsAPIMessage:
   given Encoder[ListActionsAPIMessage] = deriveEncoder
   given Decoder[ListActionsAPIMessage] = deriveDecoder

@@ -26,6 +26,7 @@ AI 还需要本机凭据路径 `TOKENHUB_CONFIG_FILE`、现有课程项目账本
 - `performactionapi`：`{id, action, confirmed}`；最终行动 `resolve:evacuate`、`resolve:contain`、`resolve:water` 以及 `harm:<npc>`、`kill:<npc>` 需要 `confirmed: true`。行动是否可行、消耗和后果由服务端检查。
 - 三种预设最终行动耗费两小时；如果执行过程中黑雾失控，结局记为失败，不能算作剧情通关。撤离和保护水源的结局不代表黑雾源头已经消除。
 - `talk:<npc>`、`question:<npc>`、`share:<npc>:<线索索引>`、`join:<npc>` 等受在场和规则限制；NPC 最近已知位置不会自动追踪未被玩家看到的移动。受限请求可以接受、搁置和恢复；期限照常推进。
+- 存在待回应的请求或已有三条进行中的请求时，普通交谈不会继续堆出新请求；可以用 `decline:<请求ID>` 暂不接受尚未承诺的请求，不扣信任。条件改变后再次交谈可获得尚未提出的请求。
 - 已接受或搁置的请求逾期后，提出请求的存活人物会记住失约并降低对玩家的信任；玩家再次交谈时才会看到对应反应和更新的态度。未接受的请求过期不算失约。
 - `addjournalnoteapi`：`{id, text, clueIndexes}`，记录玩家推测并关联已有线索，不消耗时间。对话和已知线索保存在档案中。
 - `markclueapi`：`{id, index, important}`，标记或取消标记已有线索的重要性。

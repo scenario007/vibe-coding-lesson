@@ -30,6 +30,7 @@ final case class ListActionsAPIMessage(id: String) extends APIMessage[List[Actio
       case "gate" => List(ActionOption("inspect_gate","查看封锁告示",0,None))
       case "clinic" => List(ActionOption("inspect:clinic_records","查看诊所记录",1,None)) ++ (if a.npcs.exists(n=>n.id=="healer" && n.place==a.place && n.condition==services.game.objects.NpcCondition.healthy) then List(ActionOption("ask_clinic","询问病情",0,None)) else Nil)
       case "hall" => List(ActionOption("read_report","检查矿洞报告",1,None)) ++ (if a.stage>=1 then List(ActionOption("inspect:archive","查找事故相关档案",2,None)) else Nil)
+      case "forge" if a.stage>=1 => List(ActionOption("inspect:work_order","寻找设备维修工单",2,None))
       case "forest" => (if !a.clues.exists(_.startsWith("矿工布条")) then List(ActionOption("start:beast","接近林中的野兽",0,Some("可能发生危险遭遇"))) else Nil) ++ List(ActionOption("search_forest","搜索森林",1,Some("可能找不到可靠线索")),ActionOption("thorough_search","仔细搜索森林",4,Some("耗时较长，黑雾和其他事件会继续发展")))
       case "mine" => (if a.stage>=1 then List(ActionOption("listen:mine","寻找失踪矿工",0,None)) ++ (if a.events.contains("你在矿洞深处听到微弱的求救声。") && a.knownMinerStatus==services.game.objects.MinerStatus.missing then List(ActionOption("rescue:miner","救援失踪矿工",2,Some("消耗一份药品；可能错过救援时机"))) else Nil) else Nil) ++ (if a.stage>=1 then (if a.items.exists(i=>i.id=="oil" && i.quantity>0) then List(ActionOption("inspect_mine","照明调查矿洞记录",2,Some("消耗一份灯油"))) else Nil) ++ List(ActionOption("inspect_mine_dark","摸黑调查矿洞记录",2,Some("可能发生危险"))) else Nil) ++ List(ActionOption("hazard:cross","穿越不稳的矿道",1,Some("可能受伤甚至死亡")))
       case "camp" if !Locations.safe(a) => List(ActionOption("clear:camp","检查营地并排除危险",1,Some("可能无法确认安全")))
@@ -78,7 +79,7 @@ final case class ListActionsAPIMessage(id: String) extends APIMessage[List[Actio
     rest=if Locations.safe(a) then List(ActionOption("rest","休息",4,None)) else Nil
     sideRoute=if a.place=="forest" && a.stage>=1 && a.clues.contains("铁匠旧图：矿道侧线通往森林一侧。") then List(ActionOption("move:mine_via_map","沿旧矿图侧线进入矿洞",Locations.travelHours(a,"mine")+1,Some("路线较远，黑雾可能继续扩散"))) else Nil
     water=if a.stage>=1 && a.items.exists(i=>i.id=="filter" && i.quantity>0) then List(ActionOption("resolve:water","保护水源并结束本局",2,Some("消耗净水滤芯与一份灯油；行动期间黑雾继续扩散"))) else Nil
-    preparation=if a.place=="mine" && a.stage==2 && !a.events.contains("已准备控制污染源") then List(ActionOption("prepare:quick","迅速准备现场",2,Some("需要检定，失败可能受伤")),ActionOption("prepare:careful","谨慎准备现场",4,Some("黑雾和其他事件会继续发展"))) else Nil
+    preparation=if a.place=="mine" && a.stage==2 && !a.events.contains("已准备控制污染源") then List(ActionOption("prepare:quick","迅速准备现场",2,Some("需要检定，失败可能受伤")),ActionOption("prepare:careful","谨慎准备现场",if Rules.knowsEquipment(a) then 3 else 4,Some("黑雾和其他事件会继续发展"))) else Nil
     ending=(if a.stage>=1 then List(ActionOption("resolve:evacuate","组织撤离并结束本局",2,Some("消耗一份食物；行动期间黑雾继续扩散"))) else Nil) ++ (if a.stage==2 && a.events.contains("已准备控制污染源") then List(ActionOption("resolve:contain","控制黑雾并结束本局",2,Some("消耗一份灯油；行动期间黑雾继续扩散"))) else Nil)
     recovery=a.pendingRecovery.toList.flatMap { _ =>
       List(ActionOption("recover:accept","承担伤害",0,None),ActionOption("recover:delay","花费一小时减轻伤害",1,Some("黑雾和其他事件继续发展"))) ++ (if a.items.exists(i=>i.id=="food" && i.quantity>0) then List(ActionOption("recover:food","消耗一份食物减轻伤害",0,None)) else Nil)

@@ -184,6 +184,13 @@ object RuleChecks extends IOApp.Simple:
       val mine=Rules.perform(permitted,"move:mine").toOption.get._1
       val investigated=Rules.perform(mine,"inspect_mine").toOption.get._1
       assert(investigated.stage==2 && !investigated.clues.exists(_.startsWith("矿洞报告")))
+      val absentSmith=investigated.npcs.map(n=>if n.id=="smith" then n.copy(condition=NpcCondition.deceased) else n)
+      val order=Rules.perform(investigated.copy(place="forge",npcs=absentSmith),"inspect:work_order").toOption.get._1.clues.last
+      assert(order.startsWith("铁匠铺工单") && Evidence.fromText(order,None).kind==EvidenceKind.document)
+      val equipped=investigated.copy(clues=investigated.clues :+ order)
+      val slowReady=Rules.perform(equipped,"prepare:careful").toOption.get._1
+      assert(slowReady.hour==equipped.hour+3)
+      assert(Rules.perform(equipped,"prepare:quick").toOption.get._4.get==Rules.perform(investigated,"prepare:quick").toOption.get._4.get+2)
       assert(Rules.perform(investigated,"resolve:contain").isLeft)
       val prepared=Rules.perform(investigated,"prepare:careful").toOption.get._1
       assert(prepared.hour==investigated.hour+4 && prepared.events.contains("已准备控制污染源"))

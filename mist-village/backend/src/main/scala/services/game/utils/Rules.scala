@@ -22,8 +22,12 @@ private[game] object Rules:
   private val chemicalClue = "矿洞记录：污染处理药剂曾流入地下，随后出现刺激性黑雾。"
   private val mineArchive = "档案残页：事故前，矿洞通风维修申请曾被搁置。"
   private val chemicalArchive = "药剂账册：事故前，一批污染处理药剂被运往地下。"
+  private val mineWorkOrder = "铁匠铺工单：矿道风机的紧急手柄位于东侧检修井。"
+  private val chemicalWorkOrder = "铁匠铺工单：地下处理管路的手动截断阀位于东侧检修井。"
   private[game] def hasInquiryRecord(a: Adventure): Boolean =
     a.clues.exists(c=>c==reportClue || c==mineArchive || c==chemicalArchive)
+  private[game] def knowsEquipment(a: Adventure): Boolean =
+    a.clues.contains(if a.truth=="mine_accident" then mineWorkOrder else chemicalWorkOrder)
 
   private[game] def roll(a: Adventure, action: String): Int =
     val state = s"${a.seed}|${a.place}|${a.health}|${a.fatigue}|$action"
@@ -360,6 +364,8 @@ private[game] object Rules:
     else if action == "read_report" && a.place == "hall" then Right(addClue(a,reportClue,1))
     else if action == "inspect:archive" && a.place == "hall" && a.stage>=1 then
       Right(addClue(a,if a.truth=="mine_accident" then mineArchive else chemicalArchive,2))
+    else if action == "inspect:work_order" && a.place == "forge" && a.stage>=1 then
+      Right(addClue(a,if a.truth=="mine_accident" then mineWorkOrder else chemicalWorkOrder,2))
     else if action == "inspect_mine" && a.place == "mine" && a.stage >= 1 then
       val clue=if a.truth == "mine_accident" then mineClue else chemicalClue
       if a.clues.contains(clue) then Right((a,"你已经记录了这条线索。",None,None,None))
@@ -380,10 +386,10 @@ private[game] object Rules:
         val quick=action=="prepare:quick"
         val die=if quick then Some(roll(a,action)) else None
         val stats=a.stats.getOrElse(PlayerStats.forRole(a.role))
-        val modifier=stats.body+(if stats.talents.contains("mine_sense") then 2 else 0)+(if a.companion.contains("smith") then 2 else 0)-(if a.fatigue>=60 then 2 else 0)
+        val modifier=stats.body+(if stats.talents.contains("mine_sense") then 2 else 0)+(if a.companion.contains("smith") then 2 else 0)+(if knowsEquipment(a) then 2 else 0)-(if a.fatigue>=60 then 2 else 0)
         val success=die.forall(_+modifier>=13)
         val preparation=if a.truth=="mine_accident" then "检查通风与封堵位置" else "检查药剂阀门与隔离位置"
-        val next=advance(a.copy(hour=a.hour+(if quick then 2 else 4),events=a.events ++ List(preparation) ++ (if success then List("已准备控制污染源") else Nil),pendingRecovery=if success then None else Some(Recovery("site_preparation",10))))
+        val next=advance(a.copy(hour=a.hour+(if quick then 2 else if knowsEquipment(a) then 3 else 4),events=a.events ++ List(preparation) ++ (if success then List("已准备控制污染源") else Nil),pendingRecovery=if success then None else Some(Recovery("site_preparation",10))))
         val settled=if next.sealedEnding then next.copy(pendingRecovery=None) else next
         val message=if settled.sealedEnding then "准备过程中黑雾失控，村庄进入危机结局。" else if success then s"$preparation，现场已经准备就绪。" else "现场准备时发生危险，需要先处理后果。"
         Right((settled,message,die,if quick then Some(modifier) else None,if quick then Some(13) else None))

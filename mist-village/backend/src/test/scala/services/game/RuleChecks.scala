@@ -2,9 +2,12 @@ package services.game
 import cats.effect.{IO,IOApp}
 import io.circe.syntax.*
 import services.game.objects.*
+import services.game.objects.apiTypes.WorldClock
 import services.game.utils.{Rules,OutcomeSummary,GrowthRules}
 object RuleChecks extends IOApp.Simple:
   def run: IO[Unit] = IO {
+    assert(WorldClock.at(9).day==1 && WorldClock.at(9).period=="上午" && WorldClock.at(9).time=="09:00")
+    assert(WorldClock.at(24).day==2 && WorldClock.at(24).period=="深夜" && WorldClock.at(24).time=="00:00")
     val npc=NpcState.initial.map(n => if n.id=="healer" then n.copy(met=true,lastKnownPlace="clinic") else n)
     val q=Quest("q1","调查请求",QuestStatus.offered,Some(30),"查看告示",Some("inspect_gate"),Some("healer"),Some("trust"))
     val oldQuest=io.circe.parser.decode[Quest]("""{"id":"old","title":"旧请求","status":"active","deadline":30,"description":"查看告示","goal":"inspect_gate","issuer":"healer","reward":"trust"}""")

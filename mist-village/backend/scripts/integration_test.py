@@ -93,6 +93,8 @@ def main():
             game_map=request(f'http://127.0.0.1:{api_port}/api/getmapapi',{'id':ai_id})
             assert len(game_map)==7 and next(p for p in game_map if p['current'])['id']=='clinic'
             assert not next(p for p in game_map if p['id']=='mine')['routeOpen']
+            clock=request(f'http://127.0.0.1:{api_port}/api/getworldclockapi',{'id':ai_id})
+            assert clock['day']==1 and clock['absoluteHour']==action['adventure']['hour'] and clock['period']=='上午'
             assert request(f'http://127.0.0.1:{api_port}/api/listactionsapi',{'id':ai_id})==[], '暂停时不应展示可执行行动'
             try:
                 request(f'http://127.0.0.1:{api_port}/api/performactionapi',{'id':ai_id,'action':'move:clinic'})

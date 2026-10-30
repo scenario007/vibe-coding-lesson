@@ -18,7 +18,9 @@ private[game] object QuestRules:
       case Some(item) =>
         val old=a.items.find(_.id==item).fold(0)(_.quantity)
         a.items.filterNot(_.id==item) :+ ItemStack(item,old+1)
-    val npcs=a.npcs.map(n=>if n.id==person then n.copy(trust=math.min(100,n.trust+10),knownTrust=Some(math.min(100,n.trust+10)),memories=(n.memories :+ s"玩家完成请求：$id").distinct) else n)
+    val title=a.quests.find(_.id==id).map(_.title).getOrElse("人物请求")
+    val fact=s"玩家完成了请求：$title。"
+    val npcs=a.npcs.map(n=>if n.id==person then n.copy(trust=math.min(100,n.trust+10),knownTrust=Some(math.min(100,n.trust+10)),memories=(n.memories :+ fact).distinct,facts=(n.facts :+ NpcFact(fact,"亲身经历")).distinct) else n)
     a.copy(quests=a.quests.map(q=>if q.id==id then q.copy(status=QuestStatus.completed) else q),npcs=npcs,items=newItems,money=a.money+gold,events=a.events :+ s"完成请求：$id")
   private[game] def perform(a: Adventure,action: String): Option[Either[AppError,(Adventure,String,Option[Int],Option[Int],Option[Int])]] =
     val result: Option[Either[AppError,(Adventure,String)]] = action match

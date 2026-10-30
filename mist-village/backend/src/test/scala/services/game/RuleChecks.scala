@@ -26,6 +26,7 @@ object RuleChecks extends IOApp.Simple:
     val report=Rules.perform(returnToHealer,"report:q1").toOption.get
     val reported=Rules.applyQuestRewards(returnToHealer,report._1,"report:q1",report._3,report._4,report._5)
     assert(reported.quests.head.status==QuestStatus.completed && reported.npcs.find(_.id=="healer").get.trust==55)
+    assert(reported.npcs.find(_.id=="healer").exists(n=>n.memories.contains("玩家完成了请求：调查请求。") && n.facts.exists(_.text=="玩家完成了请求：调查请求。")))
     val legacy=returnToHealer.copy(quests=returnToHealer.quests.map(_.copy(goalReached=false)),events=returnToHealer.events :+ "已达成请求目标：q1")
     assert(io.circe.parser.decode[Adventure](legacy.asJson.noSpaces).toOption.get.quests.head.goalReached)
     val legacyReport=Rules.perform(legacy,"report:q1").toOption.get
@@ -252,6 +253,15 @@ object RuleChecks extends IOApp.Simple:
     val backGate=Rules.perform(foundMap,"move:gate").toOption.get._1
     val doneMap=Rules.perform(backGate,"deliver:smith_map").toOption.get._1
     assert(doneMap.quests.exists(q=>q.id=="smith_map" && q.status==QuestStatus.completed))
+    assert(doneMap.npcs.find(_.id=="smith").exists(_.facts.exists(_.text=="玩家完成了请求：寻找铁匠的旧图。")))
+    val guardMet=doneMap.copy(npcs=doneMap.npcs.map(n=>if n.id=="guard" then n.copy(met=true,lastKnownPlace="gate",knownTrust=Some(50)) else n))
+    val afterContact=Rules.perform(guardMet,"move:clinic").toOption.get._1
+    val guardReturn=Rules.perform(afterContact,"move:gate").toOption.get._1
+    assert(Rules.unknownFactor(guardReturn,"persuade:guard"))
+    val guardedAttempt=Rules.perform(guardReturn,"persuade:guard").toOption.get
+    val guardExplained=Rules.perform(guardReturn,"ask:knowledge:guard").toOption.get._1
+    assert(!Rules.unknownFactor(guardExplained,"persuade:guard"))
+    assert(Rules.perform(guardExplained,"persuade:guard").toOption.get._4.get==guardedAttempt._4.get+2)
     assert(doneMap.items.find(_.id=="oil").exists(_.quantity==2))
     val bypass=Rules.perform(doneMap.copy(place="forest",stage=1),"move:mine_via_map").toOption.get._1
     assert(bypass.place=="mine" && !bypass.events.contains("获得矿洞通行许可"))

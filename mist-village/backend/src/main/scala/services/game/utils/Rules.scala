@@ -94,8 +94,9 @@ private[game] object Rules:
     else prepared
 
   private def guardFact(a: Adventure): Option[NpcFact] = a.npcs.find(_.id=="guard").flatMap(_.facts.find(_.text.startsWith("玩家攻击")))
+  private def guardEndorsement(a: Adventure): Option[NpcFact] = a.npcs.find(_.id=="guard").flatMap(_.facts.find(f=>f.source=="铁匠阿岚" && f.text=="玩家完成了请求：寻找铁匠的旧图。"))
   private def guardFactKnown(a: Adventure, fact: NpcFact): Boolean = fact.source=="玩家" || a.dialogue.exists(d=>d.speaker=="守卫罗恩" && d.text.contains(fact.text))
-  private[game] def unknownFactor(a: Adventure, action: String): Boolean = action=="persuade:guard" && guardFact(a).exists(f=> !guardFactKnown(a,f))
+  private[game] def unknownFactor(a: Adventure, action: String): Boolean = action=="persuade:guard" && (guardFact(a).exists(f=> !guardFactKnown(a,f)) || guardEndorsement(a).exists(f=> !guardFactKnown(a,f)))
   private def addClue(a: Adventure, clue: String, hours: Int): (Adventure,String,Option[Int],Option[Int],Option[Int]) =
     if a.clues.contains(clue) then (a,"你已经记录了这条线索。",None,None,None)
     else (advance(a.copy(hour=a.hour+hours,clues=a.clues :+ clue,events=a.events :+ clue),hours>0),clue,None,None,None)
@@ -187,10 +188,13 @@ private[game] object Rules:
       else Right((a.copy(events=a.events :+ "获得矿洞通行许可"),"守卫核对你带来的记录后同意你进入矿洞。",None,None,None))
     else if action == "persuade:guard" && a.place=="gate" && a.npcs.exists(n=>n.id=="guard" && n.place==a.place && n.met && n.condition==NpcCondition.healthy) then
       val die=roll(a,action); val stats=a.stats.getOrElse(PlayerStats.forRole(a.role)); val fact=guardFact(a)
+      val endorsement=guardEndorsement(a)
       val knownPenalty=if fact.exists(f=>guardFactKnown(a,f)) then 2 else 0
       val hiddenPenalty=if fact.exists(f=> !guardFactKnown(a,f)) then 2 else 0
-      val mod=stats.social + (if stats.talents.contains("mediator") then 2 else 0) + (if a.clues.contains(reportClue) then 2 else 0)-knownPenalty; val target=14
-      val success=die+mod-hiddenPenalty>=target
+      val knownBonus=if endorsement.exists(f=>guardFactKnown(a,f)) then 2 else 0
+      val hiddenBonus=if endorsement.exists(f=> !guardFactKnown(a,f)) then 2 else 0
+      val mod=stats.social + (if stats.talents.contains("mediator") then 2 else 0) + (if a.clues.contains(reportClue) then 2 else 0)+knownBonus-knownPenalty; val target=14
+      val success=die+mod+hiddenBonus-hiddenPenalty>=target
       val next=advance(a.copy(hour=a.hour+1,events=if success then (a.events :+ "获得矿洞通行许可").distinct else a.events :+ "尝试说服守卫未果"))
       Right((next,if success then "守卫同意你进入矿洞。" else "守卫没有同意；也许新的证据能改变他的决定。",Some(die),Some(mod),Some(target)))
     else if action == "sneak:mine" && a.place=="gate" && a.stage>=1 then
@@ -333,7 +337,7 @@ private[game] object Rules:
       Right(addClue(a,"获得药草：可以交给药师。",1))
     else if action == "deliver:herbs" && a.clues.contains("获得药草：可以交给药师。") && a.quests.exists(q => q.id == "herbs" && q.status == QuestStatus.active) && a.npcs.exists(n => n.id=="healer" && n.place==a.place && n.condition==NpcCondition.healthy) then
       val quests = a.quests.map(q => if q.id == "herbs" then q.copy(status=QuestStatus.completed) else q)
-      val npcs = a.npcs.map(n => if n.id == "healer" then n.copy(trust=math.min(100,n.trust+10),knownTrust=Some(math.min(100,n.trust+10)),memories=n.memories :+ "玩家按约带回药草") else n)
+      val npcs = a.npcs.map(n => if n.id == "healer" then n.copy(trust=math.min(100,n.trust+10),knownTrust=Some(math.min(100,n.trust+10)),memories=(n.memories :+ "玩家按约带回药草").distinct,facts=(n.facts :+ NpcFact("玩家完成了请求：为药师寻找药草。","亲身经历")).distinct) else n)
       val rewarded=adjust(a,"filter",1)
       Right((rewarded.copy(quests=quests,npcs=npcs,events=a.events :+ "将药草交给药师，获得备用净水滤芯"),"药师收下药草，将一份备用净水滤芯交给你，信任也有所增加。",None,None,None))
     else if action.startsWith("negotiate:") || action.startsWith("abandon:") then
@@ -507,9 +511,12 @@ private[game] object Rules:
     val ids=completed.map(_.id).toSet
     val bonus=completed.count(_.reward.contains("recovery"))*10
     val trustByIssuer=completed.filter(_.reward.contains("trust")).flatMap(_.issuer).groupMapReduce(identity)(_ => 5)(_+_)
+    val completedByIssuer=completed.flatMap(q=>q.issuer.map(_->q.title)).groupMap(_._1)(_._2)
     val npcs=marked.npcs.map { n =>
       val change=trustByIssuer.getOrElse(n.id,0)
-      if change==0 then n else n.copy(trust=math.min(100,n.trust+change),knownTrust=Some(math.min(100,n.trust+change)))
+      val titles=completedByIssuer.getOrElse(n.id,Nil)
+      if change==0 && titles.isEmpty then n
+      else n.copy(trust=math.min(100,n.trust+change),knownTrust=if change>0 then Some(math.min(100,n.trust+change)) else n.knownTrust,memories=(n.memories ++ titles.map(t=>s"玩家完成了请求：$t。")).distinct,facts=(n.facts ++ titles.map(t=>NpcFact(s"玩家完成了请求：$t。","亲身经历"))).distinct)
     }
     val filters=completed.count(_.reward.contains("filter"))
     val rewarded=if filters>0 then adjust(marked,"filter",filters) else marked

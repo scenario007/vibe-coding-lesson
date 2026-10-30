@@ -288,9 +288,11 @@ private[game] object Rules:
         case None => Left(AppError(400,"请先在现场与此人交谈"))
         case Some(person) =>
           val involved=a.challengeTruth.map(_.involvedNpc).getOrElse(if a.truth=="mine_accident" then "mayor" else "healer")
-          val line=if id==involved then "事故发生前，我确实参与过相关工作，但具体经过需要查阅记录。" else "我不清楚事故的全部经过，或许可以检查矿洞记录。"
+          val statements=if id==involved then a.challengeTruth.toList.flatMap(ChallengeClues.statements) else Nil
+          val line=if id==involved then "事故发生前，我确实参与过相关工作，但具体经过需要查阅记录。"+statements.mkString else "我不清楚事故的全部经过，或许可以检查矿洞记录。"
           val clue=s"证词：${person.name}承认事故前参与过相关工作。"
-          val found=if id==involved && !a.clues.contains(clue) then a.clues :+ clue else a.clues
+          val testimony=statements.map(s=>s"证词：${person.name}表示：$s")
+          val found=if id==involved then (a.clues ++ (clue :: testimony)).distinct else a.clues
           val next=a.copy(clues=found,dialogue=a.dialogue :+ DialogueEntry(person.name,line,a.hour,a.place),events=a.events :+ s"向${person.name}询问事故")
           Right((next,line,None,None,None))
     else if action.startsWith("share:") then
@@ -401,6 +403,12 @@ private[game] object Rules:
     else if action == "read_report" && a.place == "hall" then Right(addClue(a,reportClue,1))
     else if action == "inspect:archive" && a.place == "hall" && a.stage>=1 then
       Right(addClue(a,if a.truth=="mine_accident" then mineArchive else chemicalArchive,2))
+    else if action == "inspect:personal_archive" && a.place == "hall" && a.stage>=1 && a.challengeTruth.nonEmpty then
+      val discovered=ChallengeClues.records(a).filterNot(a.clues.contains)
+      if discovered.isEmpty then Right((a,"这些会议记录已经查看过。",None,None,None))
+      else
+        val next=advance(a.copy(hour=a.hour+3,clues=a.clues ++ discovered,events=a.events ++ discovered))
+        Right((next,discovered.mkString(" "),None,None,None))
     else if action == "inspect:work_order" && a.place == "forge" && a.stage>=1 then
       Right(addClue(a,if a.truth=="mine_accident" then mineWorkOrder else chemicalWorkOrder,2))
     else if action == "inspect_mine" && a.place == "mine" && a.stage >= 1 then

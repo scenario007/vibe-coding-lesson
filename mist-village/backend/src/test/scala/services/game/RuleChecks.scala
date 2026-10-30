@@ -224,6 +224,18 @@ object RuleChecks extends IOApp.Simple:
     val noHealer=NpcState.initial.map(n=>if n.id=="healer" then n.copy(condition=NpcCondition.deceased) else n)
     val records=Rules.perform(a.copy(place="clinic",npcs=noHealer),"inspect:clinic_records").toOption.get._1
     assert(records.clues.exists(_.startsWith("诊所记录")))
+    val plan=ChallengeTruth("mine_accident","mayor","aware","economic")
+    val mayorMet=NpcState.initial.map(n=>if n.id=="mayor" then n.copy(met=true,lastKnownPlace="hall") else n)
+    val challenge=a.copy(place="hall",stage=1,mode="challenge",challengeTruth=Some(plan),npcs=mayorMet,clues=Nil)
+    val interview=Rules.perform(challenge,"question:mayor").toOption.get
+    assert(interview._2.contains("收到过风险提示") && interview._1.clues.exists(_.contains("影响村民的生计")))
+    assert(interview._1.clues.filter(_.startsWith("证词：")).forall(c=>Evidence.fromText(c,None).source=="村长伊芙"))
+    val mayorDead=mayorMet.map(n=>if n.id=="mayor" then n.copy(condition=NpcCondition.deceased) else n)
+    val paper=Rules.perform(challenge.copy(npcs=mayorDead),"inspect:personal_archive").toOption.get._1
+    assert(paper.hour==challenge.hour+3 && paper.clues.exists(_.contains("曾收到事故风险提示")) && paper.clues.exists(_.contains("影响村民生计")))
+    val unaware=challenge.copy(challengeTruth=Some(plan.copy(knowledge="unaware",motive="oversight")))
+    val unawarePaper=Rules.perform(unaware,"inspect:personal_archive").toOption.get._1
+    assert(unawarePaper.clues.exists(_.contains("没有明确的风险提示")) && unawarePaper.clues.exists(_.contains("没有完整核查")))
     for (truth,expected) <- List(("mine_accident","档案残页"),("chemical_accident","药剂账册")) do
       val archive=Rules.perform(a.copy(place="hall",stage=1,truth=truth,clues=Nil),"inspect:archive").toOption.get._1
       assert(archive.clues.exists(_.startsWith(expected)) && Evidence.fromText(archive.clues.last,Some(archive.hour)).kind==EvidenceKind.document)

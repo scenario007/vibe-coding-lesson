@@ -13,6 +13,7 @@ AI 还需要本机凭据路径 `TOKENHUB_CONFIG_FILE`、现有课程项目账本
 - `listrolesapi`、`liststoryprogressapi`：空对象；查询预设身份、公开解锁条件和不剧透的剧情进度。
 - `createadventureapi`：`name`、`role`、`difficulty`，可选 `aiEnabled`、`storyId`、`replaceId`、`confirmReplace`。模式固定后不支持切换；三档案满时须提供要覆盖的 ID 和明确确认。
 - 挑战模式附加 `mode: "challenge"`、`role: "自定义"`、`aiEnabled: true`、`confirmProfile: true`、`profile: {background, secret, secretKnownBy, stats}`；`secret` 和 `stats` 可为空，知情人用人物 ID。AI 根据限定事故、涉及者、认知和动机生成一次真相，并保存到私有状态。不能指定预设 `storyId`。
+- 挑战模式下，玩家可询问相关人物了解其知情程度和当时的考虑；也可耗时查阅会议记录取得相应线索，即使人物已死亡仍有替代路径。线索由已确定的真相规则生成，不会因为再次询问而改变。
 - `listadventuresapi`：空对象；`getadventureapi`：`{id}`。响应不会返回真相、随机种子、其他人物未被玩家察觉的位置或状态。人物关系内部使用单一信任值，接口只返回玩家上次了解到的态度（敌视、戒备、中立、友善或信赖），不暴露具体数值。
 - `listsavesapi`：`{id}`；`saveadventureapi`：`{id, slot, confirmOverwrite}`，slot 为 1–3，已有存档必须确认；`loadadventureapi`：`{id, slot}`，slot 0 为阶段自动存档。完整主线结局后档案封存；死亡可读档。
 - `revealtruthapi`：`{id}`；仅完整主线结局后可调用，标准模式记录玩家已主动查看，死亡不可调用。

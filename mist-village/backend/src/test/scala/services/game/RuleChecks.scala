@@ -94,6 +94,12 @@ object RuleChecks extends IOApp.Simple:
     val winSeed=(1L to 1000L).map(seed=>begun.copy(seed=seed,battle=Some(Battle("野兽",1,20,1)))).find(v=>Rules.roll(v,"combat:attack:1")+PlayerStats.forRole(v.role).body>=11).get
     val win=Rules.perform(winSeed,"combat:attack").toOption.get._1
     assert(win.battle.isEmpty && win.clues.exists(_.startsWith("矿工布条")))
+    val luckyStrike=(1L to 1000L).map(seed=>begun.copy(seed=seed,battle=Some(Battle("野兽",20,20,1)))).find(v=>Rules.roll(v,"combat:attack:1")==20).get
+    val criticalHit=Rules.perform(luckyStrike,"combat:attack").toOption.get
+    assert(criticalHit._1.battle.isEmpty && criticalHit._2.contains("双倍伤害"))
+    val unluckyStrike=(1L to 1000L).map(seed=>begun.copy(seed=seed)).find(v=>Rules.roll(v,"combat:attack:1")==1).get
+    val criticalMiss=Rules.perform(unluckyStrike,"combat:attack").toOption.get
+    assert(criticalMiss._1.health<unluckyStrike.health && criticalMiss._2.contains("破绽"))
     val camp=a.copy(place="camp",hour=50,campSafeUntil=57)
     assert(Rules.perform(camp,"rest").isRight)
     val unsafe=camp.copy(hour=57)

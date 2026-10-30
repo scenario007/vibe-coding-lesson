@@ -93,14 +93,17 @@ private[game] object Rules:
             val target=if choice=="flee" then 12 else 11
             val hit=choice=="attack" && die+modifier>=target
             val escaped=choice=="flee" && die+modifier>=target
-            val remainingEnemy=math.max(0,battle.health-(if hit then 10+stats.body else 0))
+            val critical=hit && die==20
+            val fumble=choice=="attack" && die==1 && !hit
+            val remainingEnemy=math.max(0,battle.health-(if hit then (10+stats.body)*(if critical then 2 else 1) else 0))
             val healed=if choice=="medicine" then adjust(a,"medicine",-1).copy(health=math.min(100,a.health+25)) else a
             val ended=escaped || remainingEnemy==0
             val enemyDie=roll(a,s"enemy:${battle.round}")
-            val enemyHits= !ended && enemyDie >= (if choice=="defend" then 14 else 10)
+            val enemyHits= !ended && (fumble || enemyDie >= (if choice=="defend" then 14 else 10))
             val damage=if enemyHits then (if a.difficulty=="故事" then 5 else if a.difficulty=="艰难" then 15 else 10) else 0
             val remaining=math.max(0,healed.health-damage)
-            val result=if escaped then "你成功撤离了遭遇。" else if remainingEnemy==0 then "野兽退入森林，你在附近发现了矿工布条。" else if remaining==0 then "你在遭遇中伤重倒下。" else s"本回合结束；野兽反击骰为 $enemyDie，造成 $damage 点伤害。"
+            val detail=if critical then "你抓住机会造成了双倍伤害。" else if fumble then "你攻击落空、露出了破绽。" else ""
+            val result=detail+(if escaped then "你成功撤离了遭遇。" else if remainingEnemy==0 then "野兽退入森林，你在附近发现了矿工布条。" else if remaining==0 then "你在遭遇中伤重倒下。" else if fumble then s"野兽抓住破绽，造成 $damage 点伤害。" else s"本回合结束；野兽反击骰为 $enemyDie，造成 $damage 点伤害。")
             val next=healed.copy(health=remaining,dead=remaining==0,battle=if ended || remaining==0 then None else Some(battle.copy(health=remainingEnemy,round=battle.round+1)),clues=if remainingEnemy==0 then (a.clues :+ "矿工布条：野兽附近有矿工留下的布条。").distinct else a.clues,events=a.events :+ result)
             val settled=if ended || remaining==0 then advance(next.copy(hour=next.hour+1)) else next
             Right((settled,result,if choice=="attack" || choice=="flee" then Some(die) else None,if choice=="attack" || choice=="flee" then Some(modifier) else None,if choice=="attack" || choice=="flee" then Some(target) else None))

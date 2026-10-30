@@ -7,6 +7,7 @@ private[game] object QuestRules:
     case "mia" => Some(Quest("mia_letter","送回未寄出的信",QuestStatus.offered,Some(hour+24),"在森林寻找矿工留下的信，再交给米娅。",issuer=Some("mia")))
     case "merchant" => Some(Quest("merchant_supply","取回营地补给",QuestStatus.offered,Some(hour+18),"前往安全的营地取回补给，再交给旅商。",issuer=Some("merchant")))
     case "healer" => Some(Quest("herbs","为药师寻找药草",QuestStatus.offered,Some(hour+12),"在森林寻找药草，在期限前交给药师；她会提供一份备用净水滤芯。",issuer=Some("healer")))
+    case "mayor" => Some(Quest("evac_supplies","准备应急撤离物资",QuestStatus.offered,Some(hour+18),"将一份食物送到诊所应急箱，再向村长汇报；提前准备可缩短之后的撤离时间。",issuer=Some("mayor")))
     case _ => None
   private def active(a: Adventure,id: String): Boolean = a.quests.exists(q=>q.id==id && q.status==QuestStatus.active)
   private def present(a: Adventure,id: String): Boolean = a.npcs.exists(n=>n.id==id && n.place==a.place && n.condition==NpcCondition.healthy)
@@ -39,6 +40,16 @@ private[game] object QuestRules:
         Some(Right((addClue(a,clue,1),clue)))
       case "deliver:merchant_supply" if active(a,"merchant_supply") && present(a,"merchant") && a.clues.contains("补给清单：旅商的包裹被留在营地。") =>
         Some(Right((finish(a,"merchant_supply","merchant",Some("oil"),3),"旅商收下包裹，给你三枚银币和一份灯油。")))
+      case "deliver:evac_supplies" if a.place=="clinic" && active(a,"evac_supplies") && !a.events.contains("村庄已备妥撤离物资") =>
+        a.items.find(_.id=="food").filter(_.quantity>0) match
+          case None => Some(Left(AppError(409,"准备撤离需要一份食物")))
+          case Some(food) =>
+            val remaining=food.quantity-1
+            val items=a.items.filterNot(_.id=="food") ++ (if remaining>0 then List(ItemStack("food",remaining)) else Nil)
+            val prepared=a.copy(items=items,events=a.events :+ "村庄已备妥撤离物资")
+            Some(Right((addClue(prepared,"撤离准备：一份食物已存入诊所应急箱。",1),"你将一份食物放入应急箱，并记录了准备情况。")))
+      case "deliver:evac_report" if active(a,"evac_supplies") && present(a,"mayor") && a.events.contains("村庄已备妥撤离物资") =>
+        Some(Right((finish(a,"evac_supplies","mayor",None,0),"村长确认了应急物资，感谢你的准备。")))
       case x if x.startsWith("find:") || x.startsWith("deliver:") && x != "deliver:herbs" => Some(Left(AppError(409,"地点、人物或请求条件尚不满足")))
       case _ => None
     result.map(_.map((next,message)=>(next,message,None,None,None)))

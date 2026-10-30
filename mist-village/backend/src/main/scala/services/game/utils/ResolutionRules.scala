@@ -16,6 +16,7 @@ private[game] object ResolutionRules:
     case _ => false
   private[game] def preview(a: Adventure, p: ResolutionPlan): Either[AppError,ResolutionPreview] =
     val available = (p.method,p.support,p.person) match
+      case ("evacuate","supplies",None) if a.stage>=1 && a.events.contains("村庄已备妥撤离物资") => Some(("使用事先准备的物资组织撤离；黑雾来源可能仍未解决。",1))
       case ("evacuate","supplies",None) if a.stage>=1 && count(a,"food")>=1 => Some(("使用一份食物，组织村民撤离；黑雾来源可能仍未解决。",2))
       case ("evacuate","person",Some("guard")) if a.stage>=1 && helper(a,"guard") => Some(("与在场且信任你的守卫组织撤离；黑雾来源可能仍未解决。",4))
       case ("contain","oil",None) if a.stage==2 && a.events.contains("已准备控制污染源") && count(a,"oil")>=1 => Some(("使用一份灯油，依据已查明的矿洞记录控制污染源。",2))
@@ -28,7 +29,7 @@ private[game] object ResolutionRules:
       case None => Left(AppError(422,"方案与已知线索、在场人物或可用资源不符"))
       case Some((description,hours)) => Right(ResolutionPreview(p,description,hours,if a.hour+hours>=81 then Some("执行期间危机可能失控") else None))
   private[game] def execute(a: Adventure, p: ResolutionPlan): Either[AppError,(Adventure,Boolean)] = preview(a,p).map { v =>
-    val usedFood=if p.support=="supplies" then take(a,"food") else a
+    val usedFood=if p.support=="supplies" && !a.events.contains("村庄已备妥撤离物资") then take(a,"food") else a
     val usedOil=if p.support=="oil" then take(usedFood,"oil") else usedFood
     val usedFilter=if p.method=="water" then take(usedOil,"filter") else usedOil
     val progressed=Rules.advance(usedFilter.copy(hour=usedFilter.hour+v.hours,events=usedFilter.events :+ s"实施方案：${v.description}"))

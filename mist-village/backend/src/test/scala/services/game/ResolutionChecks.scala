@@ -24,6 +24,11 @@ object ResolutionChecks extends IOApp.Simple:
     assert(CustomResolution.preview(escort,ResolutionPlan("evacuate","person",Some("guard"))).isRight)
     assert(CustomResolution.execute(escort,ResolutionPlan("evacuate","person",Some("guard"))).toOption.get._1.events.last.contains("仍未得到解决"))
     assert(CustomResolution.preview(escort.copy(place="forest"),ResolutionPlan("evacuate","person",Some("guard"))).isLeft)
+    val prepared=base.copy(events=List("村庄已备妥撤离物资"))
+    val evacuation=ResolutionPlan("evacuate","supplies",None)
+    assert(CustomResolution.preview(prepared,evacuation).toOption.get.hours==1)
+    val preparedEnding=CustomResolution.execute(prepared,evacuation).toOption.get._1
+    assert(preparedEnding.hour==prepared.hour+1 && preparedEnding.items.find(_.id=="food").get.quantity==2)
     val chemical=base.copy(stage=2,truth="chemical_accident",events=List("已准备控制污染源"))
     assert(CustomResolution.preview(chemical.copy(events=Nil),ResolutionPlan("contain","oil",None)).isLeft)
     assert(CustomResolution.execute(chemical,ResolutionPlan("contain","oil",None)).toOption.get._1.events.last.contains("停止药剂投放"))

@@ -302,6 +302,18 @@ object RuleChecks extends IOApp.Simple:
     val merchantBack=Rules.perform(parcel,"move:hall").toOption.get._1
     val delivered=Rules.perform(merchantBack,"deliver:merchant_supply").toOption.get._1
     assert(delivered.money==a.money+3 && delivered.items.find(_.id=="oil").exists(_.quantity==2))
+    val mayorOffer=Rules.perform(a.copy(place="hall",quests=Nil),"talk:mayor").toOption.get._1
+    assert(mayorOffer.quests.exists(q=>q.id=="evac_supplies" && q.status==QuestStatus.offered))
+    val mayorAccepted=Rules.perform(mayorOffer,"accept:evac_supplies").toOption.get._1
+    val clinicForSupplies=Rules.perform(mayorAccepted,"move:clinic").toOption.get._1
+    val stockpiled=Rules.perform(clinicForSupplies,"deliver:evac_supplies").toOption.get._1
+    assert(stockpiled.items.find(_.id=="food").exists(_.quantity==1) && stockpiled.events.contains("村庄已备妥撤离物资"))
+    assert(Rules.perform(stockpiled,"deliver:evac_supplies").isLeft)
+    val mayorReturn=Rules.perform(stockpiled,"move:hall").toOption.get._1
+    val confirmed=Rules.perform(mayorReturn,"deliver:evac_report").toOption.get._1
+    assert(confirmed.quests.exists(q=>q.id=="evac_supplies" && q.status==QuestStatus.completed))
+    val evacuation=Rules.perform(confirmed.copy(stage=1),"resolve:evacuate").toOption.get._1
+    assert(evacuation.sealedEnding && evacuation.hour==confirmed.hour+1 && evacuation.items.find(_.id=="food").exists(_.quantity==1))
     val shop=a.copy(place="hall",money=10)
     val deceasedMerchant=shop.copy(npcs=shop.npcs.map(n=>if n.id=="merchant" then n.copy(condition=NpcCondition.deceased) else n))
     assert(Rules.perform(deceasedMerchant,"buy:medicine").isLeft)

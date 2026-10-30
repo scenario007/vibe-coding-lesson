@@ -73,13 +73,15 @@ final case class ListActionsAPIMessage(id: String) extends APIMessage[List[Actio
         case "mia_letter" if a.clues.exists(_.startsWith("矿工来信")) && a.npcs.exists(n=>n.id=="mia" && n.place==a.place && n.condition==services.game.objects.NpcCondition.healthy) => List(ActionOption("deliver:mia_letter","将信交给米娅",0,None))
         case "merchant_supply" if a.place=="camp" && Locations.safe(a) && !a.clues.exists(_.startsWith("补给清单")) => List(ActionOption("find:merchant_supply","寻找补给包裹",1,None))
         case "merchant_supply" if a.clues.exists(_.startsWith("补给清单")) && a.npcs.exists(n=>n.id=="merchant" && n.place==a.place && n.condition==services.game.objects.NpcCondition.healthy) => List(ActionOption("deliver:merchant_supply","交付补给包裹",0,None))
+        case "evac_supplies" if a.place=="clinic" && !a.events.contains("村庄已备妥撤离物资") => List(ActionOption("deliver:evac_supplies","将食物放入应急箱",1,Some("消耗一份食物")))
+        case "evac_supplies" if a.events.contains("村庄已备妥撤离物资") && a.npcs.exists(n=>n.id=="mayor" && n.place==a.place && n.condition==services.game.objects.NpcCondition.healthy) => List(ActionOption("deliver:evac_report","向村长汇报物资准备",0,None))
         case _ => Nil
     }
     rest=if Locations.safe(a) then List(ActionOption("rest","休息",4,None)) else Nil
     sideRoute=if a.place=="forest" && a.stage>=1 && a.clues.contains("铁匠旧图：矿道侧线通往森林一侧。") then List(ActionOption("move:mine_via_map","沿旧矿图侧线进入矿洞",Locations.travelHours(a,"mine")+1,Some("路线较远，黑雾可能继续扩散"))) else Nil
     water=if a.stage>=1 && a.items.exists(i=>i.id=="filter" && i.quantity>0) then List(ActionOption("resolve:water","保护水源并结束本局",2,Some("消耗净水滤芯与一份灯油；行动期间黑雾继续扩散"))) else Nil
     preparation=if a.place=="mine" && a.stage==2 && !a.events.contains("已准备控制污染源") then List(ActionOption("prepare:quick","迅速准备现场",2,Some("需要检定，失败可能受伤")),ActionOption("prepare:careful","谨慎准备现场",if Rules.knowsEquipment(a) then 3 else 4,Some("黑雾和其他事件会继续发展"))) else Nil
-    ending=(if a.stage>=1 then List(ActionOption("resolve:evacuate","组织撤离并结束本局",2,Some("消耗一份食物；行动期间黑雾继续扩散"))) else Nil) ++ (if a.stage==2 && a.events.contains("已准备控制污染源") then List(ActionOption("resolve:contain","控制黑雾并结束本局",2,Some("消耗一份灯油；行动期间黑雾继续扩散"))) else Nil)
+    ending=(if a.stage>=1 then List(ActionOption("resolve:evacuate","组织撤离并结束本局",if a.events.contains("村庄已备妥撤离物资") then 1 else 2,Some(if a.events.contains("村庄已备妥撤离物资") then "使用预先准备的物资；行动期间黑雾继续扩散" else "消耗一份食物；行动期间黑雾继续扩散"))) else Nil) ++ (if a.stage==2 && a.events.contains("已准备控制污染源") then List(ActionOption("resolve:contain","控制黑雾并结束本局",2,Some("消耗一份灯油；行动期间黑雾继续扩散"))) else Nil)
     recovery=a.pendingRecovery.toList.flatMap { _ =>
       List(ActionOption("recover:accept","承担伤害",0,None),ActionOption("recover:delay","花费一小时减轻伤害",1,Some("黑雾和其他事件继续发展"))) ++ (if a.items.exists(i=>i.id=="food" && i.quantity>0) then List(ActionOption("recover:food","消耗一份食物减轻伤害",0,None)) else Nil)
     }

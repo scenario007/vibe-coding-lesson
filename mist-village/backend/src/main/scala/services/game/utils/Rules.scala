@@ -497,10 +497,12 @@ private[game] object Rules:
       val message=if damage>0 && !finalState.sealedEnding then s"矿道坍塌，可能损失 $damage 点生命；可以选择承担、消耗食物或花时间减轻伤害。" else if finalState.sealedEnding then "黑雾失控，危机已进入结局。" else "你安全穿过矿道。"
       Right((finalState,message,Some(die),Some(modifier),Some(target)))
     else if action == "resolve:evacuate" && a.stage >= 1 then
-      if quantity(a,"food")<1 then Left(AppError(409,"组织撤离需要一份食物"))
+      val prepared=a.events.contains("村庄已备妥撤离物资")
+      if !prepared && quantity(a,"food")<1 then Left(AppError(409,"组织撤离需要一份食物或已备妥的物资"))
       else
         val message=if a.knownMinerStatus==MinerStatus.rescued then "村民与获救矿工安全撤离，黑雾的来源仍未完全解决。" else "村民撤离，黑雾的来源与失踪矿工的情况仍有遗憾。"
-        val progressed=advance(adjust(a,"food",-1).copy(hour=a.hour+2,events=a.events :+ "开始组织撤离"))
+        val supplied=if prepared then a else adjust(a,"food",-1)
+        val progressed=advance(supplied.copy(hour=a.hour+(if prepared then 1 else 2),events=a.events :+ "开始组织撤离"))
         if progressed.sealedEnding then Right((progressed,"撤离过程中黑雾失控，村庄进入危机结局。",None,None,None))
         else Right((progressed.copy(stage=3,sealedEnding=true,events=progressed.events :+ message),message,None,None,None))
     else if action == "resolve:water" && a.stage >= 1 then

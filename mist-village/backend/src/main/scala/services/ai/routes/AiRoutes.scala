@@ -1,0 +1,6 @@
+package services.ai.routes
+import services.system.api.RegisteredAPIMessage
+import services.ai.api.{ProposeActionAPIMessage,GenerateQuestAPIMessage,GetUsageReportAPIMessage,DraftCharacterAPIMessage,GetHintAPIMessage,ProposeResolutionAPIMessage,GenerateVisitorAPIMessage}
+import services.ai.objects.{UsageReport,CharacterDraft,ProposalReply,QuestReply,HintReply,ResolutionReply}
+object AiRoutes:
+  val apiMessages: List[RegisteredAPIMessage] = List(RegisteredAPIMessage.register[ProposeActionAPIMessage,ProposalReply], RegisteredAPIMessage.register[GenerateQuestAPIMessage,QuestReply], RegisteredAPIMessage.register[GetUsageReportAPIMessage,UsageReport], RegisteredAPIMessage.register[DraftCharacterAPIMessage,CharacterDraft], RegisteredAPIMessage.register[GetHintAPIMessage,HintReply], RegisteredAPIMessage.register[ProposeResolutionAPIMessage,ResolutionReply], RegisteredAPIMessage.register[GenerateVisitorAPIMessage,QuestReply])

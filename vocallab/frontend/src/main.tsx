@@ -12,7 +12,7 @@ function App() {
         <Link to="/" className="inline-flex items-center gap-2.5 text-xl font-bold tracking-[-0.035em] text-ink" aria-label="VocalLab 首页">
           <span className="grid size-9 place-items-center rounded-[10px] bg-accent text-[#21163b]"><AudioWaveform size={21} strokeWidth={2.5}/></span> VocalLab
         </Link>
-        <span className="flex items-center gap-2 text-xs text-muted"><LockKeyhole size={14} className="text-mint"/> 仅在本机处理</span>
+        <span className="flex items-center gap-2 text-xs text-muted"><LockKeyhole size={14} className="text-mint"/> 录音在本机处理</span>
       </div>
     </header>
     <main className="mx-auto max-w-[1192px] px-5 py-9 sm:px-9 sm:py-12">

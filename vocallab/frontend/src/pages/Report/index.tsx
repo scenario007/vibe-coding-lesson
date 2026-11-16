@@ -7,6 +7,7 @@ import { AlignmentPanel } from './components/AlignmentPanel'
 import { ListenPanel } from './components/ListenPanel'
 import { Overview } from './components/Overview'
 import { PitchChart } from './components/PitchChart'
+import { ReportLyrics } from './components/ReportLyrics'
 import { Segments } from './components/Segments'
 import { usePlayback } from './hooks/usePlayback'
 import { useReport } from './hooks/useReport'
@@ -35,6 +36,7 @@ function AnalysisResult({ report, adjust, adjusting, error }: {
     <Overview report={report}/>
     <PitchChart report={report} playback={playback}/>
     <ListenPanel report={report} playback={playback}/>
+    <ReportLyrics report={report} playback={playback}/>
     <div className="grid items-start gap-4 lg:grid-cols-[1.35fr_1fr]">
       <Segments report={report} playback={playback}/>
       <AlignmentPanel report={report} adjusting={adjusting} adjust={adjust} error={error}/>

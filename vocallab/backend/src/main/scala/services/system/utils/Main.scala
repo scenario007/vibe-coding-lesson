@@ -2,6 +2,7 @@ package services.system.utils
 
 import cats.effect.{IO, IOApp, Resource}
 import cats.effect.std.Semaphore
+import cats.syntax.all.*
 import com.comcast.ip4s.{host, Port}
 import java.nio.file.Path
 import org.http4s.ember.server.EmberServerBuilder
@@ -9,6 +10,7 @@ import org.http4s.implicits.*
 import scala.concurrent.duration.*
 import services.analysis.api.AnalysisRuntime
 import services.analysis.routes.AnalysisRoutes
+import services.lyrics.routes.LyricsRoutes
 import services.system.api.Database
 import services.system.objects.AppConfig
 import services.system.routes.APIMessageRouter
@@ -36,8 +38,9 @@ object Main extends IOApp.Simple:
       database <- Database.resource
       uploads <- Resource.eval(Semaphore[IO](2))
       queue <- Resource.eval(Semaphore[IO](1))
+      lyrics <- Resource.eval(Semaphore[IO](2))
       _ <- AnalysisRuntime.background(database, config)
-      routes = AnalysisRoutes.routes(database, config, uploads, queue).orNotFound
+      routes = (AnalysisRoutes.routes(database, config, uploads, queue) <+> LyricsRoutes.routes(database, lyrics)).orNotFound
       _ <- EmberServerBuilder.default[IO].withHost(host"127.0.0.1").withPort(Port.fromInt(config.port).get)
         .withIdleTimeout(150.seconds).withRequestHeaderReceiveTimeout(20.seconds)
         .withHttpApp(APIMessageRouter.local(routes, config)).build

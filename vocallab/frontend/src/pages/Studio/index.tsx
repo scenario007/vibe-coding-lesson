@@ -1,10 +1,12 @@
 import { ArrowRight, AudioLines, Info, LoaderCircle } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { MediaCard } from './components/MediaCard'
+import { StudioLyrics } from './components/StudioLyrics'
 import { useStudio } from './hooks/useStudio'
 
 export default function Studio() {
   const studio = useStudio()
+  const reference = studio.uploads.reference
   return <>
     <section className="mb-8">
       <div className="mb-4 flex items-center gap-2.5 text-sm font-semibold text-accent"><AudioLines size={18}/> 歌唱分析工作台</div>
@@ -19,6 +21,7 @@ export default function Studio() {
         choose={file => void studio.choose('user', file)} clear={() => studio.clear('user')}
         update={next => studio.update('user', next)}/>
     </div>
+    {reference.status === 'ready' && <StudioLyrics key={reference.media.id} media={reference.media}/>}
     <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-y border-line py-4">
       <p className="flex max-w-xl items-start gap-2 text-xs leading-6 text-muted">
         <Info size={15} className="mt-1 shrink-0 text-accent"/>

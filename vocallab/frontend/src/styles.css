@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-canvas: #101217;
+  --color-panel: #171a22;
+  --color-raised: #20242f;
+  --color-line: #2e3340;
+  --color-ink: #f1eff7;
+  --color-muted: #a5a9ba;
+  --color-accent: #c1b2ff;
+  --color-mint: #87e0c8;
+  --color-danger: #ffa9a5;
+}
+@layer base {
+  :root { color-scheme: dark; font-family: var(--font-sans); }
+  body { min-width: 300px; min-height: 100vh; color: var(--color-ink); background: radial-gradient(ellipse 58rem 32rem at 87% -8rem, #25203b 0, transparent 77%), var(--color-canvas); }
+  button, input, select { font: inherit; }
+  :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+  input[type='range'] { accent-color: var(--color-accent); }
+  ::selection { color: #21163b; background: var(--color-accent); }
+}
+
+@layer components {
+  .clip-handle {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    margin: 0;
+    appearance: none;
+    pointer-events: none;
+    background: transparent;
+  }
+  .clip-handle:focus-visible { z-index: 1; }
+  .clip-handle::-webkit-slider-thumb {
+    appearance: none;
+    width: 0.875rem;
+    height: 1rem;
+    border: 2px solid #171a22;
+    border-radius: 0.25rem;
+    background: var(--color-accent);
+    pointer-events: auto;
+    cursor: ew-resize;
+  }
+  .clip-handle::-moz-range-thumb {
+    width: 0.75rem;
+    height: 0.875rem;
+    border: 2px solid #171a22;
+    border-radius: 0.25rem;
+    background: var(--color-accent);
+    pointer-events: auto;
+    cursor: ew-resize;
+  }
+}

@@ -23,7 +23,8 @@ def analyze(manifest, progress):
         crop_audio(context, folder / "original.wav", clip["trim"], clip["duration"])
         if clip["separate"]:
             progress(f"separation_{role}")
-            separation[role] = separator.separate(context, folder, clip["trim"], clip["duration"], clip["identity"])
+            separation[role] = separator.separate(context, folder, clip["trim"], clip["duration"], clip["identity"],
+                                                   mode=clip.get("separationMode") or "precise")
         else:
             separation[role] = dict(enabled=False, model=None, modelVersion=None, status="skipped",
                                      outputTracks=["original"], inputTrack="original", warnings=[],

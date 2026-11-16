@@ -8,7 +8,8 @@ final case class TrackSettings(
   duration: Double,
   start: Double,
   separate: Boolean,
-  identity: String
+  identity: String,
+  separationMode: SeparationMode
 )
 
 object TrackSettings:

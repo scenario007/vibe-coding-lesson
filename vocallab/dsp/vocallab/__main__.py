@@ -15,9 +15,10 @@ def main():
     run.add_argument("result", type=Path)
     setup = commands.add_parser("prepare-model")
     setup.add_argument("models", type=Path)
+    setup.add_argument("--mode", choices=("fast", "precise"), default="precise")
     options = parser.parse_args()
     if options.command == "prepare-model":
-        print(json.dumps(VocalSeparator(options.models, options.models).prepare(), ensure_ascii=False))
+        print(json.dumps(VocalSeparator(options.models, options.models).prepare(options.mode), ensure_ascii=False))
         return
     try:
         result = analyze(json.loads(options.manifest.read_text()), lambda stage: print(f"STAGE {stage}", flush=True))

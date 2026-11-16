@@ -17,5 +17,5 @@ uv pip sync --python .venv/bin/python dsp/requirements.lock
 if [[ "${1:-}" == "--model" ]]; then
   model_path="${VOCALLAB_MODELS:-$PWD/.local/models}"
   cd dsp
-  PYTORCH_ENABLE_MPS_FALLBACK=1 ../.venv/bin/python -m vocallab prepare-model "$model_path"
+  PYTORCH_ENABLE_MPS_FALLBACK=1 ../.venv/bin/python -m vocallab prepare-model "$model_path" --mode "${2:-fast}"
 fi

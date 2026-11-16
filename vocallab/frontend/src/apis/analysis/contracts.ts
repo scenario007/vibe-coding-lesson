@@ -17,7 +17,8 @@ export const media = z.object({
 export const limits = z.object({
   maxBytes: z.number().int().positive(), maxDuration: z.number().int().positive(), maxClip: z.number().int().positive(),
 })
-export const clipSelection = z.object({ mediaId: id, start: seconds, end: seconds, separate: z.boolean() })
+export const separationMode = z.enum(['fast', 'precise'])
+export const clipSelection = z.object({ mediaId: id, start: seconds, end: seconds, separate: z.boolean(), separationMode: separationMode.nullish() })
 export const selection = z.object({ reference: clipSelection, user: clipSelection, manualOffset: z.number().nullable() })
 export const job = z.object({ analysisId: id, status: jobStatus, stage, error: z.string().nullable(),
   selection, createdAt: z.string() })

@@ -173,7 +173,9 @@ class Backend(unittest.TestCase):
         user_file = root / os.getenv("VOCALLAB_REAL_VOICE", "clean.wav")
         reference = self.uploaded(ref_file)
         user = self.uploaded(user_file)
-        clip = dict(reference=dict(mediaId=reference["id"], start=0, end=min(reference["duration"], 36), separate=True),
+        mode = os.getenv("VOCALLAB_TEST_MODE", "precise")
+        clip = dict(reference=dict(mediaId=reference["id"], start=0, end=min(reference["duration"], 36),
+                                   separate=True, separationMode=mode),
                     user=dict(mediaId=user["id"], start=0, end=min(user["duration"], 36), separate=False), manualOffset=None)
         status, job, _ = call("createanalysisapi", clip)
         self.assertEqual(status, 200, job)
@@ -183,7 +185,9 @@ class Backend(unittest.TestCase):
         status, result, _ = call("getanalysisresultapi", {"analysisId": id})
         self.assertEqual(status, 200, result)
         self.assertEqual(result["separation"]["reference"]["status"], "completed")
-        self.assertIn(result["separation"]["reference"]["device"], {"mps", "cpu"})
+        self.assertIn(result["separation"]["reference"]["device"], {"mps", "cpu", "Core ML / CPU"})
+        self.assertEqual(result["separation"]["reference"]["model"],
+                         "MDX-Net Kim Vocal 2" if mode == "fast" else "BS-RoFormer Viperx 1297")
         self.assertTrue(result["alignment"]["reliable"], result["alignment"]["warnings"])
         for track in ["original", "vocals", "instrumental"]:
             self.assertEqual(fetch(f"getanalyzedaudioapi/{id}/reference/{track}", headers={"Range":"bytes=0-31"})[0], 206)

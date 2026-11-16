@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { z } from 'zod'
-import { media, type Limits, type Role } from '../../../apis/analysis/contracts'
+import { media, separationMode, type Limits, type Role } from '../../../apis/analysis/contracts'
 import { UploadMediaAPI } from '../../../apis/analysis/UploadMediaAPI'
 import { GetMediaLimitsAPI } from '../../../apis/analysis/GetMediaLimitsAPI'
 import { CreateAnalysisAPI } from '../../../apis/analysis/CreateAnalysisAPI'
 import type { ReadyUpload, Upload } from '../objects/Upload'
 
-const ready = z.object({ status: z.literal('ready'), media, start: z.number(), end: z.number(), separate: z.boolean() })
+const ready = z.object({ status: z.literal('ready'), media, start: z.number(), end: z.number(), separate: z.boolean(), separationMode: separationMode.optional() })
 const saved = z.object({ reference: ready.nullable(), user: ready.nullable() })
 const storage = 'vocallab-studio-v1'
 type Uploads = Record<Role, Upload>
@@ -85,7 +85,7 @@ export function useStudio() {
     const { reference, user } = uploads
     if (!limits || !valid(reference, limits.maxClip) || !valid(user, limits.maxClip)) return
     const toClip = (upload: ReadyUpload) => ({ mediaId: upload.media.id, start: upload.start,
-      end: upload.end, separate: upload.separate })
+      end: upload.end, separate: upload.separate, separationMode: upload.separationMode ?? 'fast' })
     setError('')
     setLoading(true)
     try {

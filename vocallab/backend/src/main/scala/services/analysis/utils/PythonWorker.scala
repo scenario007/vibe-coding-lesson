@@ -24,7 +24,8 @@ private[analysis] object PythonWorker:
       IO.blocking(Files.createDirectories(folder)) *>
         MediaDecode.clip(LocalFiles.media(config, clip.mediaId).resolve("audio.flac"),
           folder.resolve("context.wav"), start, end - start, clip.separate)
-          .as(TrackSettings(clip.start - start, clip.end - clip.start, clip.start, clip.separate, identity))
+          .as(TrackSettings(clip.start - start, clip.end - clip.start, clip.start, clip.separate, identity,
+            clip.separationMode.getOrElse(SeparationMode.precise)))
 
     for
       reference <- db.use(AnalysisValidation.media(_, job.selection.reference.mediaId))

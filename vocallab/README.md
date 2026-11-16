@@ -14,10 +14,12 @@ export PATH="/opt/homebrew/opt/openjdk@21/bin:/opt/homebrew/opt/postgresql@18/bi
 ./scripts/setup.sh
 ```
 
-首次启用分离会下载约 610 MiB 的 BS-RoFormer 权重，也可在分析前下载并校验。
+快速分离使用 MDX-Net Kim Vocal 2（约 64 MiB），精细分离使用 BS-RoFormer（约 610 MiB）。可提前下载并校验所需权重。
 
 ```sh
-./scripts/setup.sh --model
+./scripts/setup.sh --model fast
+# 可选精细档
+./scripts/setup.sh --model precise
 ```
 
 双击 **Start.command**，或运行 `./.venv/bin/python scripts/launch.py start`。打开 [VocalLab](http://127.0.0.1:5188/)。启动命令会建立独立的本地数据库、编译 Scala、构建前端并启动服务。终端可以关闭。双击 **Stop.command** 停止，测试时也可运行 `./.venv/bin/python scripts/launch.py stop`。启动和处理日志在 `.local/` 中。
@@ -64,7 +66,7 @@ export PATH="/opt/homebrew/opt/openjdk@21/bin:/opt/homebrew/opt/postgresql@18/bi
 
 ## 模型、指标和局限
 
-分离使用 `audio-separator 0.48.0` 与 `torch 2.15.0`。默认按 PyTorch 检测使用 MPS，遇到兼容问题时可回退到 CPU。可以显式指定 `VOCALLAB_DEVICE=cpu`。同一文件摘要、音轨、区间、模型及推理参数复用分离结果。前后端启动和录音分析都在本机，首次安装、模型缓存预热、可选测试样本下载与手动查询歌词需要联网。
+分离使用 `audio-separator 0.48.0` 与 `torch 2.15.0`。快速档采用 ONNX，支持 Core ML 与 CPU。精细档使用 PyTorch MPS 并可回退到 CPU。可以显式指定 `VOCALLAB_DEVICE=cpu`。同一文件摘要、音轨、区间、模型及推理参数复用分离结果。前后端启动和录音分析都在本机，首次安装、模型缓存预热、可选测试样本下载与手动查询歌词需要联网。
 
 pYIN 每约 20 ms 估计一帧，结合音量门限和有声概率保留有效基频。时间对齐先搜索整体偏移、速度和半音偏移，再用受约束的 DTW 匹配局部轮廓。证据不足时暂停评分。较弱旋律证据经过匹配验证时可用于近似复听，或可改用手动对齐点进行复听。绝对音准保留实际移调差异，另给出移调补偿后的命中率。长音以分块中位数和稳健斜率估计慢漂移，连续高音阈值相对于参考片段音域。节奏信息是时间轴估计，可信度是基于覆盖、信号质量与对齐特征的启发式指标。分离残留、和声、较弱人声、明显改编和自然颤音都可能降低可靠性。
 

@@ -8,7 +8,8 @@ final case class ClipSelection(
   mediaId: UUID,
   start: Double,
   end: Double,
-  separate: Boolean
+  separate: Boolean,
+  separationMode: Option[SeparationMode]
 )
 
 object ClipSelection:

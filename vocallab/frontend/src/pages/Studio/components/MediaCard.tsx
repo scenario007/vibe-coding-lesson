@@ -54,8 +54,16 @@ function RangeEditor({ state, maximum, update }: { state: ReadyUpload; maximum: 
       <input type="checkbox" className="size-4 accent-accent" checked={separate}
         onChange={e => update({ ...state, separate: e.currentTarget.checked })}/>
       <span className="text-sm">含伴奏，分离人声</span>
-      <span className="ml-auto text-xs text-muted">BS-RoFormer</span>
+
     </label>
+    {separate && <label className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">分离模式
+      <select className="rounded-lg border border-line bg-canvas px-2 py-1.5 text-sm text-ink"
+        value={state.separationMode ?? 'fast'}
+        onChange={e => update({ ...state, separationMode: e.currentTarget.value === 'precise' ? 'precise' : 'fast' })}>
+        <option value="fast">快速 · MDX-Net</option>
+        <option value="precise">精细 · BS-RoFormer</option>
+      </select>
+    </label>}
     <p className="mt-2 text-xs text-muted">清唱或已分离的人声可跳过分离。选段越长，分离所需时间通常越久。</p>
   </>
 }

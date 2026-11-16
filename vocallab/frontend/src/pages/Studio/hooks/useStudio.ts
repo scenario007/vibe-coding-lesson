@@ -74,7 +74,7 @@ export function useStudio() {
         if (!controller.signal.aborted) update(role, { status: 'uploading', name: file.name, progress })
       }, controller.signal)
       if (!controller.signal.aborted) update(role, { status: 'ready', media: info,
-        start: 0, end: Math.min(info.duration, limits?.maxClip ?? 60, 30), separate: role === 'reference' })
+        start: 0, end: Math.min(info.duration, limits?.maxClip ?? 300, 30), separate: role === 'reference' })
     } catch (e) {
       if (!controller.signal.aborted) update(role, { status: 'error', message: (e as Error).message })
     }

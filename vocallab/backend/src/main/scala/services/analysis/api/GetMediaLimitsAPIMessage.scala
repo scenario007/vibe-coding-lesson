@@ -8,4 +8,4 @@ import services.system.objects.AppConfig
 
 final case class GetMediaLimitsAPIMessage(config: AppConfig) extends NoRequestMessage[MediaLimits]:
   def plan(connection: Connection): IO[MediaLimits] =
-    IO.pure(MediaLimits(config.maxBytes, config.maxDuration, config.maxClip))
+    IO.pure(MediaLimits(config.maxBytes, config.maxClip))

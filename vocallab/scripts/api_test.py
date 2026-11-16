@@ -87,14 +87,29 @@ class Backend(unittest.TestCase):
                 self.assertTrue(info["error"])
         status, info, _ = upload(self.folder / "reference.wav", "reference.zip")
         self.assertEqual(status, 415, info)
+
+    def test_upload_and_analysis_duration_are_independent(self):
         limits = fetch("getmedialimitsapi")[1]
-        if limits["maxDuration"] <= 950:
-            long_media = self.folder / "too-long.wav"
-            ffmpeg("-f", "lavfi", "-i", "anullsrc=r=8000:cl=mono", "-t", limits["maxDuration"] + 2,
-                   "-c:a", "pcm_u8", long_media)
-            status, info, _ = upload(long_media)
-            self.assertEqual(status, 422, info)
-            self.assertIn("时长", info["error"])
+        maximum = limits["maxClip"]
+        self.assertNotIn("maxDuration", limits)
+        path = self.folder / "duration-limit.wav"
+        ffmpeg("-f", "lavfi", "-i", "sine=frequency=440:sample_rate=8000",
+               "-t", maximum + 5, "-c:a", "pcm_u8", path)
+        info = self.uploaded(path)
+        self.assertAlmostEqual(info["duration"], maximum + 5, places=3)
+        clip = dict(mediaId=info["id"], start=2, end=maximum + 2, separate=False)
+        selection = dict(reference=clip, user=clip, manualOffset=None)
+        status, _, _ = call("createanalysisapi", {**selection, "user": {**clip, "end": maximum + 3}})
+        self.assertEqual(status, 400)
+        status, job, _ = call("createanalysisapi", selection)
+        self.assertEqual(status, 200, job)
+        finished, _ = wait_for(job["analysisId"], deadline=180)
+        self.assertEqual(finished["status"], "completed", finished)
+        _, report, _ = call("getanalysisresultapi", {"analysisId": job["analysisId"]})
+        self.assertEqual(report["preprocessing"]["referenceDuration"], maximum)
+        pitch = report["pitchTracks"]["reference"]
+        self.assertGreater(len(pitch["timestamps"]), maximum * 49)
+        self.assertGreater(sum(value is not None for value in pitch["guideMidiPitch"]), maximum * 40)
 
     def test_body_limit_and_local_origin(self):
         maximum = fetch("getmedialimitsapi")[1]["maxBytes"]

@@ -13,13 +13,18 @@ const referenceColor = '#c1b2ff'
 const userColor = '#87e0c8'
 const maxZoom = 16
 
-function pathOf(series: Point[], x: (value: number) => number, y: (value: number) => number) {
+function pathOf(series: Point[], x: (value: number) => number, y: (value: number) => number, guide = false) {
   let prior: number | null = null
-  return series.map(point => {
-    if (point.midi === null) { prior = null; return '' }
-    const command = prior === null || point.x - prior > .10 ? 'M' : 'L'
+  const pitch = (point: Point) => guide ? point.guide ?? point.midi : point.midi
+  return series.map((point, index) => {
+    const midi = pitch(point)
+    if (midi === null) { prior = null; return '' }
+    const starts = prior === null || point.x - prior > .10
+    const next = series[index + 1]
     prior = point.x
-    return `${command}${x(point.x).toFixed(1)},${y(point.midi).toFixed(1)}`
+    const coordinate = `${x(point.x).toFixed(1)},${y(midi).toFixed(1)}`
+    const isolated = starts && (!next || pitch(next) === null || next.x - point.x > .10)
+    return `${starts ? 'M' : 'L'}${coordinate}${isolated ? 'L' + coordinate : ''}`
   }).join('')
 }
 
@@ -46,15 +51,22 @@ function Plot({ report, playback, axis, overlay }: { report: Report; playback: P
   const min = Math.min(left, total-domain)
   const max = min + domain
   const [first, second] = useMemo(() => [points(report, axis), overlay ? points(report, 'user') : []], [report, axis, overlay])
-  const pitches = useMemo(() => [...first, ...second].flatMap(p => p.midi === null ? [] : [p.midi]), [first, second])
+  const pitches = useMemo(() => [...first, ...second].flatMap(p => p.midi ?? p.guide ?? []), [first, second])
   const low = pitches.length ? Math.floor((Math.min(...pitches)-1) / 3)*3 : 48
   const high = pitches.length ? Math.max(low+6, Math.ceil((Math.max(...pitches)+1)/3)*3) : 72
   const interval = Math.max(3, Math.ceil((high-low)/21)*3)
   const ticks = Array.from({ length: Math.floor((high-low)/interval)+1 }, (_, i) => low + i*interval)
   const x = (time: number) => L + (time-min)*width/domain
   const y = (midi: number) => T + (high-midi)*height/(high-low)
-  const path1 = pathOf(first.filter(point => point.x >= min-.12 && point.x <= max+.12), x, y)
-  const path2 = pathOf(second.filter(point => point.x >= min-.12 && point.x <= max+.12), x, y)
+  const paths = useMemo(() => {
+    const plotX = (time: number) => L + (time-min)*width/domain
+    const plotY = (midi: number) => T + (high-midi)*height/(high-low)
+    return [first, second].map(series => {
+      const visible = series.filter(point => point.x >= min-.12 && point.x <= max+.12)
+      return { solid: pathOf(visible, plotX, plotY), guide: visible.some(p => p.midi === null && p.guide !== null)
+        ? pathOf(visible, plotX, plotY, true) : '' }
+    })
+  }, [first, second, min, max, L, width, domain, high, low])
   const activeTime = playback.active === axis ? playback.time : translate(report, playback.active, playback.time)
   const selected = playback.range[axis]
   const selectionStart = selected?.[0]
@@ -129,8 +141,11 @@ function Plot({ report, playback, axis, overlay }: { report: Report; playback: P
             return a !== null && b !== null && <rect key={index} x={x(a-start)} y={T} width={Math.max(1, x(b-start)-x(a-start))} height={height} fill="#ffab87" opacity={.12}/>
           })}
           {selected && <rect x={x(selected[0])} y={T} width={x(selected[1])-x(selected[0])} height={height} fill={referenceColor} opacity={.13}/>}
-          <path d={path1} fill="none" stroke={axis === 'reference' ? referenceColor : userColor} strokeWidth={2.7} vectorEffect="non-scaling-stroke"/>
-          <path d={path2} fill="none" stroke={userColor} strokeWidth={1.75} vectorEffect="non-scaling-stroke"/>
+          {paths.map((path, index) => <path key={index} d={path.guide} fill="none" opacity={.55}
+            stroke={index === 0 && axis === 'reference' ? referenceColor : userColor} strokeWidth={1.2}
+            strokeDasharray="3 3" strokeLinecap="round" vectorEffect="non-scaling-stroke"/>)}
+          <path d={paths[0].solid} strokeLinecap="round" fill="none" stroke={axis === 'reference' ? referenceColor : userColor} strokeWidth={2.7} vectorEffect="non-scaling-stroke"/>
+          <path d={paths[1].solid} strokeLinecap="round" fill="none" stroke={userColor} strokeWidth={1.75} vectorEffect="non-scaling-stroke"/>
           {activeTime !== null && <line x1={x(activeTime)} x2={x(activeTime)} y1={T} y2={H-B} stroke="#eee8ff" opacity={.75}/>}
           {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={T} y2={H-B} stroke="#9da3b4" strokeDasharray="5 4"/>}
           {sampleA?.midi !== null && sampleA && <circle cx={x(sampleA.x)} cy={y(sampleA.midi)} r={4} fill={axis === 'reference' ? referenceColor : userColor}/>}
@@ -139,7 +154,7 @@ function Plot({ report, playback, axis, overlay }: { report: Report; playback: P
       </svg>
     </div>
     <div className="mt-2 flex min-h-6 flex-wrap gap-x-4 gap-y-1 font-mono text-xs text-muted" aria-live="off">
-      {hover === null ? <span>断线表示静音或未检测到可靠音高。点击定位，放大后拖动查看。</span> :
+      {hover === null ? <span>实线为可信音高，淡虚线为低可信度候选，不计入音准评分。留白表示未取得候选音高。</span> :
         <><span>{timeLabel(start+hover)}</span><span className={axis==='reference' ? 'text-accent' : 'text-mint'}>{sampleA?.hz && sampleA.midi !== null ? `${noteLabel(sampleA.midi)} · ${sampleA.hz.toFixed(1)} Hz` : '音高不可用'}</span>
           {overlay && <span className="text-mint">{sampleB?.hz && sampleB.midi !== null ? `我的演唱 ${noteLabel(sampleB.midi)} · ${sampleB.hz.toFixed(1)} Hz` : '我的演唱音高不可用'}</span>}</>}
     </div>

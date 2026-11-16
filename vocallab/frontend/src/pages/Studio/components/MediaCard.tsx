@@ -99,7 +99,7 @@ export function MediaCard({ role, state, limits, choose, clear, update }: {
       </div>
       {state.media.audioStreams > 1 && <p className="mt-2 text-xs text-muted">共 {state.media.audioStreams} 条音轨，采用容器默认音轨或首条音轨。</p>}
       {Math.abs(state.media.audioStart) > 0.05 && <p className="mt-2 text-xs text-muted">音轨起点 {state.media.audioStart.toFixed(2)} 秒，已保留媒体时间位置。</p>}
-      <RangeEditor state={state} maximum={limits?.maxClip ?? 60} update={update}/>
+      <RangeEditor state={state} maximum={limits?.maxClip ?? 300} update={update}/>
     </> : state.status === 'uploading' ?
       <div role="status" className="grid min-h-44 content-center gap-3 rounded-xl border border-line bg-canvas p-5">
         <p className="truncate text-sm font-medium">{state.name}</p>

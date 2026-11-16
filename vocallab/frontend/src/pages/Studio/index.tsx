@@ -25,7 +25,7 @@ export default function Studio() {
     <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-y border-line py-4">
       <p className="flex max-w-xl items-start gap-2 text-xs leading-6 text-muted">
         <Info size={15} className="mt-1 shrink-0 text-accent"/>
-        <span>{studio.limits ? `单文件上限 ${studio.limits.maxBytes / 1048576} MiB · ${Math.floor(studio.limits.maxDuration/60)} 分钟。建议选择两段录音中的同一乐句。` :
+        <span>{studio.limits ? `单文件上限 ${studio.limits.maxBytes / 1048576} MiB · 单次分析每条轨最多 ${studio.limits.maxClip / 60} 分钟。建议选择两段录音中的同一乐句。` :
           '正在读取文件限制。建议选择两段录音中的同一乐句。'}</span>
       </p>
       <Button variant="primary" className="min-h-11 px-5" disabled={!studio.canStart || studio.loading} onClick={() => void studio.start()}>

@@ -6,7 +6,6 @@ import services.analysis.objects.*
 
 final case class MediaLimits(
   maxBytes: Long,
-  maxDuration: Int,
   maxClip: Int
 )
 

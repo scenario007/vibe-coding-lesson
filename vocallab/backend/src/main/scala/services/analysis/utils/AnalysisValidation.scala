@@ -35,12 +35,13 @@ private[analysis] object AnalysisValidation:
     def ratio(value: Double): Boolean = value.isFinite && value >= 0 && value <= 1
     def track(t: PitchTrack, clip: ClipSelection): Boolean =
       val frames = t.timestamps.size
-      frames > 1 && frames <= 4000 && math.abs(t.originalStart - clip.start) < 0.001 &&
+      frames > 1 && frames <= 15100 && math.abs(t.originalStart - clip.start) < 0.001 &&
         t.timestamps.head == 0 && t.timestamps.last <= clip.end - clip.start + 0.021 &&
         t.timestamps.zip(t.timestamps.drop(1)).forall((a, b) => b > a) &&
         Vector(t.f0Hz.size, t.midiPitch.size, t.voicedFlags.size, t.voicedProbabilities.size, t.rms.size).forall(_ == frames) &&
         t.f0Hz.forall(_.forall(hz => hz.isFinite && hz > 0)) && t.midiPitch.forall(_.forall(_.isFinite)) &&
         t.f0Hz.zip(t.midiPitch).forall((f0, midi) => f0.isDefined == midi.isDefined) &&
+        t.guideMidiPitch.forall(guide => guide.size == frames && guide.forall(_.forall(_.isFinite))) &&
         t.voicedProbabilities.forall(ratio) && t.rms.forall(rms => rms.isFinite && rms >= 0)
     val map = report.alignment.timeMapping
     val mapping = map.forall((r, u) => r.isFinite && u.isFinite && r >= 0 && u >= 0 &&

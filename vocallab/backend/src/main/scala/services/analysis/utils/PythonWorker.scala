@@ -53,7 +53,7 @@ private[analysis] object PythonWorker:
       _ <- IO.raiseUnless(exit == 0)(ApiError(Status.UnprocessableEntity,
         message.getOrElse(if exit == 137 then "分析进程内存不足，请尝试较短的片段。" else "声学分析进程异常退出，请查看本地日志。")))
       size <- IO.blocking(Files.size(result))
-      _ <- IO.raiseWhen(size > 4194304)(new IllegalStateException("分析结果超过大小限制。"))
+      _ <- IO.raiseWhen(size > 16777216)(new IllegalStateException("分析结果超过大小限制。"))
       raw <- IO.blocking(Files.readString(result))
       report <- IO.fromEither(decode[AnalysisReport](raw))
       verified <- AnalysisValidation.report(report, job)

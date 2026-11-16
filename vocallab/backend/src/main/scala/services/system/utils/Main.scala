@@ -27,8 +27,8 @@ object Main extends IOApp.Simple:
     AppConfig(root, path("VOCALLAB_DATA", ".local/run"), path("VOCALLAB_MODELS", ".local/models"),
       path("VOCALLAB_PYTHON", ".venv/bin/python"), int("VOCALLAB_PORT", 8818, 1024, 65535),
       int("VOCALLAB_FRONTEND_PORT", 5188, 1024, 65535), int("VOCALLAB_UPLOAD_MIB", 150, 1, 512) * 1048576L,
-      int("VOCALLAB_MAX_DURATION", 900, 1, 3600), int("VOCALLAB_MAX_CLIP", 60, 1, 60),
-      int("VOCALLAB_WORKER_TIMEOUT", 1200, 30, 3600), int("VOCALLAB_MEDIA_HOURS", 72, 1, 720),
+      int("VOCALLAB_MAX_CLIP", 300, 1, 300),
+      int("VOCALLAB_WORKER_TIMEOUT", 3600, 30, 3600), int("VOCALLAB_MEDIA_HOURS", 72, 1, 720),
       int("VOCALLAB_CACHE_DAYS", 14, 1, 90))
   }
 

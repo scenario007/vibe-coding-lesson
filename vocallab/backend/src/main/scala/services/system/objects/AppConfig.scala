@@ -10,7 +10,6 @@ final case class AppConfig(
   port: Int,
   frontendPort: Int,
   maxBytes: Long,
-  maxDuration: Int,
   maxClip: Int,
   workerSeconds: Int,
   mediaHours: Int,

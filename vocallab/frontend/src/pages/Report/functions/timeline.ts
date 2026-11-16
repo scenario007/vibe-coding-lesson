@@ -2,7 +2,7 @@ import type { PitchTrack, Report, Role } from '../../../apis/analysis/contracts'
 
 export type TimeRange = [number, number]
 export type ComparisonRange = Record<Role, TimeRange | null>
-export type Point = { x: number; midi: number | null; original: number; hz: number | null }
+export type Point = { x: number; midi: number | null; guide: number | null; original: number; hz: number | null }
 
 export function duration(report: Report, role: Role) {
   return role === 'reference' ? report.preprocessing.referenceDuration : report.preprocessing.userDuration
@@ -42,7 +42,7 @@ export function points(report: Report, role: Role): Point[] {
   const track: PitchTrack = report.pitchTracks[role]
   return track.timestamps.flatMap((time, i) => {
     const x = role === 'reference' || !hasPlaybackMapping(report) ? time : translate(report, 'user', time)
-    return x === null ? [] : [{ x, midi: track.midiPitch[i], original: time + track.originalStart, hz: track.f0Hz[i] }]
+    return x === null ? [] : [{ x, midi: track.midiPitch[i], guide: track.guideMidiPitch?.[i] ?? null, original: time + track.originalStart, hz: track.f0Hz[i] }]
   })
 }
 

@@ -28,7 +28,8 @@ class Pitch:
                     f0Hz=nullable(self.hz), midiPitch=nullable(self.midi),
                     voicedFlags=self.voiced.tolist(),
                     voicedProbabilities=self.probability.round(5).tolist(),
-                    rms=self.rms.round(7).tolist())
+                    rms=self.rms.round(7).tolist(),
+                    guideMidiPitch=nullable(self.guide_midi) if self.guide_midi is not None else None)
 
 
 def extract(path: Path) -> Pitch:

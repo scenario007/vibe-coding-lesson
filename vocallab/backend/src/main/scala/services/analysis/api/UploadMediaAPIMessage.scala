@@ -32,7 +32,7 @@ final case class UploadMediaAPIMessage(filename: String, body: Stream[IO, Byte],
         bytes <- IO.blocking(Files.size(source))
         _ <- IO.raiseWhen(bytes > config.maxBytes)(ApiError(Status.PayloadTooLarge, s"单个文件最多 ${config.maxBytes / 1048576} MiB。"))
         _ <- IO.raiseWhen(bytes < 16)(ApiError(Status.UnprocessableEntity, "文件为空或不完整。"))
-        info <- MediaDecode.upload(source, decoded, id, name, format, bytes, config)
+        info <- MediaDecode.upload(source, decoded, id, name, format, bytes)
         digest <- LocalFiles.hash(source)
       yield StoredMedia(info, digest)).onError { case _ => LocalFiles.remove(directory) }.onCancel(LocalFiles.remove(directory))
       _ <- MediaTable.insert(connection, metadata).onError { case _ => LocalFiles.remove(directory) }.uncancelable

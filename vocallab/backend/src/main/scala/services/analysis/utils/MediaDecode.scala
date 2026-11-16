@@ -7,7 +7,7 @@ import java.util.UUID
 import scala.concurrent.duration.*
 import org.http4s.Status
 import services.analysis.objects.{MediaFormat, MediaMetadata}
-import services.system.objects.{ApiError, AppConfig}
+import services.system.objects.ApiError
 
 private[analysis] object MediaDecode:
   private def number(field: Option[Json]): Option[Double] =
@@ -33,7 +33,7 @@ private[analysis] object MediaDecode:
   private def invalid: ApiError = ApiError(Status.UnprocessableEntity, "无法读取媒体。请确认格式与扩展名一致，文件完整并含有可解码音轨。")
 
   def upload(path: Path, decoded: Path, id: UUID, name: String, format: MediaFormat,
-             size: Long, config: AppConfig): IO[MediaMetadata] =
+             size: Long): IO[MediaMetadata] =
     val demuxer = format match
       case MediaFormat.wav => "wav"
       case MediaFormat.mp3 => "mp3"
@@ -54,21 +54,18 @@ private[analysis] object MediaDecode:
       formatInfo = info.hcursor.downField("format").focus.flatMap(_.asObject)
       origin = number(formatInfo.flatMap(_("start_time"))).getOrElse(0.0)
       audioStart = number(track("start_time")).getOrElse(origin) - origin
-      _ <- IO.raiseWhen(number(formatInfo.flatMap(_("duration"))).exists(_ > config.maxDuration) ||
-        audioStart > config.maxDuration)(ApiError(Status.UnprocessableEntity, s"媒体时长上限为 ${config.maxDuration} 秒。"))
       exit <- Command.run(List("ffmpeg", "-hide_banner", "-v", "error", "-nostdin", "-xerror",
         "-protocol_whitelist", "file,pipe", "-max_alloc", "134217728", "-threads", "2",
         "-err_detect", "explode") ++ inputOptions(demuxer) ++ List("-copyts", "-start_at_zero", "-i", path.toString,
         "-map", s"0:$stream", "-vn", "-sn", "-dn", "-map_metadata", "-1",
         "-af", "aresample=async=1:first_pts=0", "-ac", math.min(channels, 2).toString, "-ar", rate.toString,
-        "-t", (config.maxDuration + 1).toString, "-threads", "2", "-c:a", "flac", "-compression_level", "2",
+        "-threads", "2", "-c:a", "flac", "-compression_level", "2",
         decoded.toString), path.getParent, 110.seconds, _ => IO.unit)
       exists <- IO.blocking(Files.isRegularFile(decoded))
       _ <- IO.raiseUnless(exit == 0 && exists)(invalid)
       converted <- probe(decoded, "flac")
       duration <- IO.fromOption(converted.hcursor.downField("format").focus.flatMap(_.asObject)
         .flatMap(obj => number(obj("duration"))).filter(_ >= 0.25))(invalid)
-      _ <- IO.raiseWhen(duration > config.maxDuration)(ApiError(Status.UnprocessableEntity, s"媒体时长上限为 ${config.maxDuration} 秒。"))
     yield MediaMetadata(id, name, format, duration, size, rate, channels, stream, audio.size, audioStart, hasVideo)
 
   def clip(input: Path, output: Path, start: Double, duration: Double, separate: Boolean): IO[Unit] =

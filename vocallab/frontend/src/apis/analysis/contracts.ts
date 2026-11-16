@@ -15,7 +15,7 @@ export const media = z.object({
   audioStreams: z.number().int().positive(), audioStart: z.number(), hasVideo: z.boolean(),
 })
 export const limits = z.object({
-  maxBytes: z.number().int().positive(), maxDuration: z.number().int().positive(), maxClip: z.number().int().positive(),
+  maxBytes: z.number().int().positive(), maxClip: z.number().int().positive(),
 })
 export const separationMode = z.enum(['fast', 'precise'])
 export const clipSelection = z.object({ mediaId: id, start: seconds, end: seconds, separate: z.boolean(), separationMode: separationMode.nullish() })
@@ -24,9 +24,10 @@ export const job = z.object({ analysisId: id, status: jobStatus, stage, error: z
   selection, createdAt: z.string() })
 const track = z.object({
   timestamps: z.array(seconds).min(2), originalStart: seconds, f0Hz: z.array(z.number().positive().nullable()),
+  guideMidiPitch: z.array(z.number().nullable()).nullish(),
   midiPitch: z.array(z.number().nullable()), voicedFlags: z.array(z.boolean()),
   voicedProbabilities: z.array(fraction), rms: z.array(z.number().nonnegative()),
-}).refine(t => [t.f0Hz, t.midiPitch, t.voicedFlags, t.voicedProbabilities, t.rms].every(series => series.length === t.timestamps.length))
+}).refine(t => [t.f0Hz, t.midiPitch, t.voicedFlags, t.voicedProbabilities, t.rms].every(series => series.length === t.timestamps.length) && (!t.guideMidiPitch || t.guideMidiPitch.length === t.timestamps.length))
 const pair = <T extends z.ZodType>(shape: T) => z.object({ reference: shape, user: shape })
 const separation = z.object({
   enabled: z.boolean(), model: z.string().nullable(), modelVersion: z.string().nullable(),

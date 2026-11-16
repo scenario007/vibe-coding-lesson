@@ -29,9 +29,9 @@ export PATH="/opt/homebrew/opt/openjdk@21/bin:/opt/homebrew/opt/postgresql@18/bi
 ## 分析与复听
 
 1. 上传两份 WAV、MP3、M4A、MP4 或 MOV 文件。视频会自动选择标记为默认的音轨，或在缺少标记时选择首条音轨。
-2. 用时间轴或秒数分别选择片段。新上传默认选择前 30 秒。选取两份录音里的同一段主歌或副歌，避开过长前奏和静音。清唱或已分离音轨可跳过人声分离。
+2. 用时间轴或秒数分别选择片段。上传文件无固定时长上限，仍需符合文件大小限制。新上传默认选择前 30 秒，每条轨可选最长 5 分钟。选取两份录音里的同一段主歌或副歌，避开过长前奏和静音。清唱或已分离音轨可跳过人声分离。
 3. 原唱默认启用分离。带伴奏的录音也可启用；清唱取消勾选即可跳过。分离失败时可返回编辑片段或改用干净人声。
-4. 报告显示实际执行阶段、有效帧和分析可信度。点击曲线定位，放大后可拖动查看。点击片段观察会选择具体位置和可用的复听区间。切换 A/B 根据时间映射定位到对应乐句。
+4. 报告显示实际执行阶段、有效帧和分析可信度。曲线用淡虚线提示低可信度的候选音高，这些候选不计入音准评分。点击曲线定位，放大后可拖动查看。点击片段观察会选择具体位置和可用的复听区间。切换 A/B 根据时间映射定位到对应乐句。
 5. 有人声分离时可切换原始选段、分离人声和分离伴奏。对齐偏差较大时，在 A、B 分别定位同一句，再点「用两轨当前位置对齐」。也可以输入固定偏移。正偏移表示用户录音中的乐句相对原唱片段更晚出现。
 
 ### 查询同步歌词（选填）
@@ -80,8 +80,8 @@ pYIN 每约 20 ms 估计一帧，结合音量门限和有声概率保留有效�
 | `VOCALLAB_ROOT`、`VOCALLAB_PYTHON` | 项目目录、项目内 `.venv/bin/python` |
 | `VOCALLAB_DB_URL`、`VOCALLAB_DB_USER`、`VOCALLAB_DB_PASSWORD` | 使用自有本地 PostgreSQL 时指定 |
 | `VOCALLAB_DATA`、`VOCALLAB_MODELS` | `.local/run`、`.local/models` |
-| `VOCALLAB_UPLOAD_MIB`、`VOCALLAB_MAX_DURATION`、`VOCALLAB_MAX_CLIP` | 150 MiB、900 秒、60 秒 |
-| `VOCALLAB_WORKER_TIMEOUT` | 单任务 DSP 进程最多 1200 秒 |
+| `VOCALLAB_UPLOAD_MIB`、`VOCALLAB_MAX_CLIP` | 150 MiB、300 秒（每条轨的分析选段） |
+| `VOCALLAB_WORKER_TIMEOUT` | 单任务 DSP 进程默认最多 3600 秒 |
 | `VOCALLAB_MEDIA_HOURS`、`VOCALLAB_CACHE_DAYS` | 已完成与失败报告及闲置媒体 72 小时、分离缓存 14 天 |
 | `VOCALLAB_DEVICE` | `auto` 或 `cpu` |
 | `VOCALLAB_F0_RATE`、`VOCALLAB_F0_MIN`、`VOCALLAB_F0_MAX` | 22050 Hz、65 Hz、1050 Hz |

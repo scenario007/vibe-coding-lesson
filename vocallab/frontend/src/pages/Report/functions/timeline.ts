@@ -2,7 +2,7 @@ import type { PitchTrack, Report, Role } from '../../../apis/analysis/contracts'
 
 export type TimeRange = [number, number]
 export type ComparisonRange = Record<Role, TimeRange | null>
-export type Point = { x: number; midi: number | null; guide: number | null; original: number; hz: number | null }
+export type Point = { x: number; midi: number | null; guide: number | null; rms: number; bridge?: number; original: number; hz: number | null }
 
 export function duration(report: Report, role: Role) {
   return role === 'reference' ? report.preprocessing.referenceDuration : report.preprocessing.userDuration
@@ -40,10 +40,47 @@ export function pairRange(report: Report, from: Role, range: TimeRange): Compari
 
 export function points(report: Report, role: Role): Point[] {
   const track: PitchTrack = report.pitchTracks[role]
-  return track.timestamps.flatMap((time, i) => {
+  const series = track.timestamps.flatMap((time, i) => {
     const x = role === 'reference' || !hasPlaybackMapping(report) ? time : translate(report, 'user', time)
-    return x === null ? [] : [{ x, midi: track.midiPitch[i], guide: track.guideMidiPitch?.[i] ?? null, original: time + track.originalStart, hz: track.f0Hz[i] }]
+    return x === null ? [] : [{ x, midi: track.midiPitch[i], guide: track.guideMidiPitch?.[i] ?? null, rms: track.rms[i], original: time + track.originalStart, hz: track.f0Hz[i] }]
   })
+  return connectPitchGaps(series)
+}
+
+export function connectPitchGaps(series: Point[]): Point[] {
+  const completed = [...series]
+  let previous = -1
+  for (let i = 0; i < series.length; i++) {
+    const right = series[i]
+    const end = right.midi ?? right.guide
+    if (end === null) continue
+    const leftIndex = previous
+    previous = i
+    if (leftIndex < 0 || i - leftIndex < 2) continue
+    const left = series[leftIndex]
+    const start = (left.midi ?? left.guide)!
+    const gap = right.original - left.original
+    if (gap > .48 || Math.abs(end - start) > 5 || right.x - left.x > .75) continue
+
+    const floor = Math.max(.00015, Math.min(left.rms, right.rms) * .16)
+    let quietSince: number | null = null
+    let crossesPause = false
+    for (let j = leftIndex + 1; j < i; j++) {
+      const point = series[j]
+      quietSince = point.rms >= floor ? null : quietSince ?? series[j-1].original
+      if (quietSince !== null && series[j+1].original - quietSince >= .10) {
+        crossesPause = true
+        break
+      }
+    }
+    if (crossesPause) continue
+    for (let j = leftIndex + 1; j < i; j++) {
+      const point = series[j]
+      const fraction = (point.original - left.original) / gap
+      completed[j] = { ...point, bridge: start + (end - start) * fraction }
+    }
+  }
+  return completed
 }
 
 export function closest<T extends { x: number }>(series: T[], x: number): T | undefined {

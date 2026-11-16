@@ -15,7 +15,7 @@ const maxZoom = 16
 
 function pathOf(series: Point[], x: (value: number) => number, y: (value: number) => number, guide = false) {
   let prior: number | null = null
-  const pitch = (point: Point) => guide ? point.guide ?? point.midi : point.midi
+  const pitch = (point: Point) => guide ? point.midi ?? point.guide ?? point.bridge ?? null : point.midi
   return series.map((point, index) => {
     const midi = pitch(point)
     if (midi === null) { prior = null; return '' }
@@ -63,7 +63,7 @@ function Plot({ report, playback, axis, overlay }: { report: Report; playback: P
     const plotY = (midi: number) => T + (high-midi)*height/(high-low)
     return [first, second].map(series => {
       const visible = series.filter(point => point.x >= min-.12 && point.x <= max+.12)
-      return { solid: pathOf(visible, plotX, plotY), guide: visible.some(p => p.midi === null && p.guide !== null)
+      return { solid: pathOf(visible, plotX, plotY), guide: visible.some(p => p.midi === null && (p.guide !== null || p.bridge !== undefined))
         ? pathOf(visible, plotX, plotY, true) : '' }
     })
   }, [first, second, min, max, L, width, domain, high, low])
@@ -154,7 +154,7 @@ function Plot({ report, playback, axis, overlay }: { report: Report; playback: P
       </svg>
     </div>
     <div className="mt-2 flex min-h-6 flex-wrap gap-x-4 gap-y-1 font-mono text-xs text-muted" aria-live="off">
-      {hover === null ? <span>实线为可信音高，淡虚线为低可信度候选，不计入音准评分。留白表示未取得候选音高。</span> :
+      {hover === null ? <span>实线为可信音高，淡虚线为候选音高和句内短缺口补线，不计入音准评分。停顿和较长缺口保留留白。</span> :
         <><span>{timeLabel(start+hover)}</span><span className={axis==='reference' ? 'text-accent' : 'text-mint'}>{sampleA?.hz && sampleA.midi !== null ? `${noteLabel(sampleA.midi)} · ${sampleA.hz.toFixed(1)} Hz` : '音高不可用'}</span>
           {overlay && <span className="text-mint">{sampleB?.hz && sampleB.midi !== null ? `我的演唱 ${noteLabel(sampleB.midi)} · ${sampleB.hz.toFixed(1)} Hz` : '我的演唱音高不可用'}</span>}</>}
     </div>

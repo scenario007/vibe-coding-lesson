@@ -39,7 +39,7 @@ function AnalysisResult({ report, adjust, adjusting, error }: {
     <ReportLyrics report={report} playback={playback}/>
     <div className="grid items-start gap-4 lg:grid-cols-[1.35fr_1fr]">
       <Segments report={report} playback={playback}/>
-      <AlignmentPanel report={report} adjusting={adjusting} adjust={adjust} error={error}/>
+      <AlignmentPanel report={report} playback={playback} adjusting={adjusting} adjust={adjust} error={error}/>
     </div>
   </div>
 }
@@ -62,7 +62,12 @@ export default function Report() {
           <h1 className="text-2xl font-bold">{failed ? '暂时无法完成分析' : '正在分析演唱'}</h1>
           {view.status === 'progress' && <p className="text-sm text-accent">{stages[view.job.stage]}</p>}
           {view.status === 'loading' && <p className="text-sm text-muted">正在读取任务状态。</p>}
-          {view.status === 'progress' && <p className="text-sm leading-6 text-muted">分析在本机后台执行。首次使用人声分离时可能需要下载模型权重。</p>}
+          {view.status === 'progress' && <p className="text-sm leading-6 text-muted">
+            已等待 {Math.max(0, Math.floor((Date.now()-Date.parse(view.job.createdAt))/1000))} 秒。
+            {view.job.selection.reference.separate && view.job.selection.user.separate ?
+              '原唱与演唱的人声分离依次执行。相同文件和选段可复用已有分离结果。' :
+              '分析在本机后台执行。首次使用人声分离时可能需要下载模型权重。'}
+          </p>}
           {detail && <p className="text-sm leading-6 text-danger">{detail}</p>}
           {view.status === 'error' && <Button onClick={refresh}>重试读取</Button>}
           {view.status === 'failed' && <Link to="/" className="inline-block text-sm font-semibold text-accent underline">返回修改片段或分离选项</Link>}

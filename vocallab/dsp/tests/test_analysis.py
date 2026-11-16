@@ -86,3 +86,25 @@ def test_slow_drift_is_distinguished_from_vibrato():
     assert abs(phrases[0]["driftCents"]) < 35
     segments, _ = analyze_segments(t, t, ref, ref + t * .65 + vibrato, np.ones(len(t)), 0, (2, 3), .9)
     assert any(item["type"] == "drift" for item in segments)
+
+
+def test_manual_offset_still_enables_listening_when_pitch_is_unreliable(reference, tmp_path):
+    user = track(tmp_path / "limited.wav", np.zeros(len(song())))
+    alignment = align(reference, user, manual=.83)
+    assert not alignment.reliable
+    assert alignment.method == "manual" and alignment.offset == .83
+    assert len(alignment.reference_times) >= 2
+    np.testing.assert_allclose(alignment.user_times - alignment.reference_times, .83)
+    metrics, _, _, _ = evaluate(reference, user, alignment, (0, 0), False)
+    assert next(item for item in metrics if item["name"] == "pitchHitRate")["value"] is None
+
+
+def test_weaker_contour_can_supply_timing_without_scoring(reference, tmp_path):
+    from dataclasses import replace
+
+    user = track(tmp_path / "weak.wav", song(delay=1))
+    limited = replace(user, midi=np.full_like(user.midi, np.nan))
+    alignment = align(reference, limited)
+    assert alignment.method == "guide" and not alignment.reliable
+    assert abs(alignment.offset - 1) <= .20
+    assert len(alignment.reference_times) >= 2

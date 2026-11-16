@@ -8,8 +8,14 @@ export function duration(report: Report, role: Role) {
   return role === 'reference' ? report.preprocessing.referenceDuration : report.preprocessing.userDuration
 }
 
+export function hasPlaybackMapping(report: Report) {
+  const alignment = report.alignment
+  return alignment.timeMapping.length >= 2 &&
+    (alignment.reliable || alignment.method === 'manual' || alignment.method === 'guide')
+}
+
 export function translate(report: Report, from: Role, time: number): number | null {
-  if (!report.alignment.reliable) return null
+  if (!hasPlaybackMapping(report)) return null
   const map = report.alignment.timeMapping
   const source = from === 'reference' ? 0 : 1
   if (!map.length || time < map[0][source] - .0001 || time > map.at(-1)![source] + .0001) return null
@@ -35,7 +41,7 @@ export function pairRange(report: Report, from: Role, range: TimeRange): Compari
 export function points(report: Report, role: Role): Point[] {
   const track: PitchTrack = report.pitchTracks[role]
   return track.timestamps.flatMap((time, i) => {
-    const x = role === 'reference' || !report.alignment.reliable ? time : translate(report, 'user', time)
+    const x = role === 'reference' || !hasPlaybackMapping(report) ? time : translate(report, 'user', time)
     return x === null ? [] : [{ x, midi: track.midiPitch[i], original: time + track.originalStart, hz: track.f0Hz[i] }]
   })
 }

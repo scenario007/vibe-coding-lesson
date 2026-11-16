@@ -40,7 +40,7 @@ def evaluate(reference, user, alignment, starts, separated):
     metric("transposedHitRate", np.mean(np.abs(cents - shift * 100) <= 50) if usable else None, "ratio", frames, coverage)
     metric("matchedCoverage", coverage if usable else None, "ratio", frames, coverage)
     deviations = mapped[paired] - (times[paired] + alignment.offset)
-    metric("medianTimingDeviation", np.median(np.abs(deviations)) if usable else None, "second", frames, coverage)
+    metric("medianTimingDeviation", np.median(np.abs(deviations)) if usable and alignment.method != "manual" else None, "second", frames, coverage)
     if usable:
         probs = np.interp(mapped, user.times, user.probability, left=0, right=0)
         segments, phrases = analyze_segments(times, mapped, reference.midi, mapped_pitch, probs,

@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 from numba import njit
@@ -19,11 +19,12 @@ class Alignment:
     reliable: bool
     warnings: list[str]
     manual_offset: float | None
+    method: str = "pitch"
 
     def serializable(self) -> dict:
         return dict(offset=round(self.offset, 3), tempoRatio=round(self.tempo_ratio, 4),
                     transposeSemitones=self.shift, confidence=round(self.confidence, 3),
-                    reliable=self.reliable, warnings=self.warnings, manualOffset=self.manual_offset,
+                    reliable=self.reliable, warnings=self.warnings, manualOffset=self.manual_offset, method=self.method,
                     timeMapping=[[round(float(r), 4), round(float(u), 4)]
                                  for r, u in zip(self.reference_times, self.user_times)])
 
@@ -34,13 +35,11 @@ def nearest(times: np.ndarray, track: Pitch) -> np.ndarray:
     return np.where(in_bounds, track.midi[np.clip(indices, 0, len(track.times) - 1)], np.nan)
 
 
-def coarse(ref: np.ndarray, usr: np.ndarray, manual: float | None) -> tuple:
+def coarse(ref: np.ndarray, usr: np.ndarray) -> tuple:
     positions = np.arange(len(ref))
     ref_valid = np.isfinite(ref)
-    max_offset = min(round(15 / GRID), max(2, round(max(len(ref), len(usr)) * 0.45)))
+    max_offset = min(round(30 / GRID), max(2, round(max(len(ref), len(usr)) * 0.45)))
     offsets = np.arange(-max_offset, max_offset + 1, 2)
-    if manual is not None:
-        offsets = np.array([round(manual / GRID)])
     ratios = np.unique(np.r_[1.0, np.arange(0.70, 1.401, 0.025)])
     candidates = []
     for ratio in ratios:
@@ -63,7 +62,7 @@ def coarse(ref: np.ndarray, usr: np.ndarray, manual: float | None) -> tuple:
         candidates.extend((float(error), ratio, int(offset), int(s))
                           for error, offset, s in zip(score, offsets[eligible], shift))
     if not candidates:
-        return 4.0, 1.0, round((manual or 0) / GRID), 0, 0.0
+        return 4.0, 1.0, 0, 0, 0.0
     candidates.sort()
     error, ratio, offset, shift = candidates[0]
     alternative = next((row for row in candidates[1:]
@@ -116,13 +115,8 @@ def bounded_path(ref, usr, ratio, offset, shift, band):
     return np.asarray(x)[::-1], np.asarray(y)[::-1]
 
 
-def align(reference: Pitch, user: Pitch, manual: float | None = None) -> Alignment:
-    r = nearest(np.arange(0, reference.times[-1], GRID), reference)
-    u = nearest(np.arange(0, user.times[-1], GRID), user)
-    error, ratio, offset, shift, margin = coarse(r, u, manual)
-    width = min(2.5, max(0.48, len(r) * GRID * 0.05))
-    x, y = bounded_path(r, u, ratio, offset, shift, round(width / GRID))
-    delta = nearest(y, user) - nearest(x, reference)
+def evidence(r, u, x, y, shift):
+    delta = u[np.rint(y / GRID).astype(int)] - r[np.rint(x / GRID).astype(int)]
     matched = np.isfinite(delta)
     paired = int(np.count_nonzero(matched))
     r_voiced = np.count_nonzero(np.isfinite(r))
@@ -131,26 +125,69 @@ def align(reference: Pitch, user: Pitch, manual: float | None = None) -> Alignme
     density = min(r_voiced / max(len(r), 1), u_voiced / max(len(u), 1))
     if paired:
         errors = np.abs(delta[matched] - shift)
-        median = float(np.median(errors))
-        agreement = float(np.mean(errors <= 1.0))
+        median, agreement = float(np.median(errors)), float(np.mean(errors <= 1.0))
     else:
         median, agreement = 99.0, 0.0
+    return paired, coverage, density, median, agreement, x[matched]
+
+
+def align(reference: Pitch, user: Pitch, manual: float | None = None) -> Alignment:
+    rt = np.arange(0, reference.times[-1], GRID)
+    ut = np.arange(0, user.times[-1], GRID)
+    r, u = nearest(rt, reference), nearest(ut, user)
+    warnings = []
+    if manual is not None:
+        # A user-supplied anchor is independent of pitch confidence and has no time stretch.
+        start, end = max(0.0, -manual), min(reference.times[-1], user.times[-1] - manual)
+        x = np.linspace(start, end, max(2, int((end-start) / GRID) + 1)) if end - start > .04 else np.empty(0)
+        y = x + manual
+        delta = nearest(y, user) - nearest(x, reference)
+        delta = delta[np.isfinite(delta)]
+        shift = int(np.rint(np.median(delta))) if delta.size else 0
+        coverage = min(1.0, delta.size / max(1, np.isfinite(r).sum(), np.isfinite(u).sum()))
+        density = min(np.isfinite(r).mean(), np.isfinite(u).mean())
+        agreement = float(np.mean(np.abs(delta - shift) <= 1.0)) if delta.size else 0.0
+        confident = coverage >= .42 and delta.size * GRID >= 1.0 and density >= .12 and agreement >= .70 and abs(shift) <= 12
+        if not confident:
+            warnings.append("已按手动对齐点同步复听。音高证据不足，暂不生成对比评分。")
+        return Alignment(x, y, manual, 1.0, shift if confident else None,
+                         coverage * agreement if confident else 0.0, bool(confident), warnings, manual, "manual")
+
+    error, ratio, offset, shift, margin = coarse(r, u)
+    width = min(2.5, max(0.48, len(r) * GRID * 0.05))
+    x, y = bounded_path(r, u, ratio, offset, shift, round(width / GRID))
+    paired, coverage, density, median, agreement, _ = evidence(r, u, x, y, shift)
     confident = coverage >= 0.42 and paired * GRID >= 1.0 and median <= 0.65 and agreement >= 0.70
     confident &= error <= 1.70 and abs(shift) <= 12 and density >= 0.12
-    ambiguous = manual is None and margin < 0.055 and error > 0.22
-    if manual is None and r_voiced >= 8:
+    ambiguous = margin < 0.055 and 0.22 < error < 4
+    if np.isfinite(r).sum() >= 8:
         melody = r[np.isfinite(r)]
         transitions = np.count_nonzero(np.diff(np.isfinite(r)))
         ambiguous |= np.ptp(np.quantile(melody, [.15, .85])) < .55 and transitions < 4
     confident &= not ambiguous
-    warnings = []
+    strength = min(1.0, coverage / 0.78) * agreement * (1 - min(median, 1.0) * 0.35)
+    if confident:
+        if shift:
+            warnings.append("检测到可能的整体移调。移调后的命中率单独列出。")
+        return Alignment(x, y, offset * GRID, ratio, shift, strength, True, warnings, None)
+
+    if reference.guide_midi is not None and user.guide_midi is not None:
+        gr = nearest(rt, replace(reference, midi=reference.guide_midi))
+        gu = nearest(ut, replace(user, midi=user.guide_midi))
+        score, speed, lag, key, separation = coarse(gr, gu)
+        gx, gy = bounded_path(gr, gu, speed, lag, key, round(width / GRID))
+        count, overlap, guide_density, residual, same, anchors = evidence(gr, gu, gx, gy, key)
+        # Require distinct, distributed melody anchors for timing-only use of softer pitch estimates.
+        if (count * GRID >= 2.0 and overlap >= .48 and guide_density >= .14 and residual <= .6
+                and same >= .78 and score <= 1.45 and separation >= .09 and abs(key) <= 12
+                and np.ptp(anchors) >= 3.0 and np.ptp(gr[np.isfinite(gr)]) >= 3.0):
+            left = max(0, np.searchsorted(gx, anchors[0]) - 1)
+            right = min(len(gx), np.searchsorted(gx, anchors[-1]) + 2)
+            return Alignment(gx[left:right], gy[left:right], lag * GRID, speed, None, min(.44, overlap * same),
+                             False, ["已用较弱的旋律证据提供近似复听位置，暂不生成对比评分。"], None, "guide")
+
     if ambiguous:
         warnings.append("出现多个相近的时间匹配。可参考复听并手动设置偏移。")
-    if not confident:
-        warnings.append("音高轮廓或有效重叠不足，已隐藏依赖可靠对齐的指标。")
-    if confident and shift:
-        warnings.append("检测到可能的整体移调。移调后的命中率单独列出。")
-    strength = min(1.0, coverage / 0.78) * agreement * (1 - min(median, 1.0) * 0.35)
-    confidence = strength if confident else min(0.44, strength * 0.55)
-    return Alignment(x, y, offset * GRID, ratio, shift if confident else None,
-                     confidence, bool(confident), warnings, manual)
+    warnings.append("音高轮廓或有效重叠不足。可在两条轨上分别定位同一句，再用当前位置对齐。")
+    return Alignment(np.empty(0), np.empty(0), 0.0, 1.0, None, min(0.44, strength * 0.55),
+                     False, warnings, None)

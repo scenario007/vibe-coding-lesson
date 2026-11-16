@@ -24,8 +24,11 @@ private[analysis] object AnalysisValidation:
           clip.end - clip.start <= config.maxClip)(ApiError(Status.BadRequest,
             s"片段须在媒体范围内，且长度为 1 到 ${config.maxClip} 秒。"))
       }
-    val offset = input.manualOffset.forall(value => value.isFinite && math.abs(value) <= 15)
-    IO.raiseUnless(offset)(ApiError(Status.BadRequest, "偏移量须在 -15 到 +15 秒之间。")) *>
+    val referenceDuration = input.reference.end - input.reference.start
+    val userDuration = input.user.end - input.user.start
+    val offset = input.manualOffset.forall(value => value.isFinite &&
+      math.min(referenceDuration, userDuration - value) - math.max(0.0, -value) >= 0.1)
+    IO.raiseUnless(offset)(ApiError(Status.BadRequest, "该偏移会让两条音轨失去重叠，请选择各轨内的对应位置。")) *>
       validate(input.reference) *> validate(input.user)
 
   def report(report: AnalysisReport, job: AnalysisJob): IO[AnalysisReport] =
@@ -52,5 +55,7 @@ private[analysis] object AnalysisValidation:
       report.userMetadata.id == job.selection.user.mediaId &&
       ratio(report.confidence) && ratio(report.alignment.confidence) &&
       track(report.pitchTracks.reference, job.selection.reference) && track(report.pitchTracks.user, job.selection.user) &&
-      mapping && metrics && (!report.alignment.reliable || map.size >= 2)
+      mapping && metrics && (!(report.alignment.reliable ||
+        report.alignment.method.exists(method => method == AlignmentMethod.manual || method == AlignmentMethod.guide)) ||
+        map.size >= 2)
     IO.raiseUnless(valid)(new IllegalStateException("Python report failed result validation.")).as(report)

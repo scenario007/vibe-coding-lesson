@@ -11,7 +11,8 @@ final case class Alignment(
   reliable: Boolean,
   warnings: Vector[String],
   manualOffset: Option[Double],
-  timeMapping: Vector[(Double, Double)]
+  timeMapping: Vector[(Double, Double)],
+  method: Option[AlignmentMethod]
 )
 
 object Alignment:

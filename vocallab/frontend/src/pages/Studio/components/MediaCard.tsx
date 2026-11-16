@@ -56,6 +56,7 @@ function RangeEditor({ state, maximum, update }: { state: ReadyUpload; maximum: 
       <span className="text-sm">含伴奏，分离人声</span>
       <span className="ml-auto text-xs text-muted">BS-RoFormer</span>
     </label>
+    <p className="mt-2 text-xs text-muted">清唱或已分离的人声可跳过分离。选段越长，分离所需时间通常越久。</p>
   </>
 }
 

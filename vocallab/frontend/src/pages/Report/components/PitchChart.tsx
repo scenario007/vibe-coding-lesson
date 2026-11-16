@@ -4,7 +4,7 @@ import { Activity, Maximize2, Minus, Plus } from 'lucide-react'
 import type { Report, Role } from '../../../apis/analysis/contracts'
 import { Button } from '../../../components/ui/Button'
 import { Panel } from '../../../components/ui/Panel'
-import { closest, duration, noteLabel, points, timeLabel, translate, type Point } from '../functions/timeline'
+import { closest, duration, hasPlaybackMapping, noteLabel, points, timeLabel, translate, type Point } from '../functions/timeline'
 import type { Playback } from '../hooks/usePlayback'
 
 const H = 280, R = 14, T = 20, B = 36
@@ -150,15 +150,18 @@ function Plot({ report, playback, axis, overlay }: { report: Report; playback: P
 }
 
 export function PitchChart({ report, playback }: { report: Report; playback: Playback }) {
-  const reliable = report.alignment.reliable
+  const mapped = hasPlaybackMapping(report)
+  const method = report.alignment.method
   return <Panel className="p-4 sm:p-6" aria-labelledby="pitch-heading">
     <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
       <div><h2 id="pitch-heading" className="flex items-center gap-2 font-bold"><Activity size={19} className="text-accent"/> 音高曲线</h2>
-      <p className="mt-1.5 text-xs leading-5 text-muted">{reliable ? '以原唱时间为坐标，绿色曲线按乐句对齐，保留我的实际音高。' :
+      <p className="mt-1.5 text-xs leading-5 text-muted">{method === 'manual' ? '按手动对齐点显示对应位置，两轨保持原始速度。' :
+        method === 'guide' ? '按近似复听位置叠放曲线，适合用耳朵核对。' :
+        mapped ? '以原唱时间为坐标，绿色曲线按乐句对齐，保留我的实际音高。' :
         '匹配可信度不足，两条曲线使用各自的原始时间。'}</p></div>
       <div className="flex gap-4 text-xs font-medium"><span className="text-accent">● 原唱</span><span className="text-mint">● 我的演唱</span></div>
     </div>
-    <Plot report={report} playback={playback} axis="reference" overlay={reliable}/>
-    {!reliable && <div className="mt-4"><Plot report={report} playback={playback} axis="user" overlay={false}/></div>}
+    <Plot report={report} playback={playback} axis="reference" overlay={mapped}/>
+    {!mapped && <div className="mt-4"><Plot report={report} playback={playback} axis="user" overlay={false}/></div>}
   </Panel>
 }

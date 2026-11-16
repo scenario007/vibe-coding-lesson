@@ -18,6 +18,7 @@ class Pitch:
     rms: np.ndarray
     warnings: list[str]
     quality: float
+    guide_midi: np.ndarray | None = None
 
     def serializable(self, original_start: float) -> dict:
         def nullable(array):
@@ -49,6 +50,7 @@ def extract(path: Path) -> Pitch:
         voiced = np.zeros(len(rms), dtype=bool)
         prob = np.zeros(len(rms))
     prob = np.clip(np.nan_to_num(prob), 0, 1)
+    guide = librosa.hz_to_midi(np.where(voiced & (prob >= 0.18) & (rms >= gate), hz, np.nan))
     hz = np.where(voiced & (prob >= 0.50) & (rms >= gate), hz, np.nan)
     # Reject isolated outliers without changing the register of sustained notes.
     midi = librosa.hz_to_midi(hz)
@@ -58,4 +60,4 @@ def extract(path: Path) -> Pitch:
     midi[1:-1][spike] = np.nan
     if np.mean(np.isfinite(hz)) < 0.25:
         warnings.append("有可靠音高的帧偏少，可能包含较多休止、噪声或分离伪影。")
-    return Pitch(times, hz, midi, voiced, prob, rms, warnings, quality)
+    return Pitch(times, hz, midi, voiced, prob, rms, warnings, quality, guide)

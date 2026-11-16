@@ -13,7 +13,7 @@ from .audio_io import crop_audio
 MODEL = "BS-RoFormer Viperx 1297"
 WEIGHT = "model_bs_roformer_ep_317_sdr_12.9755.ckpt"
 SHA256 = "5b84f37e8d444c8cb30c79d77f613a41c05868ff9c9ac6c7049c00aefae115aa"
-PARAMS = {"segment_size": 256, "override_model_segment_size": True, "overlap": 4, "batch_size": 1, "pitch_shift": 0}
+PARAMS = {"segment_size": 256, "override_model_segment_size": True, "overlap": 2, "batch_size": 1, "pitch_shift": 0}
 CONFIG_SHA256 = "2bfdd16c656bd9519aba757cc4f8834b7ede675eb1e00ec4772d74ae1c41af7f"
 
 
@@ -74,11 +74,21 @@ class VocalSeparator:
         config = dict(weight=SHA256, config=CONFIG_SHA256, identity=identity, trim=trim,
                       duration=duration, rate=44100, params=PARAMS, devicePolicy=policy,
                       library=version("audio-separator"), torch=version("torch"), pipeline=1)
-        key = hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()
+        def cache_entry(params):
+            payload = json.dumps({**config, "params": params}, sort_keys=True).encode()
+            return self.cache / hashlib.sha256(payload).hexdigest()
+
         self.cache.mkdir(parents=True, exist_ok=True)
-        entry = self.cache / key
         cache_files = ("metadata.json", "vocals.wav", "instrumental.wav")
-        if all((entry / name).is_file() for name in cache_files):
+        def complete(path):
+            return all((path / name).is_file() for name in cache_files)
+
+        legacy = {**PARAMS, "overlap": 4}
+        entry, params = cache_entry(PARAMS), PARAMS
+        legacy_entry = cache_entry(legacy)
+        if not complete(entry) and complete(legacy_entry):
+            entry, params = legacy_entry, legacy
+        if complete(entry):
             metadata = json.loads((entry / "metadata.json").read_text())
             os.utime(entry, None)
             cached = True
@@ -109,7 +119,7 @@ class VocalSeparator:
                     staged.mkdir()
                     for name, path in paths.items():
                         crop_audio(path, staged / f"{name}.wav", trim, duration)
-                    metadata = {"device": self.device, "cacheKey": key}
+                    metadata = {"device": self.device, "cacheKey": entry.name}
                     (staged / "metadata.json").write_text(json.dumps(metadata))
                     staged.replace(entry)
                 except Exception as error:
@@ -121,4 +131,4 @@ class VocalSeparator:
                     outputTracks=["original", "vocals", "instrumental"], inputTrack="vocals",
                     warnings=["模型估计的人声可能含伴奏、和声或分离伪影。"],
                     weightSha256=SHA256, device=metadata["device"], cached=cached,
-                    parameters=PARAMS)
+                    parameters=params)

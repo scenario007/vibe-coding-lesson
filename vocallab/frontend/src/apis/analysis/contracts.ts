@@ -37,6 +37,7 @@ const separation = z.object({
 const alignment = z.object({
   offset: z.number(), tempoRatio: z.number().positive(), transposeSemitones: z.number().int().nullable(),
   confidence: fraction, reliable: z.boolean(), warnings: z.array(z.string()), manualOffset: z.number().nullable(),
+  method: z.enum(['pitch', 'guide', 'manual']).nullish(),
   timeMapping: z.array(z.tuple([seconds, seconds])),
 }).refine(a => (!a.reliable || a.timeMapping.length > 1) && a.timeMapping.every(([r,u], i) =>
   i === 0 || (r > a.timeMapping[i-1][0] && u > a.timeMapping[i-1][1])))

@@ -3,7 +3,7 @@ import { GetAnalyzedAudioAPI } from '../../../apis/analysis/GetAnalyzedAudioAPI'
 import type { Report, Role, TrackKind } from '../../../apis/analysis/contracts'
 import { Button } from '../../../components/ui/Button'
 import { Panel } from '../../../components/ui/Panel'
-import { duration, timeLabel } from '../functions/timeline'
+import { duration, hasPlaybackMapping, timeLabel } from '../functions/timeline'
 import type { Playback } from '../hooks/usePlayback'
 
 const names: Record<TrackKind, string> = { original: '原始音频', vocals: '分离人声', instrumental: '分离伴奏' }
@@ -71,8 +71,8 @@ export function ListenPanel({ report, playback }: { report: Report; playback: Pl
           playback.setLoop(!playback.loop)
         }}><Repeat2 size={16}/> 循环区间</Button>
     </div>
-    <p className="mt-3 text-xs leading-5 text-muted">{report.alignment.reliable ? '切换 A/B 时按时间映射跳到对应位置。有效映射以外可单独试听。' :
-      '两段录音使用独立播放位置。可在下方试填时间偏移后重新对齐。'}</p>
+    <p className="mt-3 text-xs leading-5 text-muted">{hasPlaybackMapping(report) ? '切换 A/B 时按时间映射跳到对应位置。有效映射以外可单独试听。' :
+      '两段录音使用独立播放位置。可分别定位同一句，再在下方用两轨位置对齐。'}</p>
     {playback.error && <p className="mt-2 text-sm text-danger" role="alert">{playback.error}</p>}
     <audio key={url} ref={playback.player} preload="metadata" src={url} onLoadedMetadata={playback.loaded}
       onPlaying={() => playback.setPlaying(true)} onPause={() => playback.setPlaying(false)} onEnded={playback.ended}

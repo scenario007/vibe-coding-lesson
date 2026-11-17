@@ -24,6 +24,7 @@ object AnalysisRoutes:
     val messages = json(db, (input: AnalysisSelection) => CreateAnalysisAPIMessage(input, config)) <+>
       json(db, (input: AnalysisIdRequest) => GetAnalysisAPIMessage(input.analysisId)) <+>
       json(db, (input: AnalysisIdRequest) => GetAnalysisResultAPIMessage(input.analysisId, config)) <+>
+      json(db, (input: AnalysisIdRequest) => GetPitchPreviewAPIMessage(input.analysisId, config)) <+>
       json(db, (input: AdjustAlignmentRequest) => AdjustAlignmentAPIMessage(input, config))
 
     val commands = HttpRoutes.of[IO] {

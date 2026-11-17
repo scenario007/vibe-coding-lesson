@@ -29,6 +29,12 @@ const track = z.object({
   voicedProbabilities: z.array(fraction), rms: z.array(z.number().nonnegative()),
 }).refine(t => [t.f0Hz, t.midiPitch, t.voicedFlags, t.voicedProbabilities, t.rms].every(series => series.length === t.timestamps.length) && (!t.guideMidiPitch || t.guideMidiPitch.length === t.timestamps.length))
 const pair = <T extends z.ZodType>(shape: T) => z.object({ reference: shape, user: shape })
+const harmonicPitch = z.object({
+  step: z.literal(.02), midiPitch: z.array(z.number().min(36).max(84).nullable()).min(2),
+})
+export const pitchPreview = pair(harmonicPitch.nullable())
+export type PitchPreview = z.infer<typeof pitchPreview>
+export type HarmonicPitch = z.infer<typeof harmonicPitch>
 const separation = z.object({
   enabled: z.boolean(), model: z.string().nullable(), modelVersion: z.string().nullable(),
   status: z.enum(['skipped', 'completed']), outputTracks: z.array(trackKind), inputTrack: trackKind,

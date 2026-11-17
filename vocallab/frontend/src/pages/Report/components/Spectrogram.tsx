@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent } from 'react'
 import { ChevronLeft, ChevronRight, Waves } from 'lucide-react'
 import { GetAnalyzedAudioAPI } from '../../../apis/analysis/GetAnalyzedAudioAPI'
-import type { Report } from '../../../apis/analysis/contracts'
+import type { PitchPreview, Report } from '../../../apis/analysis/contracts'
 import { Button } from '../../../components/ui/Button'
 import { Panel } from '../../../components/ui/Panel'
 import { duration, timeLabel } from '../functions/timeline'
@@ -27,10 +27,11 @@ function peakBin(data: Spectrum, sample: number, y: number, maxHz: number) {
   return peak
 }
 
-export function Spectrogram({ report, playback }: { report: Report; playback: Playback }) {
+export function Spectrogram({ report, playback, preview }: { report: Report; playback: Playback; preview: PitchPreview }) {
   const role = playback.active
   const total = duration(report, role)
   const pitch = report.pitchTracks[role]
+  const harmonic = preview[role]
   const originalStart = pitch.originalStart
   const lastPage = Math.max(0, Math.ceil(total / pageSeconds) - 1)
   const page = Math.min(lastPage, Math.floor(playback.time / pageSeconds))
@@ -50,11 +51,17 @@ export function Spectrogram({ report, playback }: { report: Report; playback: Pl
       const time = start + column * (end - start) / (data.columns - 1)
       const index = Math.round(time / step)
       const trusted = pitch.f0Hz[index]
+      if (harmonic) {
+        const midi = harmonic.midiPitch[Math.round(time / harmonic.step)]
+        if (midi == null) return null
+        const verified = pitch.midiPitch[index]
+        return { hz: 440 * 2 ** ((midi - 69) / 12), trusted: verified != null && Math.abs(verified - midi) <= 1 }
+      }
       if (trusted != null) return { hz: trusted, trusted: true }
       const candidate = pitch.guideMidiPitch?.[index]
       return candidate == null ? null : { hz: 440 * 2 ** ((candidate - 69) / 12), trusted: false }
     })
-  }, [data, view, playback.kind, pitch, start, end])
+  }, [data, view, playback.kind, pitch, harmonic, start, end])
 
   useEffect(() => {
     const context = canvas.current?.getContext('2d')
@@ -153,7 +160,8 @@ export function Spectrogram({ report, playback }: { report: Report; playback: Pl
         location ? hoveredFundamental ?
           `${hoverTime} · ${hoveredFundamental.trusted ? '基频' : '候选基频'} ${hoveredFundamental.hz.toFixed(1)} Hz` :
           `${hoverTime} · 没有测到基频` :
-          '只显示报告测得的人声基频。淡色为候选，留白为没有可用测量。点击可定位。' :
+          harmonic ? '只显示分析音轨的人声基频。淡色为谐波估计，亮色表示 pYIN 给出了相近结果。' :
+            '只显示报告测得的人声基频。淡色为候选，留白为没有可用测量。点击可定位。' :
         location && data ?
           `${hoverTime} · 频点 ${(location.bin * data.binHz).toFixed(1)} Hz · ${data.values[location.sample * data.bins + location.bin].toFixed(1)} dBFS` :
           '颜色越亮表示该频点能量越高。指向读取频点，点击跳到对应时间复听。'}</p>

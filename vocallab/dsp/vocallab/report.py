@@ -1,7 +1,9 @@
+import json
 from pathlib import Path
 
 from .alignment import align
 from .audio_io import crop_audio
+from .harmonic_pitch import extract as extract_harmonic_pitch
 from .metrics import evaluate
 from .pitch import extract
 from .preprocessing import sample_rate
@@ -30,6 +32,11 @@ def analyze(manifest, progress):
                                      outputTracks=["original"], inputTrack="original", warnings=[],
                                      weightSha256=None, device=None, cached=False, parameters=None)
         context.unlink()
+        path = folder / (separation[role]["inputTrack"] + ".wav")
+        preview = extract_harmonic_pitch(path).serializable()
+        temporary = folder / "pitch-preview.tmp"
+        temporary.write_text(json.dumps(preview, allow_nan=False))
+        temporary.replace(folder / "pitch-preview.json")
 
     for role in ROLES:
         progress(f"pitch_{role}")

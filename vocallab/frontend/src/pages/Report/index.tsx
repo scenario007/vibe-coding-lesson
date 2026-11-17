@@ -1,12 +1,13 @@
 import { ArrowLeft, ArrowUpRight, CircleAlert, LoaderCircle } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
-import type { Report as AnalysisReport, Stage } from '../../apis/analysis/contracts'
+import type { PitchPreview, Report as AnalysisReport, Stage } from '../../apis/analysis/contracts'
 import { Button } from '../../components/ui/Button'
 import { Panel } from '../../components/ui/Panel'
 import { AlignmentPanel } from './components/AlignmentPanel'
 import { ListenPanel } from './components/ListenPanel'
 import { Overview } from './components/Overview'
 import { PitchChart } from './components/PitchChart'
+import { PitchPreviewPanel } from './components/PitchPreviewPanel'
 import { ReportLyrics } from './components/ReportLyrics'
 import { Spectrogram } from './components/Spectrogram'
 import { Segments } from './components/Segments'
@@ -20,8 +21,8 @@ const stages: Record<Stage, string> = {
   completed: '分析完成', failed: '分析失败',
 }
 
-function AnalysisResult({ report, adjust, adjusting, error }: {
-  report: AnalysisReport; adjust: (offset: number | null) => void; adjusting: boolean; error: string;
+function AnalysisResult({ report, preview, adjust, adjusting, error }: {
+  report: AnalysisReport; preview: PitchPreview; adjust: (offset: number | null) => void; adjusting: boolean; error: string;
 }) {
   const playback = usePlayback(report)
   return <div className="grid gap-4">
@@ -35,9 +36,9 @@ function AnalysisResult({ report, adjust, adjusting, error }: {
       <Link to="/" className="flex items-center gap-1.5 rounded-lg border border-line bg-panel px-3.5 py-2.5 text-sm font-semibold hover:bg-raised">编辑分析 <ArrowUpRight size={15}/></Link>
     </header>
     <Overview report={report}/>
-    <PitchChart report={report} playback={playback}/>
+    <PitchChart report={report} playback={playback} preview={preview}/>
     <ListenPanel report={report} playback={playback}/>
-    <Spectrogram report={report} playback={playback}/>
+    <Spectrogram report={report} playback={playback} preview={preview}/>
     <ReportLyrics report={report} playback={playback}/>
     <div className="grid items-start gap-4 lg:grid-cols-[1.35fr_1fr]">
       <Segments report={report} playback={playback}/>
@@ -49,7 +50,7 @@ function AnalysisResult({ report, adjust, adjusting, error }: {
 export default function Report() {
   const { id = '' } = useParams()
   const { view, adjusting, error, adjust, refresh } = useReport(id)
-  if (view.status === 'ready') return <AnalysisResult key={id} report={view.report} adjusting={adjusting}
+  if (view.status === 'ready') return <AnalysisResult key={id} report={view.report} preview={view.preview} adjusting={adjusting}
     adjust={offset => void adjust(offset)} error={error}/>
   const failed = view.status === 'failed' || view.status === 'error'
   const detail = view.status === 'failed' ? view.job.error : view.status === 'error' ? view.message : null
@@ -66,9 +67,9 @@ export default function Report() {
           {view.status === 'loading' && <p className="text-sm text-muted">正在读取任务状态。</p>}
           {view.status === 'progress' && <p className="text-sm leading-6 text-muted">
             已等待 {Math.max(0, Math.floor((Date.now()-Date.parse(view.job.createdAt))/1000))} 秒。
-            {view.job.selection.reference.separate && view.job.selection.user.separate ?
-              '原唱与演唱的人声分离依次执行。相同文件和选段可复用已有分离结果。' :
-              '分析在本机后台执行。首次使用人声分离时可能需要下载模型权重。'}
+            {view.job.selection.reference.separate || view.job.selection.user.separate ?
+              '含伴奏的音轨先分离人声。相同文件和选段可复用已有分离结果。' :
+              '人声音轨就绪后，曲线会先显示在下方。'}
           </p>}
           {detail && <p className="text-sm leading-6 text-danger">{detail}</p>}
           {view.status === 'error' && <Button onClick={refresh}>重试读取</Button>}
@@ -76,5 +77,6 @@ export default function Report() {
         </div>
       </div>
     </Panel>
+    {view.status === 'progress' && <PitchPreviewPanel key={id} job={view.job} preview={view.preview}/>}
   </div>
 }

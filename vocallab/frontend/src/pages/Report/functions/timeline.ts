@@ -1,4 +1,4 @@
-import type { PitchTrack, Report, Role } from '../../../apis/analysis/contracts'
+import type { HarmonicPitch, PitchTrack, Report, Role } from '../../../apis/analysis/contracts'
 
 export type TimeRange = [number, number]
 export type ComparisonRange = Record<Role, TimeRange | null>
@@ -38,10 +38,21 @@ export function pairRange(report: Report, from: Role, range: TimeRange): Compari
   return { reference: null, user: null, [from]: range, [to]: left !== null && right !== null ? [left, right] : null }
 }
 
-export function points(report: Report, role: Role): Point[] {
+export function harmonicPoints(track: HarmonicPitch, start: number, mapTime = (time: number): number | null => time): Point[] {
+  return track.midiPitch.flatMap((midi, i) => {
+    const time = i * track.step
+    const x = mapTime(time)
+    const hz = midi === null ? null : 440 * 2 ** ((midi - 69) / 12)
+    return x === null ? [] : [{ x, midi, guide: null, rms: 0, original: time + start, hz }]
+  })
+}
+
+export function points(report: Report, role: Role, harmonic: HarmonicPitch | null = null): Point[] {
+  const mapTime = (time: number) => role === 'reference' || !hasPlaybackMapping(report) ? time : translate(report, 'user', time)
+  if (harmonic) return harmonicPoints(harmonic, report.pitchTracks[role].originalStart, mapTime)
   const track: PitchTrack = report.pitchTracks[role]
   const series = track.timestamps.flatMap((time, i) => {
-    const x = role === 'reference' || !hasPlaybackMapping(report) ? time : translate(report, 'user', time)
+    const x = mapTime(time)
     return x === null ? [] : [{ x, midi: track.midiPitch[i], guide: track.guideMidiPitch?.[i] ?? null, rms: track.rms[i], original: time + track.originalStart, hz: track.f0Hz[i] }]
   })
   return connectPitchGaps(series)

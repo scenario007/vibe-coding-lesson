@@ -62,6 +62,6 @@ test('empty lyrics results leave the completed report available', async ({ page 
   await page.getByText('按歌名查询歌词', { exact: true }).click()
   await page.getByLabel('歌名', { exact: true }).fill('不存在的歌曲')
   await page.getByRole('button', { name: '查询歌词', exact: true }).click()
-  await expect(page.getByRole('status')).toContainText('没有找到带时间轴的歌词')
+  await expect(page.getByRole('status').filter({ hasText: '没有找到带时间轴的歌词' })).toBeVisible()
   await expect(page.getByRole('heading', { name: '演唱分析报告' })).toBeVisible()
 })

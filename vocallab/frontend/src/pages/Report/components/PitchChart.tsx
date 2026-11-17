@@ -6,6 +6,7 @@ import { Button } from '../../../components/ui/Button'
 import { Panel } from '../../../components/ui/Panel'
 import { closest, duration, hasPlaybackMapping, hideShortPitchRuns, lowestVisibleMidi, noteLabel, pitchesConnect, points, timeLabel, translate, type Point, type TimeRange } from '../functions/timeline'
 import type { Playback } from '../hooks/usePlayback'
+import { PitchNoteTooltip } from './PitchNoteTooltip'
 
 const H = 280, R = 14, T = 20, B = 36
 const height = H-T-B
@@ -61,7 +62,7 @@ export function PitchPlot({ total, start, axis, first, second = emptyPoints, act
   }, [])
   const [zoom, setZoom] = useState(1)
   const [left, setLeft] = useState(0)
-  const [hover, setHover] = useState<number | null>(null)
+  const [hover, setHover] = useState<{ time: number; y: number; scaleX: number; scaleY: number } | null>(null)
   const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null)
   const domain = total / zoom
   const min = Math.min(left, total-domain)
@@ -95,18 +96,25 @@ export function PitchPlot({ total, start, axis, first, second = emptyPoints, act
     })
   }, [selectionStart, total, domain, zoom])
   const plotId = `pitch-clip-${axis}`
-  const sampleA = hover === null ? undefined : closest(firstVisible, hover)
-  const sampleB = hover === null ? undefined : closest(secondVisible, hover)
+  const sampleA = hover === null ? undefined : closest(firstVisible, hover.time)
+  const sampleB = hover === null ? undefined : closest(secondVisible, hover.time)
+  const hoveredNote = hover && [sampleA, sampleB].reduce<{ x: number; y: number; midi: number; distance: number } | null>((nearest, point) => {
+    if (!point || point.midi === null || point.midi < low || point.x < min || point.x > max) return nearest
+    const px = x(point.x)
+    const py = y(point.midi)
+    const distance = Math.hypot((px - x(hover.time)) * hover.scaleX, (py - hover.y) * hover.scaleY)
+    return distance <= 16 && (!nearest || distance < nearest.distance) ? { x: px, y: py, midi: point.midi, distance } : nearest
+  }, null)
 
   function resizeView(next: number) {
     const center = activeTime !== null && activeTime >= min && activeTime <= max ? activeTime : min + domain / 2
     const newWidth = total / next
+    setHover(null)
     setZoom(next)
     setLeft(next === 1 ? 0 : Math.max(0, Math.min(total-newWidth, center-newWidth/2)))
   }
 
-  function coordinate(event: PointerEvent<SVGSVGElement>) {
-    const rect = event.currentTarget.getBoundingClientRect()
+  function coordinate(event: PointerEvent<SVGSVGElement>, rect = event.currentTarget.getBoundingClientRect()) {
     return Math.max(0, Math.min(1, ((event.clientX-rect.left) / rect.width * W - L)/width))
   }
 
@@ -119,8 +127,8 @@ export function PitchPlot({ total, start, axis, first, second = emptyPoints, act
         <Button aria-label="曲线重置" className="min-h-8 px-2" disabled={zoom===1} onClick={() => resizeView(1)}><Maximize2 size={14}/></Button>
       </div>
     </div>
-    <div ref={chart} className="overflow-hidden rounded-xl border border-line bg-[#12151c]">
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className={`h-[245px] w-full sm:h-[300px] ${zoom>1 ? 'touch-pan-y cursor-grab' : 'cursor-crosshair'}`}
+    <div ref={chart} className="relative rounded-xl border border-line bg-[#12151c]">
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className={`h-[245px] w-full rounded-[inherit] sm:h-[300px] ${zoom>1 ? 'touch-pan-y cursor-grab' : 'cursor-crosshair'}`}
         role="img" aria-label={overlay ? '原唱与我的演唱对齐音高曲线' : '独立音高曲线'}
         onPointerDown={e => {
           if (e.button !== 0) return
@@ -128,19 +136,26 @@ export function PitchPlot({ total, start, axis, first, second = emptyPoints, act
           e.currentTarget.setPointerCapture(e.pointerId)
         }}
         onPointerMove={e => {
-          const f = coordinate(e)
+          const rect = e.currentTarget.getBoundingClientRect()
+          const f = coordinate(e, rect)
           if (drag.current && zoom > 1 && (drag.current.moved || Math.abs(drag.current.x-f) > .015)) {
             setLeft(Math.max(0, Math.min(total-domain, drag.current.left + (drag.current.x-f)*domain)))
             drag.current.moved = true
             setHover(null)
-          } else setHover(min+f*domain)
+          } else {
+            const plotX = (e.clientX-rect.left) / rect.width * W
+            const plotY = (e.clientY-rect.top) / rect.height * H
+            setHover(plotX >= L && plotX <= W-R && plotY >= T && plotY <= H-B ? {
+              time: min+f*domain, y: plotY, scaleX: rect.width/W, scaleY: rect.height/H,
+            } : null)
+          }
         }}
         onPointerLeave={() => setHover(null)}
         onPointerUp={e => {
           if (drag.current && !drag.current.moved) position(min + coordinate(e)*domain)
           drag.current = null
         }}
-        onPointerCancel={() => { drag.current = null }}>
+        onPointerCancel={() => { drag.current = null; setHover(null) }}>
         <defs><clipPath id={plotId}><rect x={L} y={T} width={width} height={height}/></clipPath></defs>
         {ticks.map(tick => <g key={tick}>
           <line x1={L} x2={W-R} y1={y(tick)} y2={y(tick)} stroke="#2b3040" strokeDasharray="3 4"/>
@@ -160,17 +175,18 @@ export function PitchPlot({ total, start, axis, first, second = emptyPoints, act
           <path data-testid={harmonic ? `harmonic-curve-${axis}` : undefined} d={paths[0].solid} strokeLinecap="round" fill="none" stroke={axis === 'reference' ? referenceColor : userColor} strokeWidth={2.7} vectorEffect="non-scaling-stroke"/>
           <path d={paths[1].solid} strokeLinecap="round" fill="none" stroke={userColor} strokeWidth={1.75} vectorEffect="non-scaling-stroke"/>
           {activeTime !== null && <line x1={x(activeTime)} x2={x(activeTime)} y1={T} y2={H-B} stroke="#eee8ff" opacity={.75}/>}
-          {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={T} y2={H-B} stroke="#9da3b4" strokeDasharray="5 4"/>}
+          {hover !== null && <line x1={x(hover.time)} x2={x(hover.time)} y1={T} y2={H-B} stroke="#9da3b4" strokeDasharray="5 4"/>}
           {sampleA && sampleA.midi !== null && sampleA.midi >= low && <circle cx={x(sampleA.x)} cy={y(sampleA.midi)} r={4} fill={axis === 'reference' ? referenceColor : userColor}/>}
           {sampleB && sampleB.midi !== null && sampleB.midi >= low && <circle cx={x(sampleB.x)} cy={y(sampleB.midi)} r={4} fill={userColor}/>}
         </g>
       </svg>
+      {hoveredNote && <PitchNoteTooltip midi={hoveredNote.midi} x={hoveredNote.x / W * 100} y={hoveredNote.y / H * 100}/>}
     </div>
     <div className="mt-2 flex min-h-6 flex-wrap gap-x-4 gap-y-1 font-mono text-xs text-muted" aria-live="off">
       {hover === null ? <span>{harmonic ?
         '按相邻帧的谐波证据估计基频。淡虚线为句内短缺口补线，停顿保留留白。此曲线不计入音准指标。' :
         '实线为可信音高，淡虚线为候选音高和句内短缺口补线，不计入音准指标。'}</span> :
-        <><span>{timeLabel(start+hover)}</span><span className={axis==='reference' ? 'text-accent' : 'text-mint'}>{pitchReadout(sampleA)}</span>
+        <><span>{timeLabel(start+hover.time)}</span><span className={axis==='reference' ? 'text-accent' : 'text-mint'}>{pitchReadout(sampleA)}</span>
           {overlay && <span className="text-mint">我的演唱 {pitchReadout(sampleB)}</span>}</>}
     </div>
     {zoom > 1 && <label className="mt-2 flex items-center gap-4 text-xs text-muted">移动视图

@@ -76,6 +76,13 @@ test('plays real source separation tracks in the completed report', async ({ pag
   const track = page.getByLabel('试听音轨')
   await expect(track).toHaveValue('vocals')
   await expect(page.getByText('音高分析使用 分离人声')).toBeVisible()
+  const spectrum = page.getByRole('region', { name: '声谱图', exact: true })
+  const spectrumPlot = spectrum.getByRole('img', { name: '当前音频声谱图' })
+  await expect(spectrumPlot).toBeVisible()
+  await spectrumPlot.hover({ position: { x: 100, y: 100 } })
+  await expect(spectrum.getByText(/频点 .* Hz .* dBFS/)).toBeVisible()
+  await spectrum.getByLabel('频率上限').selectOption('5000')
+  await expect(spectrum.getByText('5000 Hz', { exact: true })).toBeVisible()
   const audio = page.locator('audio')
   await expect.poll(() => audio.evaluate(el => el.readyState)).toBeGreaterThan(0)
   await track.selectOption('instrumental')
@@ -84,6 +91,8 @@ test('plays real source separation tracks in the completed report', async ({ pag
   await expect(page.getByRole('button', { name: '暂停' })).toBeVisible()
   await track.selectOption('original')
   await expect(audio).toHaveAttribute('src', /\/original$/)
+  await expect(spectrum.getByText(/A 原唱 · 原始音频/)).toBeVisible()
+  await expect(spectrumPlot).toBeVisible()
 })
 
 test('manual anchors sync A/B even when a track has no usable pitch', async ({ page }) => {

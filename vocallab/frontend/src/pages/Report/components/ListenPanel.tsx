@@ -6,7 +6,7 @@ import { Panel } from '../../../components/ui/Panel'
 import { duration, hasPlaybackMapping, timeLabel } from '../functions/timeline'
 import type { Playback } from '../hooks/usePlayback'
 
-const names: Record<TrackKind, string> = { original: '原始音频', vocals: '分离人声', instrumental: '分离伴奏' }
+export const trackNames: Record<TrackKind, string> = { original: '原始音频', vocals: '分离人声', instrumental: '分离伴奏' }
 
 export function ListenPanel({ report, playback }: { report: Report; playback: Playback }) {
   const role = playback.active
@@ -35,10 +35,10 @@ export function ListenPanel({ report, playback }: { report: Report; playback: Pl
       <label className="flex items-center gap-2 text-xs text-muted">试听音轨
         <select aria-label="试听音轨" value={playback.kind} onChange={e => playback.selectTrack(e.currentTarget.value as TrackKind)}
           className="rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink">
-          {available.map(kind => <option key={kind} value={kind}>{names[kind]}</option>)}
+          {available.map(kind => <option key={kind} value={kind}>{trackNames[kind]}</option>)}
         </select>
       </label>
-      <span className="text-xs text-muted">音高分析使用 {names[report.separation[role].inputTrack]}</span>
+      <span className="text-xs text-muted">音高分析使用 {trackNames[report.separation[role].inputTrack]}</span>
     </div>
     <div className="mt-4 flex flex-wrap items-center gap-3">
       <Button variant="primary" aria-label={playback.playing ? '暂停' : '播放'} onClick={playback.play}>

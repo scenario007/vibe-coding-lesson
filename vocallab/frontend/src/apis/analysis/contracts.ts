@@ -31,7 +31,9 @@ const track = z.object({
 const pair = <T extends z.ZodType>(shape: T) => z.object({ reference: shape, user: shape })
 const harmonicPitch = z.object({
   step: z.literal(.02), midiPitch: z.array(z.number().min(36).max(84).nullable()).min(2),
-})
+  bridgedFrames: z.array(z.number().int().nonnegative()).nullish(),
+}).refine(t => t.bridgedFrames?.every((i, j, frames) => t.midiPitch[i] != null &&
+  (j === 0 || i > frames[j - 1])) ?? true)
 export const pitchPreview = pair(harmonicPitch.nullable())
 export type PitchPreview = z.infer<typeof pitchPreview>
 export type HarmonicPitch = z.infer<typeof harmonicPitch>

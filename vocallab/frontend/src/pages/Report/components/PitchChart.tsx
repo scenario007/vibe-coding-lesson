@@ -32,6 +32,12 @@ function pathOf(series: Point[], x: (value: number) => number, y: (value: number
   }).join('')
 }
 
+function pitchReadout(point: Point | undefined) {
+  if (!point) return '音高不可用'
+  if (point.hz !== null && point.midi !== null) return `${noteLabel(point.midi)} · ${point.hz.toFixed(1)} Hz`
+  return point.bridge !== undefined ? '句内补线' : '音高不可用'
+}
+
 export function PitchPlot({ total, start, axis, first, second = emptyPoints, activeTime, selected,
   annotations = emptyAnnotations, position, harmonic = false }: {
   total: number; start: number; axis: Role; first: Point[]; second?: Point[]; activeTime: number | null
@@ -156,10 +162,10 @@ export function PitchPlot({ total, start, axis, first, second = emptyPoints, act
     </div>
     <div className="mt-2 flex min-h-6 flex-wrap gap-x-4 gap-y-1 font-mono text-xs text-muted" aria-live="off">
       {hover === null ? <span>{harmonic ?
-        '按谐波估计基频。缺少连续谐波证据的地方留白，不计入音准指标。' :
+        '按相邻帧的谐波证据估计基频。淡虚线为句内短缺口补线，停顿保留留白。此曲线不计入音准指标。' :
         '实线为可信音高，淡虚线为候选音高和句内短缺口补线，不计入音准指标。'}</span> :
-        <><span>{timeLabel(start+hover)}</span><span className={axis==='reference' ? 'text-accent' : 'text-mint'}>{sampleA?.hz && sampleA.midi !== null ? `${noteLabel(sampleA.midi)} · ${sampleA.hz.toFixed(1)} Hz` : '音高不可用'}</span>
-          {overlay && <span className="text-mint">{sampleB?.hz && sampleB.midi !== null ? `我的演唱 ${noteLabel(sampleB.midi)} · ${sampleB.hz.toFixed(1)} Hz` : '我的演唱音高不可用'}</span>}</>}
+        <><span>{timeLabel(start+hover)}</span><span className={axis==='reference' ? 'text-accent' : 'text-mint'}>{pitchReadout(sampleA)}</span>
+          {overlay && <span className="text-mint">我的演唱 {pitchReadout(sampleB)}</span>}</>}
     </div>
     {zoom > 1 && <label className="mt-2 flex items-center gap-4 text-xs text-muted">移动视图
       <input type="range" min={0} max={total-domain} step="any" value={min} onChange={e => setLeft(e.currentTarget.valueAsNumber)} className="min-w-0 flex-1"/>

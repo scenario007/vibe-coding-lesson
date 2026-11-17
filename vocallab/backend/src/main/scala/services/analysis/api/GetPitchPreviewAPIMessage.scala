@@ -21,7 +21,10 @@ final case class GetPitchPreviewAPIMessage(id: UUID, config: AppConfig)
         case None => IO.pure(None)
         case Some(raw) => IO.fromEither(decode[HarmonicPitch](raw)).flatMap { track =>
           val frames = track.midiPitch.size
-          val valid = track.step == 0.02 && frames >= 2 &&
+          val measured = track.midiPitch.toVector
+          val validBridges = track.bridgedFrames.forall(indices =>
+            indices == indices.distinct.sorted && indices.forall(i => measured.lift(i).flatten.nonEmpty))
+          val valid = validBridges && track.step == 0.02 && frames >= 2 &&
             math.abs((frames - 1) * track.step - (clip.end - clip.start)) <= 0.05 &&
             track.midiPitch.forall(_.forall(midi => midi >= 36 && midi <= 84))
           IO.raiseUnless(valid)(IllegalStateException("Invalid harmonic pitch track")).as(Some(track))

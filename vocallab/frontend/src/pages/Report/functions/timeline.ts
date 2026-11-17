@@ -39,11 +39,14 @@ export function pairRange(report: Report, from: Role, range: TimeRange): Compari
 }
 
 export function harmonicPoints(track: HarmonicPitch, start: number, mapTime = (time: number): number | null => time): Point[] {
+  const bridges = new Set(track.bridgedFrames)
   return track.midiPitch.flatMap((midi, i) => {
     const time = i * track.step
     const x = mapTime(time)
     const hz = midi === null ? null : 440 * 2 ** ((midi - 69) / 12)
-    return x === null ? [] : [{ x, midi, guide: null, rms: 0, original: time + start, hz }]
+    if (x === null) return []
+    const point = { x, midi, guide: null, rms: 0, original: time + start, hz }
+    return bridges.has(i) && midi !== null ? [{ ...point, bridge: midi, midi: null, hz: null }] : [point]
   })
 }
 

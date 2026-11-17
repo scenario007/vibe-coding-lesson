@@ -47,13 +47,15 @@ export function Spectrogram({ report, playback, preview }: { report: Report; pla
   const fundamentals = useMemo(() => {
     if (!data || view !== 'fundamental' || playback.kind === 'instrumental') return []
     const step = pitch.timestamps[1] - pitch.timestamps[0]
+    const bridges = new Set(harmonic?.bridgedFrames)
     return Array.from({ length: data.columns }, (_, column) => {
       const time = start + column * (end - start) / (data.columns - 1)
       const index = Math.round(time / step)
       const trusted = pitch.f0Hz[index]
       if (harmonic) {
-        const midi = harmonic.midiPitch[Math.round(time / harmonic.step)]
-        if (midi == null) return null
+        const frame = Math.round(time / harmonic.step)
+        const midi = harmonic.midiPitch[frame]
+        if (midi == null || bridges.has(frame)) return null
         const verified = pitch.midiPitch[index]
         return { hz: 440 * 2 ** ((midi - 69) / 12), trusted: verified != null && Math.abs(verified - midi) <= 1 }
       }

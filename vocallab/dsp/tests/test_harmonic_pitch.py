@@ -28,3 +28,45 @@ def test_harmonic_track_recovers_missing_fundamental_and_respects_silence():
 def test_silence_has_no_pitch():
     result = track(np.zeros(22050, dtype=np.float32), 22050)
     assert all(value is None for value in result.serializable()["midiPitch"])
+
+
+def test_tracks_low_note_under_dominant_second_and_third_harmonics():
+    rate = 22050
+    time = np.arange(rate * 2) / rate
+    phase = 2 * np.pi * 261.626 * time
+    second_dominates = (time > .35) & (time < .75)
+    third_dominates = (time > .95) & (time < 1.35)
+    voice = .055 * np.sin(phase)
+    voice += (.12 + .58 * second_dominates) * np.sin(2 * phase)
+    voice += (.09 + .62 * third_dominates) * np.sin(3 * phase)
+    voice += .11 * np.sin(4 * phase) + .085 * np.sin(6 * phase)
+    result = track(voice.astype(np.float32), rate)
+    times = np.arange(result.midi.size) * result.step
+    for start, end in ((.4, .7), (1.0, 1.3)):
+        actual = result.midi[(times >= start) & (times < end)]
+        assert np.mean(np.abs(actual - 60) <= .5) >= .90
+
+
+def test_keeps_genuine_pitch_above_c5_after_lower_note():
+    rate = 22050
+    time = np.arange(rate * 2) / rate
+    audio = np.zeros_like(time, dtype=np.float32)
+    for start, end, pitch in ((.2, .85, 62), (.85, 1.8, 74)):
+        selection = (time >= start) & (time < end)
+        phase = 2 * np.pi * (440 * 2 ** ((pitch - 69) / 12)) * time[selection]
+        audio[selection] = .52 * np.sin(phase) + .24 * np.sin(2 * phase) + .12 * np.sin(3 * phase)
+    result = track(audio, rate)
+    times = np.arange(result.midi.size) * result.step
+    assert np.mean(np.abs(result.midi[(times >= 1) & (times < 1.7)] - 74) <= .5) >= .98
+
+
+def test_bridges_only_short_energetic_gaps_between_nearby_pitches():
+    from vocallab.harmonic_pitch import _bridge_short_gaps
+
+    curve = np.array([60, np.nan, np.nan, 60.6, np.nan, 61, np.nan, 67] +
+                     [np.nan] * 5 + [67.5])
+    rms = np.ones(len(curve))
+    rms[4] = .01
+    assert _bridge_short_gaps(curve, rms, .1) == [1, 2]
+    np.testing.assert_allclose(curve[1:3], [60.2, 60.4])
+    assert np.isnan(curve[[4, 6, 8, 9, 10, 11, 12]]).all()

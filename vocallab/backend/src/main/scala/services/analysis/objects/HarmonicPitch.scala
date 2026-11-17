@@ -3,7 +3,7 @@ package services.analysis.objects
 import io.circe.{Decoder, Encoder}
 import io.circe.generic.semiauto.*
 
-final case class HarmonicPitch(step: Double, midiPitch: List[Option[Double]])
+final case class HarmonicPitch(step: Double, midiPitch: List[Option[Double]], bridgedFrames: Option[List[Int]] = None)
 
 object HarmonicPitch:
   given Encoder[HarmonicPitch] = deriveEncoder

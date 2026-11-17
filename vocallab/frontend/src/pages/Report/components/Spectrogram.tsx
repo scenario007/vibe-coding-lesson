@@ -5,7 +5,7 @@ import { GetAnalyzedAudioAPI } from '../../../apis/analysis/GetAnalyzedAudioAPI'
 import type { PitchPreview, Report } from '../../../apis/analysis/contracts'
 import { Button } from '../../../components/ui/Button'
 import { Panel } from '../../../components/ui/Panel'
-import { duration, timeLabel } from '../functions/timeline'
+import { duration, lowestVisibleHz, lowestVisibleMidi, timeLabel } from '../functions/timeline'
 import type { Playback } from '../hooks/usePlayback'
 import { useSpectrogram, type Spectrum } from '../hooks/useSpectrogram'
 import { trackNames } from './ListenPanel'
@@ -16,10 +16,12 @@ const stops = [[11, 14, 24], [45, 40, 105], [132, 55, 142], [225, 114, 109], [25
 
 // At wider frequency ranges, keep narrow energy peaks from disappearing between pixels.
 function peakBin(data: Spectrum, sample: number, y: number, maxHz: number) {
-  const center = (1 - y) * maxHz / data.binHz
-  const half = maxHz / (data.binHz * (height - 1) * 2)
-  const nearest = Math.min(data.bins - 1, Math.round(center))
-  const start = Math.max(0, Math.min(nearest, Math.ceil(center - half)))
+  const span = maxHz - lowestVisibleHz
+  const center = (lowestVisibleHz + (1 - y) * span) / data.binHz
+  const half = span / (data.binHz * (height - 1) * 2)
+  const floor = Math.min(data.bins - 1, Math.ceil(lowestVisibleHz / data.binHz))
+  const nearest = Math.min(data.bins - 1, Math.max(floor, Math.round(center)))
+  const start = Math.max(floor, Math.min(nearest, Math.ceil(center - half)))
   const end = Math.min(data.bins - 1, Math.max(nearest, Math.floor(center + half)))
   let peak = start
   for (let bin = start + 1; bin <= end; bin++)
@@ -55,13 +57,13 @@ export function Spectrogram({ report, playback, preview }: { report: Report; pla
       if (harmonic) {
         const frame = Math.round(time / harmonic.step)
         const midi = harmonic.midiPitch[frame]
-        if (midi == null || bridges.has(frame)) return null
+        if (midi == null || midi < lowestVisibleMidi || bridges.has(frame)) return null
         const verified = pitch.midiPitch[index]
         return { hz: 440 * 2 ** ((midi - 69) / 12), trusted: verified != null && Math.abs(verified - midi) <= 1 }
       }
-      if (trusted != null) return { hz: trusted, trusted: true }
+      if (trusted != null) return trusted >= lowestVisibleHz ? { hz: trusted, trusted: true } : null
       const candidate = pitch.guideMidiPitch?.[index]
-      return candidate == null ? null : { hz: 440 * 2 ** ((candidate - 69) / 12), trusted: false }
+      return candidate == null || candidate < lowestVisibleMidi ? null : { hz: 440 * 2 ** ((candidate - 69) / 12), trusted: false }
     })
   }, [data, view, playback.kind, pitch, harmonic, start, end])
 
@@ -81,7 +83,7 @@ export function Spectrogram({ report, playback, preview }: { report: Report; pla
     if (view === 'fundamental') {
       fundamentals.forEach((point, x) => {
         if (!point || point.hz > maxHz) return
-        const center = Math.round((1 - point.hz / maxHz) * (height - 1))
+        const center = Math.round((maxHz - point.hz) / (maxHz - lowestVisibleHz) * (height - 1))
         const bin = Math.min(data.bins - 1, Math.round(point.hz / data.binHz))
         const db = data.values[x * data.bins + bin]
         for (let y = Math.max(0, center - 1); y <= Math.min(height - 1, center + 1); y++) {
@@ -139,9 +141,9 @@ export function Spectrogram({ report, playback, preview }: { report: Report; pla
     {view === 'fundamental' && data && !fundamentals.some(Boolean) &&
       <p className="mt-3 text-xs text-muted">{playback.kind === 'instrumental' ?
         '试听伴奏时可切到完整声谱；切回人声音轨可查看人声基频。' : '这一段没有测到可显示的人声基频。'}</p>}
-    {data && <div className="mt-4 grid grid-cols-[3.65rem_1fr] gap-x-2">
+    {data && <div className="mt-4 grid grid-cols-[5.75rem_1fr] gap-x-2">
       <div className="flex h-[245px] flex-col justify-between text-right font-mono text-[11px] text-muted sm:h-[300px]">
-        {[1, .75, .5, .25, 0].map(part => <span key={part}>{Math.round(part * maxHz)} Hz</span>)}
+        {[1, .75, .5, .25, 0].map(part => <span key={part}>{part === 0 ? `C3 · ${lowestVisibleHz.toFixed(1)} Hz` : `${Math.round(lowestVisibleHz + part * (maxHz - lowestVisibleHz))} Hz`}</span>)}
       </div>
       <div className="relative h-[245px] min-w-0 overflow-hidden rounded-lg border border-line bg-canvas sm:h-[300px]">
         <canvas ref={canvas} width={data.columns} height={height} role="img" aria-label="当前音频声谱图"

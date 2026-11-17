@@ -1,5 +1,8 @@
 import type { HarmonicPitch, PitchTrack, Report, Role } from '../../../apis/analysis/contracts'
 
+export const lowestVisibleMidi = 48 // C3
+export const lowestVisibleHz = 440 * 2 ** ((lowestVisibleMidi - 69) / 12)
+
 export type TimeRange = [number, number]
 export type ComparisonRange = Record<Role, TimeRange | null>
 export type Point = { x: number; midi: number | null; guide: number | null; rms: number; bridge?: number; original: number; hz: number | null }

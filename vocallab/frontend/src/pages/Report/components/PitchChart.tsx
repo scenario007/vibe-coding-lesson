@@ -4,7 +4,7 @@ import { Activity, Maximize2, Minus, Plus } from 'lucide-react'
 import type { PitchPreview, Report, Role } from '../../../apis/analysis/contracts'
 import { Button } from '../../../components/ui/Button'
 import { Panel } from '../../../components/ui/Panel'
-import { closest, duration, hasPlaybackMapping, noteLabel, points, timeLabel, translate, type Point, type TimeRange } from '../functions/timeline'
+import { closest, duration, hasPlaybackMapping, lowestVisibleMidi, noteLabel, points, timeLabel, translate, type Point, type TimeRange } from '../functions/timeline'
 import type { Playback } from '../hooks/usePlayback'
 
 const H = 280, R = 14, T = 20, B = 36
@@ -17,7 +17,10 @@ const emptyAnnotations: TimeRange[] = []
 
 function pathOf(series: Point[], x: (value: number) => number, y: (value: number) => number, guide = false) {
   let prior: Point | null = null
-  const pitch = (point: Point) => guide ? point.midi ?? point.guide ?? point.bridge ?? null : point.midi
+  const pitch = (point: Point) => {
+    const value = guide ? point.midi ?? point.guide ?? point.bridge ?? null : point.midi
+    return value !== null && value >= lowestVisibleMidi ? value : null
+  }
   return series.map((point, index) => {
     const midi = pitch(point)
     if (midi === null) { prior = null; return '' }
@@ -34,8 +37,8 @@ function pathOf(series: Point[], x: (value: number) => number, y: (value: number
 
 function pitchReadout(point: Point | undefined) {
   if (!point) return '音高不可用'
-  if (point.hz !== null && point.midi !== null) return `${noteLabel(point.midi)} · ${point.hz.toFixed(1)} Hz`
-  return point.bridge !== undefined ? '句内补线' : '音高不可用'
+  if (point.hz !== null && point.midi !== null && point.midi >= lowestVisibleMidi) return `${noteLabel(point.midi)} · ${point.hz.toFixed(1)} Hz`
+  return point.bridge !== undefined && point.bridge >= lowestVisibleMidi ? '句内补线' : '音高不可用'
 }
 
 export function PitchPlot({ total, start, axis, first, second = emptyPoints, activeTime, selected,
@@ -64,7 +67,7 @@ export function PitchPlot({ total, start, axis, first, second = emptyPoints, act
   const min = Math.min(left, total-domain)
   const max = min + domain
   const pitches = useMemo(() => [...first, ...second].flatMap(p => p.midi ?? p.guide ?? []), [first, second])
-  const low = pitches.length ? Math.floor((Math.min(...pitches)-1) / 3)*3 : 48
+  const low = lowestVisibleMidi
   const high = pitches.length ? Math.max(low+6, Math.ceil((Math.max(...pitches)+1)/3)*3) : 72
   const interval = Math.max(3, Math.ceil((high-low)/21)*3)
   const ticks = Array.from({ length: Math.floor((high-low)/interval)+1 }, (_, i) => low + i*interval)
@@ -155,8 +158,8 @@ export function PitchPlot({ total, start, axis, first, second = emptyPoints, act
           <path d={paths[1].solid} strokeLinecap="round" fill="none" stroke={userColor} strokeWidth={1.75} vectorEffect="non-scaling-stroke"/>
           {activeTime !== null && <line x1={x(activeTime)} x2={x(activeTime)} y1={T} y2={H-B} stroke="#eee8ff" opacity={.75}/>}
           {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={T} y2={H-B} stroke="#9da3b4" strokeDasharray="5 4"/>}
-          {sampleA?.midi !== null && sampleA && <circle cx={x(sampleA.x)} cy={y(sampleA.midi)} r={4} fill={axis === 'reference' ? referenceColor : userColor}/>}
-          {sampleB?.midi !== null && sampleB && <circle cx={x(sampleB.x)} cy={y(sampleB.midi)} r={4} fill={userColor}/>}
+          {sampleA && sampleA.midi !== null && sampleA.midi >= low && <circle cx={x(sampleA.x)} cy={y(sampleA.midi)} r={4} fill={axis === 'reference' ? referenceColor : userColor}/>}
+          {sampleB && sampleB.midi !== null && sampleB.midi >= low && <circle cx={x(sampleB.x)} cy={y(sampleB.midi)} r={4} fill={userColor}/>}
         </g>
       </svg>
     </div>

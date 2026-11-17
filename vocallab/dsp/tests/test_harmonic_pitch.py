@@ -70,3 +70,15 @@ def test_bridges_only_short_energetic_gaps_between_nearby_pitches():
     assert _bridge_short_gaps(curve, rms, .1) == [1, 2]
     np.testing.assert_allclose(curve[1:3], [60.2, 60.4])
     assert np.isnan(curve[[4, 6, 8, 9, 10, 11, 12]]).all()
+
+
+def test_higher_partials_resolve_double_frequency_when_fundamental_is_weak():
+    rate = 22050
+    t = np.arange(rate * 2) / rate
+    phase = 2 * np.pi * 261.626 * t
+    emphasis = (t >= .55) & (t < 1.45)
+    sound = .035 * np.sin(phase) + .20 * np.sin(2 * phase) + .08 * np.sin(4 * phase)
+    sound += .08 * np.sin(8 * phase) + (.12 + .55 * emphasis) * np.sin(9 * phase)
+    sound += .13 * np.sin(11 * phase) + .14 * np.sin(13 * phase)
+    values = track(sound.astype(np.float32), rate).midi[35:65]
+    assert np.mean(np.abs(values - 60) < .5) >= .98

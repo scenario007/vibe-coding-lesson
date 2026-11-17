@@ -5,7 +5,7 @@ import { GetAnalyzedAudioAPI } from '../../../apis/analysis/GetAnalyzedAudioAPI'
 import type { PitchPreview, Report } from '../../../apis/analysis/contracts'
 import { Button } from '../../../components/ui/Button'
 import { Panel } from '../../../components/ui/Panel'
-import { duration, lowestVisibleHz, lowestVisibleMidi, timeLabel } from '../functions/timeline'
+import { duration, lowestVisibleHz, lowestVisibleMidi, shortPitchFrames, timeLabel } from '../functions/timeline'
 import type { Playback } from '../hooks/usePlayback'
 import { useSpectrogram, type Spectrum } from '../hooks/useSpectrogram'
 import { trackNames } from './ListenPanel'
@@ -50,6 +50,8 @@ export function Spectrogram({ report, playback, preview }: { report: Report; pla
     if (!data || view !== 'fundamental' || playback.kind === 'instrumental') return []
     const step = pitch.timestamps[1] - pitch.timestamps[0]
     const bridges = new Set(harmonic?.bridgedFrames)
+    const estimates = harmonic?.midiPitch ?? pitch.midiPitch.map((midi, i) => midi ?? pitch.guideMidiPitch?.[i])
+    const hidden = shortPitchFrames(estimates, harmonic?.step ?? step)
     return Array.from({ length: data.columns }, (_, column) => {
       const time = start + column * (end - start) / (data.columns - 1)
       const index = Math.round(time / step)
@@ -57,10 +59,11 @@ export function Spectrogram({ report, playback, preview }: { report: Report; pla
       if (harmonic) {
         const frame = Math.round(time / harmonic.step)
         const midi = harmonic.midiPitch[frame]
-        if (midi == null || midi < lowestVisibleMidi || bridges.has(frame)) return null
+        if (midi == null || midi < lowestVisibleMidi || bridges.has(frame) || hidden.has(frame)) return null
         const verified = pitch.midiPitch[index]
         return { hz: 440 * 2 ** ((midi - 69) / 12), trusted: verified != null && Math.abs(verified - midi) <= 1 }
       }
+      if (hidden.has(index)) return null
       if (trusted != null) return trusted >= lowestVisibleHz ? { hz: trusted, trusted: true } : null
       const candidate = pitch.guideMidiPitch?.[index]
       return candidate == null || candidate < lowestVisibleMidi ? null : { hz: 440 * 2 ** ((candidate - 69) / 12), trusted: false }

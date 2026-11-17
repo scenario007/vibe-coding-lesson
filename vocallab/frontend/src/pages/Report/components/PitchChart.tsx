@@ -4,7 +4,7 @@ import { Activity, Maximize2, Minus, Plus } from 'lucide-react'
 import type { PitchPreview, Report, Role } from '../../../apis/analysis/contracts'
 import { Button } from '../../../components/ui/Button'
 import { Panel } from '../../../components/ui/Panel'
-import { closest, duration, hasPlaybackMapping, lowestVisibleMidi, noteLabel, points, timeLabel, translate, type Point, type TimeRange } from '../functions/timeline'
+import { closest, duration, hasPlaybackMapping, hideShortPitchRuns, lowestVisibleMidi, noteLabel, pitchesConnect, points, timeLabel, translate, type Point, type TimeRange } from '../functions/timeline'
 import type { Playback } from '../hooks/usePlayback'
 
 const H = 280, R = 14, T = 20, B = 36
@@ -25,7 +25,7 @@ function pathOf(series: Point[], x: (value: number) => number, y: (value: number
     const midi = pitch(point)
     if (midi === null) { prior = null; return '' }
     const connects = (a: Point, b: Point, aMidi: number, bMidi: number | null) =>
-      bMidi !== null && b.x - a.x <= .10 && Math.abs(bMidi - aMidi) <= 5
+      bMidi !== null && pitchesConnect(aMidi, bMidi, b.x - a.x)
     const starts = prior === null || !connects(prior, point, pitch(prior)!, midi)
     const next = series[index + 1]
     prior = point
@@ -66,7 +66,10 @@ export function PitchPlot({ total, start, axis, first, second = emptyPoints, act
   const domain = total / zoom
   const min = Math.min(left, total-domain)
   const max = min + domain
-  const pitches = useMemo(() => [...first, ...second].flatMap(p => p.midi ?? p.guide ?? []), [first, second])
+  const firstVisible = useMemo(() => hideShortPitchRuns(first), [first])
+  const secondVisible = useMemo(() => hideShortPitchRuns(second), [second])
+  const pitches = useMemo(() => [...firstVisible, ...secondVisible].flatMap(p => p.midi ?? p.guide ?? []),
+    [firstVisible, secondVisible])
   const low = lowestVisibleMidi
   const high = pitches.length ? Math.max(low+6, Math.ceil((Math.max(...pitches)+1)/3)*3) : 72
   const interval = Math.max(3, Math.ceil((high-low)/21)*3)
@@ -76,12 +79,12 @@ export function PitchPlot({ total, start, axis, first, second = emptyPoints, act
   const paths = useMemo(() => {
     const plotX = (time: number) => L + (time-min)*width/domain
     const plotY = (midi: number) => T + (high-midi)*height/(high-low)
-    return [first, second].map(series => {
+    return [firstVisible, secondVisible].map(series => {
       const visible = series.filter(point => point.x >= min-.12 && point.x <= max+.12)
       return { solid: pathOf(visible, plotX, plotY), guide: visible.some(p => p.midi === null && (p.guide !== null || p.bridge !== undefined))
         ? pathOf(visible, plotX, plotY, true) : '' }
     })
-  }, [first, second, min, max, L, width, domain, high, low])
+  }, [firstVisible, secondVisible, min, max, L, width, domain, high, low])
   const selectionStart = selected?.[0]
   useEffect(() => {
     if (selectionStart === undefined || zoom <= 1) return
@@ -92,8 +95,8 @@ export function PitchPlot({ total, start, axis, first, second = emptyPoints, act
     })
   }, [selectionStart, total, domain, zoom])
   const plotId = `pitch-clip-${axis}`
-  const sampleA = hover === null ? undefined : closest(first, hover)
-  const sampleB = hover === null ? undefined : closest(second, hover)
+  const sampleA = hover === null ? undefined : closest(firstVisible, hover)
+  const sampleB = hover === null ? undefined : closest(secondVisible, hover)
 
   function resizeView(next: number) {
     const center = activeTime !== null && activeTime >= min && activeTime <= max ? activeTime : min + domain / 2

@@ -100,6 +100,44 @@ export function connectPitchGaps(series: Point[]): Point[] {
   return completed
 }
 
+export function pitchesConnect(a: number, b: number, interval: number) {
+  return interval <= .10 && Math.abs(a - b) <= 5
+}
+
+export function shortPitchFrames(pitches: readonly (number | null | undefined)[], step: number): Set<number> {
+  const hidden = new Set<number>()
+  let start = 0
+  while (start < pitches.length) {
+    const first = pitches[start]
+    if (first == null || first < lowestVisibleMidi) {
+      start++
+      continue
+    }
+    let end = start + 1
+    let previous = first
+    while (end < pitches.length) {
+      const next = pitches[end]
+      if (next == null || next < lowestVisibleMidi || !pitchesConnect(previous, next, step)) break
+      previous = next
+      end++
+    }
+    if ((end - start) * step < .05) {
+      for (let frame = start; frame < end; frame++) hidden.add(frame)
+    }
+    start = end
+  }
+  return hidden
+}
+
+export function hideShortPitchRuns(series: Point[]): Point[] {
+  if (series.length < 2) return []
+  const step = series[1].original - series[0].original
+  const hidden = shortPitchFrames(series.map(point => point.midi ?? point.guide ?? point.bridge), step)
+  return series.map((point, index) => hidden.has(index)
+    ? { ...point, midi: null, hz: null, guide: null, bridge: undefined }
+    : point)
+}
+
 export function closest<T extends { x: number }>(series: T[], x: number): T | undefined {
   if (x < (series[0]?.x ?? Infinity) - .04 || x > (series.at(-1)?.x ?? -Infinity) + .04) return undefined
   let start = 0

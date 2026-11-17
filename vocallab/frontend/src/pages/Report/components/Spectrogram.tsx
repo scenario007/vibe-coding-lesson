@@ -43,7 +43,7 @@ export function Spectrogram({ report, playback, preview }: { report: Report; pla
   const [view, setView] = useState<'fundamental' | 'full'>('fundamental')
   const [fullLimit, setFullLimit] = useState(2000)
   const maxHz = view === 'fundamental' ? 1200 : fullLimit
-  const [hover, setHover] = useState<{ x: number; y: number; height: number }>()
+  const [hover, setHover] = useState<{ x: number; y: number }>()
   const canvas = useRef<HTMLCanvasElement>(null)
   const result = useSpectrogram(new GetAnalyzedAudioAPI(report.analysisId, role, playback.kind).url(), start, end)
   const data = result.status === 'ready' ? result.spectrum : null
@@ -108,7 +108,7 @@ export function Spectrogram({ report, playback, preview }: { report: Report; pla
   function coordinates(event: PointerEvent<HTMLCanvasElement>) {
     const rect = event.currentTarget.getBoundingClientRect()
     return { x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
-      y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)), height: rect.height }
+      y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)) }
   }
   const location = hover && data ? {
     sample: Math.round(hover.x * (data.columns - 1)),
@@ -160,9 +160,11 @@ export function Spectrogram({ report, playback, preview }: { report: Report; pla
             playback.jump(start + (end - start) * (event.clientX - rect.left) / rect.width)
           }}/>
         <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 w-px bg-white/80" style={{ left: `${cursor}%` }}/>
-        {hover && location && hoveredFundamental && noteY !== null && Math.abs(hover.y - noteY) * hover.height <= 16 &&
-          <PitchNoteTooltip midi={69 + 12 * Math.log2(hoveredFundamental.hz / 440)}
-            x={location.sample / (data.columns - 1) * 100} y={noteY * 100}/>}
+        {view === 'fundamental' && hover && <div aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 border-l border-dashed border-white/60"
+          style={{ left: `${hover.x * 100}%` }}/>}
+        {hover && hoveredFundamental && noteY !== null &&
+          <PitchNoteTooltip notes={[{ midi: 69 + 12 * Math.log2(hoveredFundamental.hz / 440) }]} x={hover.x * 100} y={noteY * 100}/>}
       </div>
       <div className="col-start-2 mt-1.5 flex justify-between font-mono text-[11px] text-muted">
         <span>{timeLabel(originalStart + start)}</span><span>{timeLabel(originalStart + end)}</span>

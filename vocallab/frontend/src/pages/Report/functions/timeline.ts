@@ -138,16 +138,29 @@ export function hideShortPitchRuns(series: Point[]): Point[] {
     : point)
 }
 
-export function closest<T extends { x: number }>(series: T[], x: number): T | undefined {
-  if (x < (series[0]?.x ?? Infinity) - .04 || x > (series.at(-1)?.x ?? -Infinity) + .04) return undefined
-  let start = 0
-  let end = series.length - 1
-  while (end - start > 1) {
-    const mid = Math.floor((start + end) / 2)
-    if (series[mid].x >= x) end = mid
-    else start = mid
+export function visiblePitch(point: Point, guide = false): number | null {
+  const midi = guide ? point.midi ?? point.guide ?? point.bridge ?? null : point.midi
+  return midi !== null && midi >= lowestVisibleMidi ? midi : null
+}
+
+export function pitchAt(series: Point[], time: number, guide = false): number | null {
+  let left = 0
+  let right = series.length
+  while (left < right) {
+    const middle = Math.floor((left + right) / 2)
+    if (series[middle].x < time) left = middle + 1
+    else right = middle
   }
-  return Math.abs(series[start].x - x) <= Math.abs(series[end].x - x) ? series[start] : series[end]
+  const next = series[left]
+  if (!next) return null
+  const end = visiblePitch(next, guide)
+  if (end === null || next.x === time) return end
+  const previous = series[left - 1]
+  if (!previous) return null
+  const start = visiblePitch(previous, guide)
+  const gap = next.x - previous.x
+  if (start === null || !pitchesConnect(start, end, gap)) return null
+  return start + (end - start) * (time - previous.x) / gap
 }
 
 export function timeLabel(time: number) {

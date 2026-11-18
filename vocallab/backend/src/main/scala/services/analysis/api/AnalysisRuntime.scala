@@ -7,6 +7,7 @@ import fs2.Stream
 import java.nio.file.Files
 import scala.concurrent.duration.*
 import services.analysis.objects.{JobStatus, Stage}
+import services.analysis.tables.AlignmentWindowTable.AlignmentWindowTableInitializer
 import services.analysis.tables.AnalysisTable.{AnalysisTable, AnalysisTableInitializer}
 import services.analysis.tables.MediaTable.{MediaTable, MediaTableInitializer}
 import services.analysis.utils.{LocalFiles, PythonWorker}
@@ -18,7 +19,8 @@ object AnalysisRuntime:
     val prepare = IO.blocking {
       List("media", "analyses", "stems", "numba").foreach(name => Files.createDirectories(config.runData.resolve(name)))
     } *> db.use(connection => MediaTableInitializer.initialize(connection) *>
-      AnalysisTableInitializer.initialize(connection) *> AnalysisTable.recover(connection))
+      AnalysisTableInitializer.initialize(connection) *> AlignmentWindowTableInitializer.initialize(connection) *>
+      AnalysisTable.recover(connection))
 
     val processNext = db.use(AnalysisTable.claim).flatMap(_.traverse_ { job =>
       PythonWorker.run(db, job, config).attempt.flatMap {

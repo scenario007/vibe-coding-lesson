@@ -135,6 +135,7 @@ test('plays either or both aligned tracks and scrolls the tall pitch plot around
   await page.getByLabel('复听终点（秒）').press('Enter')
   await page.getByRole('button', { name: '用原唱选区检测' }).click()
   await expect(page.getByText(/自动检测到翻唱延迟.*原唱选区 0:00.50–0:04.50/)).toBeVisible()
+  await expect(page.getByTestId('pitch-alignment-summary')).toContainText('检测选区 0:00.50–0:04.50')
   await page.getByRole('button', { name: '循环选区' }).click()
   await seek(page, 4.4)
   await page.getByRole('button', { name: '播放', exact: true }).click()

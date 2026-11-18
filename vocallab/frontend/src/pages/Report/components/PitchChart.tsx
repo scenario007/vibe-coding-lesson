@@ -4,7 +4,7 @@ import type { PitchPreview, Report, Role } from '../../../apis/analysis/contract
 import { Panel } from '../../../components/ui/Panel'
 import { parseLrc } from '../../lyrics/lrc'
 import { useLyrics } from '../../lyrics/useLyrics'
-import { hasPlaybackMapping, points, type TimeRange } from '../functions/timeline'
+import { hasPlaybackMapping, points, timeLabel, type TimeRange } from '../functions/timeline'
 import type { Playback } from '../hooks/usePlayback'
 import { PitchPlot, type LyricCue } from './PitchPlot'
 import { PitchTransport } from './PitchTransport'
@@ -65,7 +65,12 @@ export function PitchChart({ report, playback, preview }: { report: Report; play
       </label>}
     </div>
     <PitchTransport report={report} playback={playback}/>
-    {!mapped && <p className="mb-3 text-xs text-muted">暂无时间对齐结果。两轨同时播放时使用各自的选段起点。</p>}
+    {mapped ? <p className="mb-3 text-xs text-muted" data-testid="pitch-alignment-summary">
+      {report.alignment.method === 'manual' ? '手动偏移' : '自动偏移'} {report.alignment.offset > 0 ? '+' : ''}{report.alignment.offset.toFixed(2)} 秒
+      {report.alignment.automatic?.referenceRange ? ` · 检测选区 ${report.alignment.automatic.referenceRange.map(at => timeLabel(origin + at)).join('–')}` :
+        report.alignment.automatic ? ' · 整段检测' : ''}
+      {!report.alignment.reliable && ' · 低可信度'}
+    </p> : <p className="mb-3 text-xs text-muted">暂无时间对齐结果。两轨同时播放时使用各自的选段起点。</p>}
     <ReportPlot report={report} playback={playback} axis="reference" overlay={mapped} quick={quick} preview={preview} lyrics={cues}/>
     {!mapped && <div className="mt-4">
       <ReportPlot report={report} playback={playback} axis="user" overlay={false} quick={quick} preview={preview}/>

@@ -12,7 +12,8 @@ final case class WorkerManifest(
   clips: TrackPair[TrackSettings],
   referenceMetadata: MediaMetadata,
   userMetadata: MediaMetadata,
-  manualOffset: Option[Double]
+  manualOffset: Option[Double],
+  alignmentReferenceRange: Option[(Double, Double)] = None
 )
 
 object WorkerManifest:

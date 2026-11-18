@@ -54,7 +54,8 @@ def analyze(manifest, progress):
                   separation=separation, pitchTracks={role: pitch[role].serializable(settings[role]["start"]) for role in ROLES})
     warnings = [f"{'原唱' if role == 'reference' else '我的演唱'} · {warning}"
                 for role in ROLES for warning in pitch[role].warnings + separation[role]["warnings"]]
-    return update_comparison(report, workspace, pitch, warnings, manifest.get("manualOffset"), None, None, progress, harmonic)
+    return update_comparison(report, workspace, pitch, warnings, manifest.get("manualOffset"),
+                             manifest.get("alignmentReferenceRange"), None, progress, harmonic)
 
 
 def realign(report, workspace, manual, reference_range, progress):

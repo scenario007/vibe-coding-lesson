@@ -19,7 +19,10 @@ export const limits = z.object({
 })
 export const separationMode = z.enum(['fast', 'precise'])
 export const clipSelection = z.object({ mediaId: id, start: seconds, end: seconds, separate: z.boolean(), separationMode: separationMode.nullish() })
-export const selection = z.object({ reference: clipSelection, user: clipSelection, manualOffset: z.number().nullable() })
+export const selection = z.object({
+  reference: clipSelection, user: clipSelection, manualOffset: z.number().nullable(),
+  alignmentReferenceRange: z.tuple([seconds, seconds]).nullish(),
+})
 export const job = z.object({ analysisId: id, status: jobStatus, stage, error: z.string().nullable(),
   selection, createdAt: z.string() })
 const track = z.object({

@@ -192,6 +192,34 @@ class Backend(unittest.TestCase):
         self.assertEqual(selected["alignment"], call("getanalysisresultapi", {"analysisId": id})[1]["alignment"])
         self.assertEqual((selected["pitchScore"]["start"], selected["pitchScore"]["end"]), (.8, 4.8))
 
+        shorter = {**clip, "user": {**clip["user"], "end": 5.75}}
+        status, reopened, _ = call("createanalysisapi", shorter)
+        self.assertEqual(status, 200, reopened)
+        self.assertEqual(reopened["selection"]["alignmentReferenceRange"], [.5, 4.5])
+        reopened_id = reopened["analysisId"]
+        self.assertEqual(wait_for(reopened_id)[0]["status"], "completed")
+        rebuilt = call("getanalysisresultapi", {"analysisId": reopened_id})[1]
+        self.assertAlmostEqual(rebuilt["alignment"]["offsetSeconds"], .85, delta=.035)
+        self.assertEqual(rebuilt["alignment"]["automatic"]["referenceRange"], [.5, 4.5])
+        self.assertEqual((rebuilt["pitchScore"]["start"], rebuilt["pitchScore"]["end"]), (.8, 4.8))
+
+        for altered in (
+            {**clip, "user": {**clip["user"], "start": .55}},
+            {**clip, "user": {**clip["user"], "end": 4.45}},
+        ):
+            status, other, _ = call("createanalysisapi", altered)
+            self.assertEqual(status, 200, other)
+            self.assertIsNone(other["selection"]["alignmentReferenceRange"])
+            self.assertEqual(wait_for(other["analysisId"])[0]["status"], "completed")
+
+        status, full, _ = call("adjustalignmentapi", {"analysisId": reopened_id, "manualOffset": None})
+        self.assertEqual(status, 200, full)
+        self.assertIsNone(full["alignment"]["automatic"]["referenceRange"])
+        status, later, _ = call("createanalysisapi", shorter)
+        self.assertEqual(status, 200, later)
+        self.assertIsNone(later["selection"]["alignmentReferenceRange"])
+        self.assertEqual(wait_for(later["analysisId"])[0]["status"], "completed")
+
     @unittest.skipUnless(os.getenv("VOCALLAB_PHONE_FIXTURE"), "Optional original phone video")
     def test_original_phone_video(self):
         recording = Path(os.environ["VOCALLAB_PHONE_FIXTURE"])

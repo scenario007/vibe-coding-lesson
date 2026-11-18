@@ -6,7 +6,8 @@ import io.circe.generic.semiauto.*
 final case class AnalysisSelection(
   reference: ClipSelection,
   user: ClipSelection,
-  manualOffset: Option[Double]
+  manualOffset: Option[Double],
+  alignmentReferenceRange: Option[(Double, Double)] = None
 )
 
 object AnalysisSelection:

@@ -91,6 +91,7 @@ export function AlignmentPanel({ report, playback, adjust, adjusting, error }: {
         onClick={() => adjust(null)}>用整段自动检测</Button>}
       <Button disabled={adjusting || !referenceRange} onClick={() => adjust(null, referenceRange)}>用原唱选区检测</Button>
     </div>
+    {range && automatic?.reliable && <p className="mt-2 text-xs text-muted">同一对音轨从相同起点重新分析时，会优先在这个选区自动检测。</p>}
     {adjusting && <p role="status" className="mt-2 text-xs text-muted">正在更新对齐…</p>}
     {error && <p role="alert" className="mt-2 text-sm text-danger">{error}</p>}
     <details className="mt-4 border-t border-line pt-3">

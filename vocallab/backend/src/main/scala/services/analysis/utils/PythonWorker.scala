@@ -35,7 +35,7 @@ private[analysis] object PythonWorker:
       b <- prepare(Role.user, job.selection.user, user)
       manifest = WorkerManifest(job.analysisId, workspace.toString, config.models.toString,
         config.runData.resolve("stems").toString, TrackPair(a, b), reference.metadata, user.metadata,
-        job.selection.manualOffset)
+        job.selection.manualOffset, job.selection.alignmentReferenceRange)
       request = workspace.resolve("worker.json")
       result = workspace.resolve("result.json")
       _ <- IO.blocking(Files.writeString(request, manifest.asJson.noSpaces))

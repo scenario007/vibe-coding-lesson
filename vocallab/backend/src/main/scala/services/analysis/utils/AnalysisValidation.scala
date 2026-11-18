@@ -32,12 +32,14 @@ private[analysis] object AnalysisValidation:
     val userDuration = selection.user.end - selection.user.start
     val offsetFits = manual.forall(value => value.isFinite &&
       math.min(referenceDuration, userDuration - value) - math.max(0.0, -value) >= 0.1 - 1e-9)
-    val rangeFits = referenceRange.forall { (start, stop) =>
-      manual.isEmpty && start.isFinite && stop.isFinite && start >= 0 && stop - start >= 1.0 &&
-        stop <= math.min(referenceDuration, userDuration) + 1e-9
-    }
+    val rangeFits = referenceRange.forall(range => manual.isEmpty && referenceRangeFits(selection, range))
     IO.raiseUnless(offsetFits)(ApiError(Status.BadRequest, "该偏移会让两条音轨失去重叠，请选择各轨内的对应位置。")) *>
       IO.raiseUnless(rangeFits)(ApiError(Status.BadRequest, "对齐选区须在两轨片段范围内，且至少 1 秒。"))
+
+  def referenceRangeFits(selection: AnalysisSelection, range: (Double, Double)): Boolean =
+    val (start, stop) = range
+    val limit = math.min(selection.reference.end - selection.reference.start, selection.user.end - selection.user.start)
+    start.isFinite && stop.isFinite && start >= 0 && stop - start >= 1.0 && stop <= limit + 1e-9
 
   def report(report: AnalysisReport, job: AnalysisJob): IO[AnalysisReport] =
     def ratio(value: Double): Boolean = value.isFinite && value >= 0 && value <= 1

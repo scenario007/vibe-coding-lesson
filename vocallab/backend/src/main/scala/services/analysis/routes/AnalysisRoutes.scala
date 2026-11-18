@@ -25,8 +25,7 @@ object AnalysisRoutes:
       json(db, (input: AnalysisIdRequest) => GetAnalysisAPIMessage(input.analysisId)) <+>
       json(db, (input: AnalysisIdRequest) => GetAnalysisResultAPIMessage(input.analysisId, config)) <+>
       json(db, (input: AnalysisIdRequest) => GetPitchPreviewAPIMessage(input.analysisId, config)) <+>
-      json(db, (input: AdjustAlignmentRequest) => AdjustAlignmentAPIMessage(input, config)) <+>
-      json(db, (input: AnalysisIdRequest) => ScorePitchAPIMessage(input.analysisId, config))
+      json(db, (input: AdjustAlignmentRequest) => AdjustAlignmentAPIMessage(input, config))
 
     val commands = HttpRoutes.of[IO] {
       case GET -> Root / "api" / operation if operation == name[GetMediaLimitsAPIMessage] =>
@@ -61,7 +60,7 @@ object AnalysisRoutes:
     }
     commands <+> HttpRoutes[IO] { request =>
       val mutating = request.uri.path.segments.lastOption.map(_.decoded()).exists(Set(
-        name[CreateAnalysisAPIMessage], name[AdjustAlignmentAPIMessage], name[ScorePitchAPIMessage]))
+        name[CreateAnalysisAPIMessage], name[AdjustAlignmentAPIMessage]))
       if mutating then cats.data.OptionT(queue.permit.use(_ => messages(request).value))
       else messages(request)
     }

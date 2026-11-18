@@ -183,4 +183,4 @@ def test_default_alignment_uses_opening_even_when_the_later_offset_is_different(
     assert automatic["openingWindow"] and automatic["reliable"]
     assert automatic["offsetSeconds"] == pytest.approx(.5, abs=.025)
     assert result["alignment"]["timeMapping"][-1][0] > 60
-    assert (result["pitchScore"]["start"], result["pitchScore"]["end"]) == (8.0, 75.0)
+    assert "pitchScore" not in result

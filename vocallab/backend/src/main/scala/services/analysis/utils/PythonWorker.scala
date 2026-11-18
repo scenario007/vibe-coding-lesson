@@ -62,9 +62,6 @@ private[analysis] object PythonWorker:
       input.referenceRange.toList.flatMap((start, end) => List("--reference-range", start.toString, end.toString))
     rewrite(job, config, "realign", options, "重新对齐失败，请检查两条音轨。")
 
-  def score(job: AnalysisJob, config: AppConfig): IO[AnalysisReport] =
-    rewrite(job, config, "score", Nil, "评分未完成。两条原始分析音轨需要仍在本机。")
-
   private def rewrite(job: AnalysisJob, config: AppConfig, command: String, options: List[String],
                       failure: String): IO[AnalysisReport] =
     val workspace = LocalFiles.analysis(config, job.analysisId)

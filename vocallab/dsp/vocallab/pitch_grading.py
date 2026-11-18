@@ -1,11 +1,13 @@
 """Phrase and note scores derived exclusively from harmonic pitch evidence."""
+import json
 from dataclasses import dataclass
 from time import perf_counter
 
 import numpy as np
 from scipy.ndimage import maximum_filter1d, median_filter
 
-from .harmonic_pitch import OCTAVE_UNCERTAIN, QUIET, RELIABLE, HarmonicPitch
+from .harmonic_pitch import OCTAVE_UNCERTAIN, QUIET, RELIABLE, HarmonicPitch, extract
+from .report import ROLES, save_preview
 from .segments import runs
 
 
@@ -187,3 +189,26 @@ def grade(reference: HarmonicPitch, user: HarmonicPitch, preprocessing: dict, al
                 pairedFrames=sum(n.paired for n in all_notes), scoredPhrases=scored_phrases,
                 pendingPhrases=undecidable_phrases, phrases=phrase_scores,
                 elapsedMilliseconds=round((perf_counter() - started) * 1000, 2))
+
+
+def score_report(report, workspace):
+    started = perf_counter()
+    harmonic = {}
+    for role in ROLES:
+        folder = workspace / role
+        cache = folder / "pitch-preview.json"
+        if cache.is_file():
+            data = json.loads(cache.read_text())
+            if len(data.get("frameQuality") or ()) == len(data["midiPitch"]) == len(data.get("activity") or ()):
+                harmonic[role] = HarmonicPitch.from_cache(data)
+                continue
+        path = folder / (report["separation"][role].get("inputTrack", "original") + ".wav")
+        if not path.is_file():
+            return report
+        harmonic[role] = extract(path)
+        save_preview(folder, harmonic[role])
+    evidence_ms = (perf_counter() - started) * 1000
+    score = grade(harmonic["reference"], harmonic["user"], report["preprocessing"], report["alignment"])
+    score["evidenceMilliseconds"] = round(evidence_ms, 2)
+    print(f"PITCH SCORE evidence={evidence_ms:.2f} ms grading={score['elapsedMilliseconds']:.2f} ms", flush=True)
+    return dict(report, pitchScore=score)

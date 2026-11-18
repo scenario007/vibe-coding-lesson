@@ -17,8 +17,7 @@ final case class AnalysisReport(
   segments: Vector[Segment],
   phrases: Vector[Phrase],
   warnings: Vector[String],
-  confidence: Double,
-  pitchScore: Option[PitchScore]
+  confidence: Double
 )
 
 object AnalysisReport:

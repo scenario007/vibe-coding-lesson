@@ -4,12 +4,10 @@ import type { PitchPreview, Report as AnalysisReport, Stage } from '../../apis/a
 import { Button } from '../../components/ui/Button'
 import { Panel } from '../../components/ui/Panel'
 import { AlignmentPanel } from './components/AlignmentPanel'
-import { Overview } from './components/Overview'
 import { PitchChart } from './components/PitchChart'
 import { PitchPreviewPanel } from './components/PitchPreviewPanel'
 import { Spectrogram } from './components/Spectrogram'
 import { Segments } from './components/Segments'
-import { WaveformComparison } from './components/WaveformComparison'
 import type { TimeRange } from './functions/timeline'
 import { usePlayback } from './hooks/usePlayback'
 import { useReport } from './hooks/useReport'
@@ -21,9 +19,8 @@ const stages: Record<Stage, string> = {
   completed: '分析完成', failed: '分析失败',
 }
 
-function AnalysisResult({ report, preview, adjust, adjusting, error, scoring, scoreError, scorePitch }: {
+function AnalysisResult({ report, preview, adjust, adjusting, error }: {
   report: AnalysisReport; preview: PitchPreview; adjust: (offset: number | null, range?: TimeRange) => void; adjusting: boolean; error: string;
-  scoring: boolean; scoreError: string; scorePitch: () => void;
 }) {
   const playback = usePlayback(report)
   return <div className="grid gap-4">
@@ -36,8 +33,10 @@ function AnalysisResult({ report, preview, adjust, adjusting, error, scoring, sc
       </div>
       <Link to="/" className="flex items-center gap-1.5 rounded-lg border border-line bg-panel px-3.5 py-2.5 text-sm font-semibold hover:bg-raised">编辑分析 <ArrowUpRight size={15}/></Link>
     </header>
-    <Overview report={report} playback={playback} scorePitch={scorePitch} scoring={scoring} disabled={adjusting} error={scoreError}/>
-    <WaveformComparison report={report} playback={playback}/>
+    {report.warnings.length > 0 && <details className="rounded-xl border border-line bg-panel px-4 py-3">
+      <summary className="cursor-pointer text-xs font-semibold text-muted"><CircleAlert size={14} className="mr-2 inline text-accent"/>录音与分析提示</summary>
+      <ul className="mt-2 space-y-1 text-xs leading-5 text-muted">{report.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul>
+    </details>}
     <PitchChart report={report} playback={playback} preview={preview}/>
     <Spectrogram report={report} playback={playback} preview={preview}/>
     <div className="grid items-start gap-4 lg:grid-cols-[1.35fr_1fr]">
@@ -46,16 +45,16 @@ function AnalysisResult({ report, preview, adjust, adjusting, error, scoring, sc
         <Segments report={report} playback={playback}/>
       </details>
       <AlignmentPanel key={JSON.stringify([report.alignment.method, report.alignment.offset, report.alignment.automatic?.referenceRange, report.alignment.automatic?.openingWindow])}
-        report={report} playback={playback} adjusting={adjusting || scoring} adjust={adjust} error={error}/>
+        report={report} playback={playback} adjusting={adjusting} adjust={adjust} error={error}/>
     </div>
   </div>
 }
 
 export default function Report() {
   const { id = '' } = useParams()
-  const { view, adjusting, error, adjust, scoring, scoreError, scorePitch, refresh } = useReport(id)
+  const { view, adjusting, error, adjust, refresh } = useReport(id)
   if (view.status === 'ready') return <AnalysisResult key={id} report={view.report} preview={view.preview} adjusting={adjusting}
-    adjust={(offset, range) => void adjust(offset, range)} error={error} scoring={scoring} scoreError={scoreError} scorePitch={() => void scorePitch()}/>
+    adjust={(offset, range) => void adjust(offset, range)} error={error}/>
   const failed = view.status === 'failed' || view.status === 'error'
   const detail = view.status === 'failed' ? view.job.error : view.status === 'error' ? view.message : null
   return <div className="mx-auto max-w-2xl">

@@ -3,7 +3,7 @@ import json
 import traceback
 from pathlib import Path
 
-from .report import analyze, realign, score_report
+from .report import analyze, realign
 
 
 def main():
@@ -37,6 +37,8 @@ def main():
             result = realign(json.loads(options.report.read_text()), options.report.parent,
                              options.manual, options.reference_range, progress)
         elif options.command == "score":
+            from .pitch_grading import score_report
+
             result = score_report(json.loads(options.report.read_text()), options.report.parent)
             if not result.get("pitchScore"):
                 raise ValueError("Cached audio for scoring is unavailable.")

@@ -82,31 +82,12 @@ const phrase = z.object({
   frames: z.number().int().nonnegative(), continuity: fraction, driftCents: z.number().nullable(),
   medianCents: z.number().nullable(), hitRate: fraction.nullable(),
 })
-const pitchScoreStatus = z.enum(['scored', 'missed', 'insufficient', 'alignment'])
-const scorePoints = z.number().min(0).max(100)
-const count = z.number().int().nonnegative()
-const pitchScoreNote = z.object({
-  start: seconds, end: seconds, status: pitchScoreStatus, referenceMidi: z.number().min(36).max(84),
-  score: scorePoints.nullable(), deviationCents: z.number().nullable(),
-})
-const pitchScorePhrase = z.object({
-  start: seconds, end: seconds, status: pitchScoreStatus, score: scorePoints.nullable(),
-  totalNotes: count, scoredNotes: count, missedNotes: count, pairedFrames: count, octaveUncertainFrames: count,
-  deviationCents: z.number().nullable(), driftCents: z.number().nullable(), timingMilliseconds: z.number().int().nullable(),
-  notes: z.array(pitchScoreNote),
-})
-const pitchScore = z.object({
-  version: z.literal(1), start: seconds, end: seconds, status: pitchScoreStatus, score: scorePoints.nullable(),
-  coverage: fraction, totalNotes: count, scoredNotes: count, missedNotes: count, pairedFrames: count,
-  scoredPhrases: count, pendingPhrases: count, phrases: z.array(pitchScorePhrase),
-  elapsedMilliseconds: seconds, evidenceMilliseconds: seconds,
-})
 export const report = z.object({
   analysisId: id, status: z.literal('completed'), referenceMetadata: media, userMetadata: media,
   preprocessing: z.object({ sampleRate: z.number().int().positive(), method: z.string(), referenceStart: seconds,
     userStart: seconds, referenceDuration: seconds, userDuration: seconds }),
   separation: pair(separation), alignment, pitchTracks: pair(track),
-  metrics: z.array(metric), segments: z.array(segment), phrases: z.array(phrase), pitchScore: pitchScore.nullish(),
+  metrics: z.array(metric), segments: z.array(segment), phrases: z.array(phrase),
   warnings: z.array(z.string()), confidence: fraction,
 })
 

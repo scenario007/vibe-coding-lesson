@@ -109,7 +109,7 @@ class Backend(unittest.TestCase):
         self.assertEqual(report["preprocessing"]["referenceDuration"], maximum)
         self.assertTrue(report["alignment"]["automatic"]["openingWindow"])
         self.assertEqual(report["alignment"]["automatic"]["referenceRange"], [0.0, 30.0])
-        self.assertEqual((report["pitchScore"]["start"], report["pitchScore"]["end"]), (2.0, maximum + 2))
+        self.assertNotIn("pitchScore", report)
         pitch = report["pitchTracks"]["reference"]
         self.assertGreater(len(pitch["timestamps"]), maximum * 49)
         self.assertGreater(sum(value is not None for value in pitch["guideMidiPitch"]), maximum * 40)
@@ -161,12 +161,8 @@ class Backend(unittest.TestCase):
         self.assertTrue(result["alignment"]["automatic"]["openingWindow"])
         self.assertEqual(result["alignment"]["automatic"]["referenceRange"], [0.0, 5.0])
         self.assertGreater(next(m["value"] for m in result["metrics"] if m["name"] == "pitchHitRate"), .82)
-        fast = result["pitchScore"]
-        self.assertEqual(fast["status"], "scored", fast)
-        self.assertGreater(fast["score"], 92)
-        self.assertAlmostEqual(fast["start"], .30, places=3)
-        self.assertAlmostEqual(fast["end"], 5.30, places=3)
-        self.assertEqual(call("scorepitchapi", {"analysisId": id})[1]["pitchScore"], fast)
+        self.assertNotIn("pitchScore", result)
+        self.assertEqual(call("scorepitchapi", {"analysisId": id})[0], 404)
         for role, expected in [("reference", 5), ("user", 6)]:
             status, audio, _ = fetch(f"getanalyzedaudioapi/{id}/{role}/original")
             self.assertEqual(status, 200)
@@ -189,13 +185,13 @@ class Backend(unittest.TestCase):
         self.assertEqual(adjusted["pitchTracks"], result["pitchTracks"])
         self.assertEqual(adjusted["alignment"]["automatic"], result["alignment"]["automatic"])
         self.assertNotEqual(adjusted["metrics"], result["metrics"])
-        self.assertNotEqual(adjusted["pitchScore"]["score"], fast["score"])
+        self.assertNotIn("pitchScore", adjusted)
         status, selected, _ = call("adjustalignmentapi", {"analysisId": id, "manualOffset": None, "referenceRange": [.5, 4.5]})
         self.assertEqual(status, 200, selected)
         self.assertEqual(selected["alignment"]["automatic"]["referenceRange"], [.5, 4.5])
         self.assertAlmostEqual(selected["alignment"]["offsetSeconds"], .85, delta=.035)
         self.assertEqual(selected["alignment"], call("getanalysisresultapi", {"analysisId": id})[1]["alignment"])
-        self.assertEqual((selected["pitchScore"]["start"], selected["pitchScore"]["end"]), (.8, 4.8))
+        self.assertNotIn("pitchScore", selected)
 
         shorter = {**clip, "user": {**clip["user"], "end": 5.75}}
         status, reopened, _ = call("createanalysisapi", shorter)
@@ -206,7 +202,7 @@ class Backend(unittest.TestCase):
         rebuilt = call("getanalysisresultapi", {"analysisId": reopened_id})[1]
         self.assertAlmostEqual(rebuilt["alignment"]["offsetSeconds"], .85, delta=.035)
         self.assertEqual(rebuilt["alignment"]["automatic"]["referenceRange"], [.5, 4.5])
-        self.assertEqual((rebuilt["pitchScore"]["start"], rebuilt["pitchScore"]["end"]), (.8, 4.8))
+        self.assertNotIn("pitchScore", rebuilt)
 
         for altered in (
             {**clip, "user": {**clip["user"], "start": .55}},

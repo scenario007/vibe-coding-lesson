@@ -1,215 +1,36 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { PointerEvent } from 'react'
-import { Activity, Maximize2, Minus, Plus } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Activity } from 'lucide-react'
 import type { PitchPreview, Report, Role } from '../../../apis/analysis/contracts'
-import { Button } from '../../../components/ui/Button'
 import { Panel } from '../../../components/ui/Panel'
-import { duration, hasPlaybackMapping, hideShortPitchRuns, lowestVisibleMidi, noteLabel, pitchAt, pitchesConnect, points, timeLabel, translate, visiblePitch, type Point, type TimeRange } from '../functions/timeline'
+import { parseLrc } from '../../lyrics/lrc'
+import { useLyrics } from '../../lyrics/useLyrics'
+import { hasPlaybackMapping, points, type TimeRange } from '../functions/timeline'
 import type { Playback } from '../hooks/usePlayback'
-import { PitchNoteTooltip } from './PitchNoteTooltip'
+import { PitchPlot, type LyricCue } from './PitchPlot'
+import { PitchTransport } from './PitchTransport'
+import { ReportLyrics } from './ReportLyrics'
 
-const H = 280, R = 14, T = 20, B = 36
-const height = H-T-B
-const referenceColor = '#c1b2ff'
-const userColor = '#87e0c8'
-const maxZoom = 16
-const emptyPoints: Point[] = []
-const emptyAnnotations: TimeRange[] = []
-
-function pathOf(series: Point[], x: (value: number) => number, y: (value: number) => number, guide = false) {
-  let prior: Point | null = null
-  const pitch = (point: Point) => visiblePitch(point, guide)
-  return series.map((point, index) => {
-    const midi = pitch(point)
-    if (midi === null) { prior = null; return '' }
-    const connects = (a: Point, b: Point, aMidi: number, bMidi: number | null) =>
-      bMidi !== null && pitchesConnect(aMidi, bMidi, b.x - a.x)
-    const starts = prior === null || !connects(prior, point, pitch(prior)!, midi)
-    const next = series[index + 1]
-    prior = point
-    const coordinate = `${x(point.x).toFixed(1)},${y(midi).toFixed(1)}`
-    const isolated = starts && (!next || !connects(point, next, midi, pitch(next)))
-    return `${starts ? 'M' : 'L'}${coordinate}${isolated ? 'L' + coordinate : ''}`
-  }).join('')
-}
-
-function pitchReadout(midi: number | null, hasGuide: boolean) {
-  if (midi === null) return hasGuide ? '估计音高' : '音高不可用'
-  const hz = 440 * 2 ** ((midi - 69) / 12)
-  return `${noteLabel(midi)} · ${hz.toFixed(1)} Hz`
-}
-
-export function PitchPlot({ total, start, axis, first, second = emptyPoints, activeTime, selected,
-  annotations = emptyAnnotations, position, harmonic = false }: {
-  total: number; start: number; axis: Role; first: Point[]; second?: Point[]; activeTime: number | null
-  selected?: TimeRange | null; annotations?: TimeRange[]; position: (time: number) => void; harmonic?: boolean
-}) {
-  const overlay = second !== emptyPoints
-  const chart = useRef<HTMLDivElement>(null)
-  const [W, setWidth] = useState(1000)
-  const L = W < 460 ? 38 : 54
-  const width = W-L-R
-  const horizontalTicks = W < 460 ? 4 : 6
-  useEffect(() => {
-    const element = chart.current
-    if (!element) return
-    const observer = new ResizeObserver(([entry]) => setWidth(Math.max(220, Math.floor(entry.contentRect.width))))
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
-  const [zoom, setZoom] = useState(1)
-  const [left, setLeft] = useState(0)
-  const [hover, setHover] = useState<number | null>(null)
-  const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null)
-  const domain = total / zoom
-  const min = Math.min(left, total-domain)
-  const max = min + domain
-  const firstVisible = useMemo(() => hideShortPitchRuns(first), [first])
-  const secondVisible = useMemo(() => hideShortPitchRuns(second), [second])
-  const pitches = useMemo(() => [...firstVisible, ...secondVisible].flatMap(p => p.midi ?? p.guide ?? []),
-    [firstVisible, secondVisible])
-  const low = lowestVisibleMidi
-  const high = pitches.length ? Math.max(low+6, Math.ceil((Math.max(...pitches)+1)/3)*3) : 72
-  const interval = Math.max(3, Math.ceil((high-low)/21)*3)
-  const ticks = Array.from({ length: Math.floor((high-low)/interval)+1 }, (_, i) => low + i*interval)
-  const x = (time: number) => L + (time-min)*width/domain
-  const y = (midi: number) => T + (high-midi)*height/(high-low)
-  const paths = useMemo(() => {
-    const plotX = (time: number) => L + (time-min)*width/domain
-    const plotY = (midi: number) => T + (high-midi)*height/(high-low)
-    return [firstVisible, secondVisible].map(series => {
-      const visible = series.filter(point => point.x >= min-.12 && point.x <= max+.12)
-      return { solid: pathOf(visible, plotX, plotY), guide: visible.some(p => p.midi === null && (p.guide !== null || p.bridge !== undefined))
-        ? pathOf(visible, plotX, plotY, true) : '' }
-    })
-  }, [firstVisible, secondVisible, min, max, L, width, domain, high, low])
-  const selectionStart = selected?.[0]
-  useEffect(() => {
-    if (selectionStart === undefined || zoom <= 1) return
-    setLeft(previous => {
-      const visible = Math.min(previous, total-domain)
-      return selectionStart >= visible && selectionStart <= visible + domain ?
-        previous : Math.max(0, Math.min(total-domain, selectionStart-domain*.18))
-    })
-  }, [selectionStart, total, domain, zoom])
-  const plotId = `pitch-clip-${axis}`
-  const hoverTime = hover === null ? null : min + hover * domain
-  const hoverX = hoverTime === null ? null : x(hoverTime)
-  const pitchA = hoverTime === null ? null : pitchAt(firstVisible, hoverTime)
-  const pitchB = hoverTime === null ? null : pitchAt(secondVisible, hoverTime)
-  const colorA = axis === 'reference' ? referenceColor : userColor
-  const hoveredNotes = [
-    ...(pitchA === null ? [] : [{ midi: pitchA, color: colorA }]),
-    ...(pitchB === null ? [] : [{ midi: pitchB, color: userColor }]),
-  ]
-  const groupNotes = pitchA !== null && pitchB !== null && Math.abs(y(pitchA) - y(pitchB)) < 35
-
-  function resizeView(next: number) {
-    const center = activeTime !== null && activeTime >= min && activeTime <= max ? activeTime : min + domain / 2
-    const newWidth = total / next
-    setHover(null)
-    setZoom(next)
-    setLeft(next === 1 ? 0 : Math.max(0, Math.min(total-newWidth, center-newWidth/2)))
-  }
-
-  function coordinate(event: PointerEvent<SVGSVGElement>, rect = event.currentTarget.getBoundingClientRect()) {
-    return Math.max(0, Math.min(1, ((event.clientX-rect.left) / rect.width * W - L)/width))
-  }
-
-  return <div className="min-w-0">
-    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-      <span className="text-xs text-muted">{axis === 'reference' ? '原唱文件时间' : '我的演唱文件时间'}</span>
-      <div className="flex gap-1.5">
-        <Button aria-label="缩小曲线" className="min-h-8 px-2" disabled={zoom===1} onClick={() => resizeView(Math.max(1, zoom/2))}><Minus size={15}/></Button>
-        <Button aria-label="放大曲线" className="min-h-8 px-2" disabled={zoom===maxZoom} onClick={() => resizeView(Math.min(maxZoom, zoom*2))}><Plus size={15}/></Button>
-        <Button aria-label="曲线重置" className="min-h-8 px-2" disabled={zoom===1} onClick={() => resizeView(1)}><Maximize2 size={14}/></Button>
-      </div>
-    </div>
-    <div ref={chart} className="relative rounded-xl border border-line bg-[#12151c]">
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className={`h-[245px] w-full rounded-[inherit] sm:h-[300px] ${zoom>1 ? 'touch-pan-y cursor-grab' : 'cursor-crosshair'}`}
-        role="img" aria-label={overlay ? '原唱与我的演唱对齐音高曲线' : '独立音高曲线'}
-        onPointerDown={e => {
-          if (e.button !== 0) return
-          drag.current = { x: coordinate(e), left: min, moved: false }
-          e.currentTarget.setPointerCapture(e.pointerId)
-        }}
-        onPointerMove={e => {
-          const rect = e.currentTarget.getBoundingClientRect()
-          const f = coordinate(e, rect)
-          if (drag.current && zoom > 1 && (drag.current.moved || Math.abs(drag.current.x-f) > .015)) {
-            setLeft(Math.max(0, Math.min(total-domain, drag.current.left + (drag.current.x-f)*domain)))
-            drag.current.moved = true
-            setHover(null)
-          } else {
-            const plotX = (e.clientX-rect.left) / rect.width * W
-            const plotY = (e.clientY-rect.top) / rect.height * H
-            setHover(plotX >= L && plotX <= W-R && plotY >= T && plotY <= H-B ? f : null)
-          }
-        }}
-        onPointerLeave={() => setHover(null)}
-        onPointerUp={e => {
-          if (drag.current && !drag.current.moved) position(min + coordinate(e)*domain)
-          drag.current = null
-        }}
-        onPointerCancel={() => { drag.current = null; setHover(null) }}>
-        <defs><clipPath id={plotId}><rect x={L} y={T} width={width} height={height}/></clipPath></defs>
-        {ticks.map(tick => <g key={tick}>
-          <line x1={L} x2={W-R} y1={y(tick)} y2={y(tick)} stroke="#2b3040" strokeDasharray="3 4"/>
-          <text x={L-8} y={y(tick)+4} textAnchor="end" fill="#969bb0" fontSize={12}>{noteLabel(tick)}</text>
-        </g>)}
-        {Array.from({ length: horizontalTicks }, (_, i) => min + i*domain/(horizontalTicks-1)).map((time, i) => <g key={i}>
-          <line x1={x(time)} x2={x(time)} y1={T} y2={H-B} stroke="#282d3a"/>
-          <text x={x(time)} y={H-12} textAnchor={i===horizontalTicks-1 ? 'end' : i===0 ? 'start' : 'middle'} fill="#a5a9ba" fontSize={12}>{timeLabel(start+time)}</text>
-        </g>)}
-        <g clipPath={`url(#${plotId})`}>
-          {annotations.map(([a, b], index) => <rect key={index} x={x(a-start)} y={T} width={Math.max(1, x(b-start)-x(a-start))}
-            height={height} fill="#ffab87" opacity={.12}/>)}
-          {selected && <rect x={x(selected[0])} y={T} width={x(selected[1])-x(selected[0])} height={height} fill={referenceColor} opacity={.13}/>}
-          {paths.map((path, index) => <path key={index} d={path.guide} fill="none" opacity={.55}
-            stroke={index === 0 && axis === 'reference' ? referenceColor : userColor} strokeWidth={1.2}
-            strokeDasharray="3 3" strokeLinecap="round" vectorEffect="non-scaling-stroke"/>)}
-          <path data-testid={harmonic ? `harmonic-curve-${axis}` : undefined} d={paths[0].solid} strokeLinecap="round" fill="none" stroke={axis === 'reference' ? referenceColor : userColor} strokeWidth={2.7} vectorEffect="non-scaling-stroke"/>
-          <path data-testid={harmonic && overlay ? "harmonic-curve-user" : undefined} d={paths[1].solid} strokeLinecap="round" fill="none" stroke={userColor} strokeWidth={1.75} vectorEffect="non-scaling-stroke"/>
-          {activeTime !== null && <line x1={x(activeTime)} x2={x(activeTime)} y1={T} y2={H-B} stroke="#eee8ff" opacity={.75}/>}
-          {hoverX !== null && <line x1={hoverX} x2={hoverX} y1={T} y2={H-B} stroke="#9da3b4" strokeDasharray="5 4"/>}
-          {hoverX !== null && hoveredNotes.map(note =>
-            <circle key={note.color} cx={hoverX} cy={y(note.midi)} r={4} fill={note.color}/>)}
-        </g>
-      </svg>
-      {hoverX !== null && (groupNotes ?
-        <PitchNoteTooltip notes={hoveredNotes} x={hoverX / W * 100} y={y(Math.max(pitchA, pitchB)) / H * 100}/> :
-        hoveredNotes.map(note =>
-          <PitchNoteTooltip key={note.color} notes={[note]} x={hoverX / W * 100} y={y(note.midi) / H * 100}/>))}
-    </div>
-    <div className="mt-2 flex min-h-6 flex-wrap gap-x-4 gap-y-1 font-mono text-xs text-muted" aria-live="off">
-      {hoverTime === null ? <span>{harmonic ?
-        '按相邻帧的谐波证据估计基频。淡虚线为句内短缺口补线，停顿保留留白。此曲线不计入音准指标。' :
-        '实线为可信音高，淡虚线为候选音高和句内短缺口补线，不计入音准指标。'}</span> :
-        <><span>{timeLabel(start+hoverTime)}</span>
-          <span className={axis==='reference' ? 'text-accent' : 'text-mint'}>{pitchReadout(pitchA, pitchA === null && pitchAt(firstVisible, hoverTime, true) !== null)}</span>
-          {overlay && <span className="text-mint">我的演唱 {pitchReadout(pitchB, pitchB === null && pitchAt(secondVisible, hoverTime, true) !== null)}</span>}</>}
-    </div>
-    {zoom > 1 && <label className="mt-2 flex items-center gap-4 text-xs text-muted">移动视图
-      <input type="range" min={0} max={total-domain} step="any" value={min} onChange={e => setLeft(e.currentTarget.valueAsNumber)} className="min-w-0 flex-1"/>
-    </label>}
-  </div>
-}
-
-function ReportPlot({ report, playback, axis, overlay, quick, preview }: {
-  report: Report; playback: Playback; axis: Role; overlay: boolean; quick: boolean; preview: PitchPreview
+function ReportPlot({ report, playback, axis, overlay, quick, preview, lyrics }: {
+  report: Report; playback: Playback; axis: Role; overlay: boolean; quick: boolean; preview: PitchPreview; lyrics?: LyricCue[]
 }) {
   const first = useMemo(() => points(report, axis, quick ? preview[axis] : null), [report, axis, preview, quick])
-  const second = useMemo(() => overlay ? points(report, 'user', quick ? preview.user : null) : undefined,
-    [report, overlay, preview, quick])
+  const comparison = useMemo(() => {
+    if (!overlay) return undefined
+    const track = quick ? preview.user : null
+    return { points: points(report, 'user', track, true), scale: points(report, 'user', track) }
+  }, [report, overlay, preview, quick])
+  const origin = report.pitchTracks[axis].originalStart
   const annotations = useMemo(() => report.segments.flatMap(segment => {
     const a = axis === 'reference' ? segment.referenceStart : segment.userStart
     const b = axis === 'reference' ? segment.referenceEnd : segment.userEnd
-    return a === null || b === null ? [] : [[a, b] as TimeRange]
-  }), [report, axis])
-  return <PitchPlot total={duration(report, axis)} start={report.pitchTracks[axis].originalStart}
-    axis={axis} first={first} second={second} activeTime={playback.active === axis ? playback.time : translate(report, playback.active, playback.time)}
-    selected={playback.range[axis]} annotations={annotations} position={time => playback.position(axis, time)}
-    harmonic={quick && preview[axis] !== null}/>
+    return a === null || b === null ? [] : [[a - origin, b - origin] as TimeRange]
+  }), [report, axis, origin])
+  return <PitchPlot limits={overlay ? playback.all : [0, playback.bounds[axis][1]]} origin={origin}
+    axis={axis} first={first} second={comparison?.points} scaleSecond={comparison?.scale} time={overlay ? playback.time : playback.times[axis]}
+    selected={playback.range[axis]} annotations={annotations} harmonic={quick && (preview[axis] !== null || overlay && preview.user !== null)}
+    playing={playback.playing} playable={playback.enabled.reference || playback.enabled.user} toggle={playback.toggle}
+    scrubStart={playback.beginScrub} scrubEnd={at => playback.endScrub(axis, at)} lyrics={lyrics}
+    seek={at => playback.position(axis, at)}/>
 }
 
 export function PitchChart({ report, playback, preview }: { report: Report; playback: Playback; preview: PitchPreview }) {
@@ -217,28 +38,38 @@ export function PitchChart({ report, playback, preview }: { report: Report; play
   const hasPreview = Boolean(preview.reference || preview.user)
   const quick = hasPreview && !review
   const mapped = hasPlaybackMapping(report)
-  const method = report.alignment.method
-  return <Panel className="p-4 sm:p-6" aria-labelledby="pitch-heading">
-    <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-      <div><h2 id="pitch-heading" className="flex items-center gap-2 font-bold"><Activity size={19} className="text-accent"/> 音高曲线</h2>
-      <p className="mt-1.5 text-xs leading-5 text-muted">{method === 'manual' ? '按手动对齐点显示对应位置，两轨保持原始速度。' :
-        method === 'guide' ? '按近似复听位置叠放曲线，适合用耳朵核对。' :
-        mapped ? (method === 'envelope' ? '以原唱时间为坐标平移绿色曲线，保留实际音高。' :
-          '绿色曲线显示在对应的原唱时间上。') :
-        '匹配可信度不足，两条曲线使用各自的原始时间。'}</p></div>
-      <div className="flex flex-wrap items-center gap-4 text-xs font-medium">
-        <span className="text-accent">● 原唱</span><span className="text-mint">● 我的演唱</span>
-        {hasPreview && <label className="flex items-center gap-2 text-muted">曲线来源
-          <select className="rounded-lg border border-line bg-canvas px-2 py-1.5 text-ink"
-            value={review ? 'review' : 'harmonic'} onChange={event => setReview(event.currentTarget.value === 'review')}>
-            <option value="harmonic">快速基频（谐波）</option><option value="review">音准检测（pYIN）</option>
-          </select>
-        </label>}
-      </div>
+  const media = report.referenceMetadata
+  const lyrics = useLyrics(media.id, media.duration)
+  const lrc = lyrics.selected?.lrc ?? ''
+  const lyricOffset = lyrics.selected?.offset ?? 0
+  const origin = report.preprocessing.referenceStart
+  const duration = report.preprocessing.referenceDuration
+  const cues = useMemo(() => {
+    const parsed = parseLrc(lrc)
+    return parsed.flatMap((line, index) => {
+      const time = line.time + lyricOffset - origin
+      const following = parsed[index + 1]
+      const until = Math.min(duration, following ? following.time + lyricOffset - origin : duration)
+      return line.text && until > 0 && time < until ? [{ text: line.text, time: Math.max(0, time), until }] : []
+    })
+  }, [lrc, lyricOffset, origin, duration])
+
+  return <Panel className="min-w-0 p-4 sm:p-6" aria-labelledby="pitch-heading">
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <h2 id="pitch-heading" className="flex items-center gap-2 font-bold"><Activity size={19} className="text-accent"/> 音高曲线</h2>
+      {hasPreview && <label className="flex items-center gap-2 text-xs text-muted">曲线来源
+        <select className="rounded-lg border border-line bg-canvas px-2 py-1.5 text-ink"
+          value={review ? 'review' : 'harmonic'} onChange={event => setReview(event.currentTarget.value === 'review')}>
+          <option value="harmonic">快速基频（谐波）</option><option value="review">音准检测（pYIN）</option>
+        </select>
+      </label>}
     </div>
-    <ReportPlot report={report} playback={playback} axis="reference" overlay={mapped} quick={quick} preview={preview}/>
+    <PitchTransport report={report} playback={playback}/>
+    {!mapped && <p className="mb-3 text-xs text-muted">暂无时间对齐结果。两轨同时播放时使用各自的选段起点。</p>}
+    <ReportPlot report={report} playback={playback} axis="reference" overlay={mapped} quick={quick} preview={preview} lyrics={cues}/>
     {!mapped && <div className="mt-4">
       <ReportPlot report={report} playback={playback} axis="user" overlay={false} quick={quick} preview={preview}/>
     </div>}
+    <ReportLyrics lyrics={lyrics} duration={media.duration} hasCues={cues.length > 0}/>
   </Panel>
 }

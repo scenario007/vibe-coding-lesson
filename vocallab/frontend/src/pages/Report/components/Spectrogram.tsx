@@ -2,15 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent } from 'react'
 import { ChevronLeft, ChevronRight, Waves } from 'lucide-react'
 import { GetAnalyzedAudioAPI } from '../../../apis/analysis/GetAnalyzedAudioAPI'
-import type { PitchPreview, Report } from '../../../apis/analysis/contracts'
+import type { PitchPreview, Report, Role, TrackKind } from '../../../apis/analysis/contracts'
 import { Button } from '../../../components/ui/Button'
 import { Panel } from '../../../components/ui/Panel'
 import { duration, lowestVisibleHz, lowestVisibleMidi, shortPitchFrames, timeLabel } from '../functions/timeline'
 import type { Playback } from '../hooks/usePlayback'
 import { useSpectrogram, type Spectrum } from '../hooks/useSpectrogram'
-import { trackNames } from './ListenPanel'
 import { PitchNoteTooltip } from './PitchNoteTooltip'
 
+const trackNames: Record<TrackKind, string> = { original: '原始音频', vocals: '分离人声', instrumental: '分离伴奏' }
 const pageSeconds = 30
 const height = 300
 const stops = [[11, 14, 24], [45, 40, 105], [132, 55, 142], [225, 114, 109], [255, 233, 163]]
@@ -31,13 +31,15 @@ function peakBin(data: Spectrum, sample: number, y: number, maxHz: number) {
 }
 
 export function Spectrogram({ report, playback, preview }: { report: Report; playback: Playback; preview: PitchPreview }) {
-  const role = playback.active
+  const [role, setRole] = useState<Role>('reference')
   const total = duration(report, role)
+  const kind = playback.kinds[role]
+  const time = playback.times[role]
   const pitch = report.pitchTracks[role]
   const harmonic = preview[role]
   const originalStart = pitch.originalStart
   const lastPage = Math.max(0, Math.ceil(total / pageSeconds) - 1)
-  const page = Math.min(lastPage, Math.floor(playback.time / pageSeconds))
+  const page = Math.min(lastPage, Math.floor(time / pageSeconds))
   const start = page * pageSeconds
   const end = Math.min(total, start + pageSeconds)
   const [view, setView] = useState<'fundamental' | 'full'>('fundamental')
@@ -45,10 +47,10 @@ export function Spectrogram({ report, playback, preview }: { report: Report; pla
   const maxHz = view === 'fundamental' ? 1200 : fullLimit
   const [hover, setHover] = useState<{ x: number; y: number }>()
   const canvas = useRef<HTMLCanvasElement>(null)
-  const result = useSpectrogram(new GetAnalyzedAudioAPI(report.analysisId, role, playback.kind).url(), start, end)
+  const result = useSpectrogram(new GetAnalyzedAudioAPI(report.analysisId, role, kind).url(), start, end)
   const data = result.status === 'ready' ? result.spectrum : null
   const fundamentals = useMemo(() => {
-    if (!data || view !== 'fundamental' || playback.kind === 'instrumental') return []
+    if (!data || view !== 'fundamental' || kind === 'instrumental') return []
     const step = pitch.timestamps[1] - pitch.timestamps[0]
     const bridges = new Set(harmonic?.bridgedFrames)
     const estimates = harmonic?.midiPitch ?? pitch.midiPitch.map((midi, i) => midi ?? pitch.guideMidiPitch?.[i])
@@ -69,7 +71,7 @@ export function Spectrogram({ report, playback, preview }: { report: Report; pla
       const candidate = pitch.guideMidiPitch?.[index]
       return candidate == null || candidate < lowestVisibleMidi ? null : { hz: 440 * 2 ** ((candidate - 69) / 12), trusted: false }
     })
-  }, [data, view, playback.kind, pitch, harmonic, start, end])
+  }, [data, view, kind, pitch, harmonic, start, end])
 
   useEffect(() => {
     const context = canvas.current?.getContext('2d')
@@ -118,15 +120,27 @@ export function Spectrogram({ report, playback, preview }: { report: Report; pla
   const noteY = hoveredFundamental && hoveredFundamental.hz <= maxHz
     ? (maxHz - hoveredFundamental.hz) / (maxHz - lowestVisibleHz) : null
   const hoverTime = hover ? timeLabel(originalStart + start + hover.x * (end - start)) : ''
-  const cursor = (playback.time - start) / (end - start) * 100
+  const cursor = (time - start) / (end - start) * 100
 
   return <Panel className="p-4 sm:p-6" aria-labelledby="spectrogram-heading">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h2 id="spectrogram-heading" className="flex items-center gap-2 font-bold"><Waves size={19} className="text-accent"/> 声谱图</h2>
-        <p className="mt-1.5 text-xs text-muted">{role === 'reference' ? 'A 原唱' : 'B 我的演唱'} · {trackNames[playback.kind]}</p>
+        <p className="mt-1.5 text-xs text-muted">{role === 'reference' ? 'A 原唱' : 'B 我的演唱'} · {trackNames[kind]}</p>
       </div>
       <div className="flex flex-wrap gap-2">
+        <label className="flex items-center gap-2 text-xs text-muted">声谱音轨
+          <select value={role} onChange={event => setRole(event.currentTarget.value as Role)}
+            className="rounded-lg border border-line bg-canvas px-2 py-1.5 text-sm text-ink">
+            <option value="reference">原唱</option><option value="user">翻唱</option>
+          </select>
+        </label>
+        {report.separation[role].outputTracks.length > 1 && <label className="flex items-center gap-2 text-xs text-muted">试听音源
+          <select value={kind} onChange={event => { playback.selectTrack(role, event.currentTarget.value as TrackKind); setHover(undefined) }}
+            className="rounded-lg border border-line bg-canvas px-2 py-1.5 text-sm text-ink">
+            {report.separation[role].outputTracks.map(track => <option key={track} value={track}>{trackNames[track]}</option>)}
+          </select>
+        </label>}
         <label className="flex items-center gap-2 text-xs text-muted">视图
           <select className="rounded-lg border border-line bg-canvas px-2 py-1.5 text-sm text-ink" value={view}
             onChange={event => { setView(event.currentTarget.value === 'full' ? 'full' : 'fundamental'); setHover(undefined) }}>
@@ -145,7 +159,7 @@ export function Spectrogram({ report, playback, preview }: { report: Report; pla
     {result.status === 'loading' && <p role="status" className="mt-4 text-sm text-muted">正在生成声谱图…</p>}
     {result.status === 'error' && <p role="alert" className="mt-4 text-sm text-danger">无法读取此音轨的声谱图。</p>}
     {view === 'fundamental' && data && !fundamentals.some(Boolean) &&
-      <p className="mt-3 text-xs text-muted">{playback.kind === 'instrumental' ?
+      <p className="mt-3 text-xs text-muted">{kind === 'instrumental' ?
         '试听伴奏时可切到完整声谱；切回人声音轨可查看人声基频。' : '这一段没有测到可显示的人声基频。'}</p>}
     {data && <div className="mt-4 grid grid-cols-[5.75rem_1fr] gap-x-2">
       <div className="flex h-[245px] flex-col justify-between text-right font-mono text-[11px] text-muted sm:h-[300px]">
@@ -157,7 +171,7 @@ export function Spectrogram({ report, playback, preview }: { report: Report; pla
           onPointerMove={event => setHover(coordinates(event))} onPointerLeave={() => setHover(undefined)}
           onClick={event => {
             const rect = event.currentTarget.getBoundingClientRect()
-            playback.jump(start + (end - start) * (event.clientX - rect.left) / rect.width)
+            playback.position(role, start + (end - start) * (event.clientX - rect.left) / rect.width)
           }}/>
         <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 w-px bg-white/80" style={{ left: `${cursor}%` }}/>
         {view === 'fundamental' && hover && <div aria-hidden="true"
@@ -181,9 +195,9 @@ export function Spectrogram({ report, playback, preview }: { report: Report; pla
           `${hoverTime} · 频点 ${(location.bin * data.binHz).toFixed(1)} Hz · ${data.values[location.sample * data.bins + location.bin].toFixed(1)} dBFS` :
           '颜色越亮表示该频点能量越高。指向读取频点，点击跳到对应时间复听。'}</p>
       {lastPage > 0 && <div className="flex items-center gap-2">
-        <Button aria-label="声谱图上一段" className="min-h-8 px-2" disabled={page === 0} onClick={() => playback.jump((page - 1) * pageSeconds)}><ChevronLeft size={15}/></Button>
+        <Button aria-label="声谱图上一段" className="min-h-8 px-2" disabled={page === 0} onClick={() => playback.position(role, (page - 1) * pageSeconds)}><ChevronLeft size={15}/></Button>
         <span>{page + 1} / {lastPage + 1}</span>
-        <Button aria-label="声谱图下一段" className="min-h-8 px-2" disabled={page === lastPage} onClick={() => playback.jump((page + 1) * pageSeconds)}><ChevronRight size={15}/></Button>
+        <Button aria-label="声谱图下一段" className="min-h-8 px-2" disabled={page === lastPage} onClick={() => playback.position(role, (page + 1) * pageSeconds)}><ChevronRight size={15}/></Button>
       </div>}
     </div>
   </Panel>

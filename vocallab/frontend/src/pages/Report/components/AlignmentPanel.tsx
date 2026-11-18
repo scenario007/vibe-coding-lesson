@@ -32,6 +32,17 @@ export function AlignmentPanel({ report, playback, adjust, adjusting, error }: {
   const referenceRange = selection && selection[1] - selection[0] >= 1 &&
     selection[1] <= Math.min(referenceDuration, userDuration) + 1e-9 ? selection : undefined
   const origin = report.preprocessing.referenceStart
+  const selectedStart = selection?.[0] ?? 0
+  const selectedEnd = selection?.[1] ?? referenceDuration
+
+  function setEndpoint(endpoint: 0 | 1, input: HTMLInputElement) {
+    const current = endpoint === 0 ? selectedStart : selectedEnd
+    const value = input.valueAsNumber - origin
+    if (Number.isFinite(value) && value >= 0 && value <= referenceDuration &&
+      (endpoint === 0 ? value < selectedEnd - .03 : value > selectedStart + .03)) {
+      playback.setRange('reference', endpoint === 0 ? [value, selectedEnd] : [selectedStart, value])
+    } else input.value = String(Number((origin + current).toFixed(2)))
+  }
   const range = automatic?.referenceRange
   const confidence = automatic?.reliable ? (automatic.confidence < .74 ? '中等' : '较高') : '偏低'
   return <Panel className="p-4 sm:p-6">
@@ -60,12 +71,26 @@ export function AlignmentPanel({ report, playback, adjust, adjusting, error }: {
       {alignment.manualOffset !== null && automatic && <Button variant="text" disabled={adjusting}
         onClick={() => adjust(null, range ?? undefined)}>恢复自动</Button>}
     </form>
+    <details className="mt-3 rounded-lg border border-line px-3 py-2">
+      <summary className="cursor-pointer text-xs font-medium">原唱复听与检测选区</summary>
+      <div className="mt-2 flex flex-wrap gap-3">
+        {([0, 1] as const).map(endpoint => {
+          const value = Number((origin + (endpoint === 0 ? selectedStart : selectedEnd)).toFixed(2))
+          return <label key={endpoint} className="flex items-center gap-2 text-xs text-muted">
+            {endpoint === 0 ? '复听起点（秒）' : '复听终点（秒）'}
+            <input key={value} type="number" defaultValue={value} step="any" min={origin}
+              max={origin + referenceDuration} className="w-24 rounded-lg border border-line bg-canvas px-2 py-1.5 font-mono text-ink"
+              onBlur={event => setEndpoint(endpoint, event.currentTarget)}
+              onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); event.currentTarget.blur() } }}/>
+          </label>
+        })}
+      </div>
+    </details>
     <div className="mt-3 flex flex-wrap gap-2">
       {(!automatic || range || alignment.manualOffset !== null) && <Button disabled={adjusting}
         onClick={() => adjust(null)}>用整段自动检测</Button>}
       <Button disabled={adjusting || !referenceRange} onClick={() => adjust(null, referenceRange)}>用原唱选区检测</Button>
     </div>
-    <p className="mt-2 text-xs leading-5 text-muted">可在 A/B 复听中设置原唱起止时间，再用该选区检测固定偏移。</p>
     {adjusting && <p role="status" className="mt-2 text-xs text-muted">正在更新对齐…</p>}
     {error && <p role="alert" className="mt-2 text-sm text-danger">{error}</p>}
     <details className="mt-4 border-t border-line pt-3">

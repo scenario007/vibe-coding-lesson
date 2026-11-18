@@ -41,6 +41,20 @@ export function translate(report: Report, from: Role, time: number): number | nu
   return a[1-source] + fraction * (b[1-source] - a[1-source])
 }
 
+// Shared playback keeps the original playback speed and extends each clip's
+// timeline through its lead-in and tail, even where only one track exists.
+export function playbackTime(report: Report, from: Role, time: number): number {
+  if (!hasPlaybackMapping(report)) return time
+  const fixed = report.alignment.offsetSeconds
+  if (fixed != null) return from === 'reference' ? time + fixed : time - fixed
+  const mapped = translate(report, from, time)
+  if (mapped !== null) return mapped
+  const axis = from === 'reference' ? 0 : 1
+  const map = report.alignment.timeMapping
+  const anchor = time < map[0][axis] ? map[0] : map[map.length - 1]
+  return time + anchor[1 - axis] - anchor[axis]
+}
+
 export function pairRange(report: Report, from: Role, range: TimeRange): ComparisonRange {
   const to = from === 'reference' ? 'user' : 'reference'
   const left = translate(report, from, range[0])
@@ -60,8 +74,10 @@ export function harmonicPoints(track: HarmonicPitch, start: number, mapTime = (t
   })
 }
 
-export function points(report: Report, role: Role, harmonic: HarmonicPitch | null = null): Point[] {
-  const mapTime = (time: number) => role === 'reference' || !hasPlaybackMapping(report) ? time : translate(report, 'user', time)
+export function points(report: Report, role: Role, harmonic: HarmonicPitch | null = null, includeClipTails = false): Point[] {
+  const mapped = role === 'user' && hasPlaybackMapping(report)
+  const mapTime = (time: number) => !mapped ? time : includeClipTails
+    ? playbackTime(report, 'user', time) : translate(report, 'user', time)
   if (harmonic) return harmonicPoints(harmonic, report.pitchTracks[role].originalStart, mapTime)
   const track: PitchTrack = report.pitchTracks[role]
   const series = track.timestamps.flatMap((time, i) => {

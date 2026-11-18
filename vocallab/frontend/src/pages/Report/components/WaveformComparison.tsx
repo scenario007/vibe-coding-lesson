@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { AudioWaveform } from 'lucide-react'
 import type { Report, Role } from '../../../apis/analysis/contracts'
 import { Panel } from '../../../components/ui/Panel'
-import { duration, hasPlaybackMapping, timeLabel, translate } from '../functions/timeline'
+import { duration, hasPlaybackMapping, playbackTime, timeLabel } from '../functions/timeline'
 import type { Playback } from '../hooks/usePlayback'
 
 const columns = 640
@@ -12,8 +12,8 @@ function envelope(report: Report, role: Role, shared: boolean) {
   const span = duration(report, shared ? 'reference' : role)
   const peaks = new Float32Array(columns)
   timestamps.forEach((time, i) => {
-    const position = role === 'user' && shared ? translate(report, 'user', time) : time
-    if (position === null || position > span) return
+    const position = role === 'user' && shared ? playbackTime(report, 'user', time) : time
+    if (position < 0 || position > span) return
     const column = Math.min(columns - 1, Math.round(position / span * (columns - 1)))
     peaks[column] = Math.max(peaks[column], rms[i])
   })
@@ -38,7 +38,7 @@ export function WaveformComparison({ report, playback }: { report: Report; playb
       {(['reference', 'user'] as const).map(role => {
         const axis = shared ? 'reference' : role
         const { path, span } = waves[role]
-        const current = playback.active === axis ? playback.time : translate(report, playback.active, playback.time)
+        const current = shared ? playback.time : playback.times[axis]
         const start = report.pitchTracks[axis].originalStart
         return <div key={role} className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-2">
           <span className={role === 'reference' ? 'text-xs text-accent' : 'text-xs text-mint'}>
@@ -48,7 +48,7 @@ export function WaveformComparison({ report, playback }: { report: Report; playb
             className="h-12 w-full rounded bg-canvas" preserveAspectRatio="none">
             <line x1="0" x2={columns} y1="23" y2="23" className="stroke-line"/>
             <path d={path} className={role === 'reference' ? 'stroke-accent' : 'stroke-mint'}/>
-            {current !== null && <line x1={current / span * columns} x2={current / span * columns}
+            {current >= 0 && current <= span && <line x1={current / span * columns} x2={current / span * columns}
               y1="0" y2="46" className="stroke-white/70"/>}
           </svg>
           {(!shared || role === 'user') && <div className="col-start-2 flex justify-between font-mono text-[11px] text-muted">

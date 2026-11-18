@@ -4,11 +4,9 @@ import type { PitchPreview, Report as AnalysisReport, Stage } from '../../apis/a
 import { Button } from '../../components/ui/Button'
 import { Panel } from '../../components/ui/Panel'
 import { AlignmentPanel } from './components/AlignmentPanel'
-import { ListenPanel } from './components/ListenPanel'
 import { Overview } from './components/Overview'
 import { PitchChart } from './components/PitchChart'
 import { PitchPreviewPanel } from './components/PitchPreviewPanel'
-import { ReportLyrics } from './components/ReportLyrics'
 import { Spectrogram } from './components/Spectrogram'
 import { Segments } from './components/Segments'
 import { WaveformComparison } from './components/WaveformComparison'
@@ -40,9 +38,7 @@ function AnalysisResult({ report, preview, adjust, adjusting, error }: {
     <Overview report={report}/>
     <WaveformComparison report={report} playback={playback}/>
     <PitchChart report={report} playback={playback} preview={preview}/>
-    <ListenPanel report={report} playback={playback}/>
     <Spectrogram report={report} playback={playback} preview={preview}/>
-    <ReportLyrics report={report} playback={playback}/>
     <div className="grid items-start gap-4 lg:grid-cols-[1.35fr_1fr]">
       <Segments report={report} playback={playback}/>
       <AlignmentPanel key={JSON.stringify([report.alignment.method, report.alignment.offset, report.alignment.automatic?.referenceRange])}

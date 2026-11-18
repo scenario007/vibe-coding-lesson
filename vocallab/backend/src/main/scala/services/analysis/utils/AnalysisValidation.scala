@@ -73,12 +73,37 @@ private[analysis] object AnalysisValidation:
       report.metrics.size == MetricName.values.length && report.metrics.forall(m =>
         m.validFrames >= 0 && ratio(m.coverage) && m.value.forall(value =>
           value.isFinite && value >= 0 && (m.unit != MetricUnit.ratio || ratio(value))))
+    def scoreNumber(value: Double): Boolean = value.isFinite && value >= 0 && value <= 100
+    def counts(total: Int, scored: Int, missed: Int): Boolean =
+      total >= 0 && scored >= 0 && missed >= 0 && scored.toLong + missed <= total
+    def hasScore(status: PitchScoreStatus): Boolean = status == PitchScoreStatus.scored || status == PitchScoreStatus.missed
+    val scoring = report.pitchScore.forall { score =>
+      score.version == 1 && ratio(score.coverage) && score.start >= job.selection.reference.start - 0.001 &&
+        score.end <= job.selection.reference.end + 0.001 && score.end > score.start &&
+        score.score.forall(scoreNumber) && (score.score.nonEmpty == (score.status == PitchScoreStatus.scored)) &&
+        score.status != PitchScoreStatus.missed && score.pairedFrames >= 0 &&
+        counts(score.totalNotes, score.scoredNotes, score.missedNotes) &&
+        score.scoredPhrases >= 0 && score.pendingPhrases >= 0 &&
+        score.scoredPhrases + score.pendingPhrases == score.phrases.size &&
+        Vector(score.elapsedMilliseconds, score.evidenceMilliseconds).forall(t => t.isFinite && t >= 0) &&
+        score.phrases.forall { phrase =>
+          phrase.start >= score.start && phrase.end <= score.end && phrase.start < phrase.end &&
+            counts(phrase.totalNotes, phrase.scoredNotes, phrase.missedNotes) &&
+            phrase.pairedFrames >= 0 && phrase.octaveUncertainFrames >= 0 && phrase.score.forall(scoreNumber) &&
+            phrase.deviationCents.forall(_.isFinite) && phrase.driftCents.forall(_.isFinite) &&
+            (phrase.score.nonEmpty == hasScore(phrase.status)) && phrase.notes.size == phrase.totalNotes &&
+            phrase.notes.forall(note => note.start >= phrase.start && note.end <= phrase.end && note.start < note.end &&
+              note.referenceMidi.isFinite && note.referenceMidi >= 36 && note.referenceMidi <= 84 &&
+              note.score.forall(scoreNumber) && (note.score.nonEmpty == hasScore(note.status)) &&
+              note.deviationCents.forall(_.isFinite))
+        }
+    }
     val valid = report.analysisId == job.analysisId && report.status == JobStatus.completed &&
       report.referenceMetadata.id == job.selection.reference.mediaId &&
       report.userMetadata.id == job.selection.user.mediaId &&
       ratio(report.confidence) && ratio(report.alignment.confidence) &&
       track(report.pitchTracks.reference, job.selection.reference) && track(report.pitchTracks.user, job.selection.user) &&
-      mapping && fixed && detection && metrics && (!(report.alignment.reliable ||
+      mapping && fixed && detection && metrics && scoring && (!(report.alignment.reliable ||
         report.alignment.method.exists(method => method == AlignmentMethod.manual || method == AlignmentMethod.guide)) ||
         map.size >= 2)
     IO.raiseUnless(valid)(new IllegalStateException("Python report failed result validation.")).as(report)

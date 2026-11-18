@@ -4,6 +4,7 @@ import { AdjustAlignmentAPI } from '../../../apis/analysis/AdjustAlignmentAPI'
 import { GetAnalysisAPI } from '../../../apis/analysis/GetAnalysisAPI'
 import { GetAnalysisResultAPI } from '../../../apis/analysis/GetAnalysisResultAPI'
 import { GetPitchPreviewAPI } from '../../../apis/analysis/GetPitchPreviewAPI'
+import { ScorePitchAPI } from '../../../apis/analysis/ScorePitchAPI'
 
 type View = { status: 'loading' } | { status: 'progress'; job: Job; preview: PitchPreview } |
   { status: 'failed'; job: Job } | { status: 'error'; message: string } |
@@ -13,11 +14,14 @@ export function useReport(id: string) {
   const [view, setView] = useState<View>({ status: 'loading' })
   const [adjusting, setAdjusting] = useState(false)
   const [error, setError] = useState('')
+  const [scoring, setScoring] = useState(false)
+  const [scoreError, setScoreError] = useState('')
   const [refresh, setRefresh] = useState(0)
 
   useEffect(() => {
     setView({ status: 'loading' })
     setError('')
+    setScoreError('')
     const controller = new AbortController()
     let timer: number | undefined
     let failures = 0
@@ -71,5 +75,15 @@ export function useReport(id: string) {
     } catch (e) { setError((e as Error).message) } finally { setAdjusting(false) }
   }
 
-  return { view, adjusting, error, adjust, refresh: () => setRefresh(value => value + 1) }
+  async function scorePitch() {
+    setScoring(true)
+    setScoreError('')
+    try {
+      const report = await new ScorePitchAPI(id).send()
+      setView(current => current.status === 'ready' && current.report.analysisId === report.analysisId
+        ? { ...current, report } : current)
+    } catch (cause) { setScoreError((cause as Error).message) } finally { setScoring(false) }
+  }
+
+  return { view, adjusting, error, adjust, scoring, scoreError, scorePitch, refresh: () => setRefresh(value => value + 1) }
 }

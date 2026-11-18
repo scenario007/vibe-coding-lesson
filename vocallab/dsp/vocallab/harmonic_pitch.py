@@ -1,4 +1,4 @@
-"""Fast monophonic pitch estimates for the visual preview."""
+"""Fast monophonic pitch estimates and evidence for preview and scoring."""
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -7,16 +7,27 @@ import soundfile as sf
 from scipy import fft, ndimage, signal
 
 
+QUIET, UNCERTAIN, RELIABLE, OCTAVE_UNCERTAIN = range(4)
+
+
 @dataclass(frozen=True)
 class HarmonicPitch:
     step: float
     midi: np.ndarray
     bridged_frames: list[int]
+    quality: np.ndarray
+    activity: np.ndarray
 
     def serializable(self) -> dict:
         return dict(step=self.step, midiPitch=[
             round(float(value), 3) if np.isfinite(value) else None for value in self.midi
-        ], bridgedFrames=self.bridged_frames)
+        ], bridgedFrames=self.bridged_frames, frameQuality=self.quality.tolist(),
+                    activity=self.activity.tolist())
+
+    @classmethod
+    def from_cache(cls, data: dict):
+        return cls(data["step"], np.asarray(data["midiPitch"], dtype=float), data.get("bridgedFrames") or [],
+                   np.asarray(data["frameQuality"], dtype=np.uint8), np.asarray(data["activity"], dtype=np.uint8))
 
 
 def extract(path: Path) -> HarmonicPitch:
@@ -48,13 +59,14 @@ def _periodicity(frames: np.ndarray, frequency: np.ndarray, rate: int) -> np.nda
     )
 
 
-def _follow_candidates(pitches: np.ndarray, emission: np.ndarray) -> np.ndarray:
+def _follow_candidates(pitches: np.ndarray, emission: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Prefer nearby pitches across a phrase when spectra support multiple harmonics."""
     states = np.arange(pitches.shape[1])
     back = np.zeros(pitches.shape, dtype=np.int8)
     primary = pitches[:, 0]
     voiced = np.flatnonzero(np.isfinite(primary))
     output = primary.copy()
+    chosen = np.zeros(len(primary), dtype=np.int8)
     # Brief dropouts retain context. Longer pauses start a new phrase.
     breaks = np.flatnonzero(np.diff(voiced) > 5) + 1
     for phrase in np.split(voiced, breaks):
@@ -71,8 +83,9 @@ def _follow_candidates(pitches: np.ndarray, emission: np.ndarray) -> np.ndarray:
         choice = int(np.argmin(cumulative))
         for current in phrase[::-1]:
             output[current] = pitches[current, choice]
+            chosen[current] = choice
             choice = back[current, choice]
-    return output
+    return output, chosen
 
 
 def _bridge_short_gaps(output: np.ndarray, energy: np.ndarray, floor: float) -> list[int]:
@@ -100,7 +113,8 @@ def track(mono: np.ndarray, rate: int) -> HarmonicPitch:
     frames = np.lib.stride_tricks.sliding_window_view(padded, window_size)[::hop]
     rms = np.concatenate([np.sqrt(np.mean(frames[start:start + 256] ** 2, axis=1))
                           for start in range(0, len(frames), 256)])
-    floor = max(.00015, float(np.quantile(rms, .92)) * .055)
+    loud = float(np.quantile(rms, .92))
+    floor = max(.00015, loud * .055)
 
     bins_per_semitone = 8
     candidates = 36 + np.arange(48 * bins_per_semitone + 1) / bins_per_semitone
@@ -112,6 +126,8 @@ def track(mono: np.ndarray, rate: int) -> HarmonicPitch:
     taper = signal.windows.hann(window_size, sym=False).astype(np.float32)
     pitches = np.full((len(frames), 3), np.nan)
     costs = np.full_like(pitches, np.inf)
+    supported_quality = np.zeros_like(pitches, dtype=bool)
+    contested = np.zeros(len(frames), dtype=bool)
     offsets = np.arange(-5, 6)
 
     for start in range(0, len(frames), 96):
@@ -145,6 +161,9 @@ def track(mono: np.ndarray, rate: int) -> HarmonicPitch:
         usable = confidence >= .63
         pitches[indices[usable], 0] = candidates[best[usable]]
         costs[indices[usable], 0] = 0
+        if np.any(usable):
+            period = _periodicity(voiced_batch[usable], fundamentals[best[usable]], rate)
+            supported_quality[indices[usable], 0] = (period >= .54) & (confidence[usable] >= .72)
 
         # A lower octave must explain independent partials and a longer waveform
         # period. Nearly equal period scores favor the shorter repetition.
@@ -184,8 +203,14 @@ def track(mono: np.ndarray, rate: int) -> HarmonicPitch:
             penalty = np.where(clear_period, np.minimum(penalty, -.10), penalty)
             pitches[indices[supported], state] = candidates[chosen_bin[supported]]
             costs[indices[supported], state] = penalty[supported] + (.10 if multiple == 3 else 0)
+            supported_quality[indices[supported], state] = (longer[supported] >= .58) & (
+                (gain[supported] >= .115) | clear_period[supported])
+            # Nearby alternatives with credible independent partials still matter to scoring,
+            # even if the contour follower picks one for display.
+            contested[indices] |= usable & (center >= 0) & (strength[rows, choice] >= 0) & (
+                (longer >= .55) & (gain >= .055) & (share >= .045) & ~supported)
 
-    output = _follow_candidates(pitches, costs)
+    output, chosen = _follow_candidates(pitches, costs)
     # Remove isolated detections without filling gaps or smoothing away vibrato.
     connected = np.abs(np.diff(output)) <= 4
     neighbours = np.r_[False, connected] | np.r_[connected, False]
@@ -195,5 +220,19 @@ def track(mono: np.ndarray, rate: int) -> HarmonicPitch:
     half = hop // 2
     energy = np.concatenate([np.sqrt(np.mean(frames[start:start + 256, middle-half:middle+half] ** 2, axis=1))
                              for start in range(0, len(frames), 256)])
+    measured = np.isfinite(output)
+    quality = np.full(len(output), UNCERTAIN, dtype=np.uint8)
+    quality[~measured & (energy <= max(.00012, loud * .020))] = QUIET
+    selected_cost = costs[np.arange(len(output)), chosen]
+    rivals = np.where(np.arange(pitches.shape[1]) == chosen[:, None], np.inf, costs)
+    second_cost = rivals.min(axis=1)
+    # A near-tie is independent of the reference and cannot be settled by agreement
+    # with the other singer. Keep the candidate for the chart only.
+    near_tie = measured & (second_cost <= np.where(measured, selected_cost, 0) + .075)
+    ambiguous = measured & (near_tie | ((chosen == 0) & contested))
+    quality[measured & supported_quality[np.arange(len(output)), chosen] & ~ambiguous] = RELIABLE
+    quality[ambiguous] = OCTAVE_UNCERTAIN
     bridged = _bridge_short_gaps(output, energy, floor)
-    return HarmonicPitch(hop / rate, output, bridged)
+    quality[bridged] = UNCERTAIN
+    activity = np.rint(100 * np.log1p(8 * np.clip(energy / max(loud, .00015), 0, 1)) / np.log(9)).astype(np.uint8)
+    return HarmonicPitch(hop / rate, output, bridged, quality, activity)

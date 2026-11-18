@@ -97,7 +97,7 @@ export function AlignmentPanel({ report, playback, adjust, adjusting, error }: {
       <summary className="cursor-pointer text-xs font-semibold">计算方法与局限</summary>
       <ul className="mt-3 list-disc space-y-1.5 pl-4 text-xs leading-5 text-muted">
         <li>通过音量包络、强弱变化、起音和休止检测固定偏移。</li>
-        <li>音准比较使用已有 pYIN 基频。有效音高帧不足时，仍可对齐复听。</li>
+        <li>音准分使用快速基频。有固定偏移后，可按置信度评估音符。</li>
         <li>演唱速度变化时，同一个偏移在不同位置的效果可能有差异。</li>
         <li>发声方式与技术原因需结合听辨和实际演唱评估。</li>
         {(['reference','user'] as const).filter(role => report.separation[role].enabled).map(role =>

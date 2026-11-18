@@ -3,7 +3,7 @@ import json
 import traceback
 from pathlib import Path
 
-from .report import analyze, realign
+from .report import analyze, realign, score_report
 
 
 def main():
@@ -17,6 +17,9 @@ def main():
     adjust.add_argument("result", type=Path)
     adjust.add_argument("--manual", type=float)
     adjust.add_argument("--reference-range", nargs=2, type=float)
+    scoring = commands.add_parser("score")
+    scoring.add_argument("report", type=Path)
+    scoring.add_argument("result", type=Path)
     setup = commands.add_parser("prepare-model")
     setup.add_argument("models", type=Path)
     setup.add_argument("--mode", choices=("fast", "precise"), default="precise")
@@ -33,6 +36,10 @@ def main():
         if options.command == "realign":
             result = realign(json.loads(options.report.read_text()), options.report.parent,
                              options.manual, options.reference_range, progress)
+        elif options.command == "score":
+            result = score_report(json.loads(options.report.read_text()), options.report.parent)
+            if not result.get("pitchScore"):
+                raise ValueError("Cached audio for scoring is unavailable.")
         else:
             result = analyze(json.loads(options.manifest.read_text()), progress)
         temporary = options.result.with_suffix(".tmp")

@@ -156,6 +156,12 @@ class Backend(unittest.TestCase):
         self.assertAlmostEqual(result["alignment"]["offsetSeconds"], .85, delta=.035)
         self.assertAlmostEqual(result["alignment"]["originalOffsetSeconds"], 1, delta=.035)
         self.assertGreater(next(m["value"] for m in result["metrics"] if m["name"] == "pitchHitRate"), .82)
+        fast = result["pitchScore"]
+        self.assertEqual(fast["status"], "scored", fast)
+        self.assertGreater(fast["score"], 92)
+        self.assertAlmostEqual(fast["start"], .30, places=3)
+        self.assertAlmostEqual(fast["end"], 5.30, places=3)
+        self.assertEqual(call("scorepitchapi", {"analysisId": id})[1]["pitchScore"], fast)
         for role, expected in [("reference", 5), ("user", 6)]:
             status, audio, _ = fetch(f"getanalyzedaudioapi/{id}/{role}/original")
             self.assertEqual(status, 200)
@@ -178,11 +184,13 @@ class Backend(unittest.TestCase):
         self.assertEqual(adjusted["pitchTracks"], result["pitchTracks"])
         self.assertEqual(adjusted["alignment"]["automatic"], result["alignment"]["automatic"])
         self.assertNotEqual(adjusted["metrics"], result["metrics"])
+        self.assertNotEqual(adjusted["pitchScore"]["score"], fast["score"])
         status, selected, _ = call("adjustalignmentapi", {"analysisId": id, "manualOffset": None, "referenceRange": [.5, 4.5]})
         self.assertEqual(status, 200, selected)
         self.assertEqual(selected["alignment"]["automatic"]["referenceRange"], [.5, 4.5])
         self.assertAlmostEqual(selected["alignment"]["offsetSeconds"], .85, delta=.035)
         self.assertEqual(selected["alignment"], call("getanalysisresultapi", {"analysisId": id})[1]["alignment"])
+        self.assertEqual((selected["pitchScore"]["start"], selected["pitchScore"]["end"]), (.8, 4.8))
 
     @unittest.skipUnless(os.getenv("VOCALLAB_PHONE_FIXTURE"), "Optional original phone video")
     def test_original_phone_video(self):

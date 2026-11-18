@@ -60,7 +60,7 @@ export function PitchChart({ report, playback, preview }: { report: Report; play
       {hasPreview && <label className="flex items-center gap-2 text-xs text-muted">曲线来源
         <select className="rounded-lg border border-line bg-canvas px-2 py-1.5 text-ink"
           value={review ? 'review' : 'harmonic'} onChange={event => setReview(event.currentTarget.value === 'review')}>
-          <option value="harmonic">快速基频（谐波）</option><option value="review">音准检测（pYIN）</option>
+          <option value="harmonic">快速基频（谐波）</option><option value="review">音高复核（pYIN）</option>
         </select>
       </label>}
     </div>

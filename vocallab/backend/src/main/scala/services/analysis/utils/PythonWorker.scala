@@ -58,17 +58,24 @@ private[analysis] object PythonWorker:
     yield verified
 
   def realign(job: AnalysisJob, input: AdjustAlignmentRequest, config: AppConfig): IO[AnalysisReport] =
-    val workspace = LocalFiles.analysis(config, job.analysisId)
-    val report = workspace.resolve("result.json")
     val options = input.manualOffset.toList.flatMap(value => List("--manual", value.toString)) ++
       input.referenceRange.toList.flatMap((start, end) => List("--reference-range", start.toString, end.toString))
-    Resource.make(IO.blocking(Files.createTempDirectory(workspace, "realign-")))(LocalFiles.remove).use { directory =>
+    rewrite(job, config, "realign", options, "重新对齐失败，请检查两条音轨。")
+
+  def score(job: AnalysisJob, config: AppConfig): IO[AnalysisReport] =
+    rewrite(job, config, "score", Nil, "评分未完成。两条原始分析音轨需要仍在本机。")
+
+  private def rewrite(job: AnalysisJob, config: AppConfig, command: String, options: List[String],
+                      failure: String): IO[AnalysisReport] =
+    val workspace = LocalFiles.analysis(config, job.analysisId)
+    val report = workspace.resolve("result.json")
+    Resource.make(IO.blocking(Files.createTempDirectory(workspace, s"$command-")))(LocalFiles.remove).use { directory =>
       val updated = directory.resolve("result.json")
-      val args = List(config.python.toString, "-m", "vocallab", "realign", report.toString, updated.toString)
+      val args = List(config.python.toString, "-m", "vocallab", command, report.toString, updated.toString)
       for
         exit <- Command.run(args ++ options, config.root.resolve("dsp"), 15.seconds,
           line => IO.println(s"[DSP ${job.analysisId}] $line"))
-        _ <- IO.raiseUnless(exit == 0)(ApiError(Status.UnprocessableEntity, "重新对齐失败，请检查两条音轨。"))
+        _ <- IO.raiseUnless(exit == 0)(ApiError(Status.UnprocessableEntity, failure))
         verified <- readReport(updated, job)
         _ <- IO.blocking(Files.move(updated, report, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING))
       yield verified

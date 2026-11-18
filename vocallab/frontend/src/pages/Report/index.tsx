@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import type { PitchPreview, Report as AnalysisReport, Stage } from '../../apis/analysis/contracts'
 import { Button } from '../../components/ui/Button'
 import { Panel } from '../../components/ui/Panel'
+import { CoachPanel } from './components/CoachPanel'
 import { AlignmentPanel } from './components/AlignmentPanel'
 import { PitchChart } from './components/PitchChart'
 import { PitchPreviewPanel } from './components/PitchPreviewPanel'
@@ -38,6 +39,7 @@ function AnalysisResult({ report, preview, adjust, adjusting, error }: {
       <ul className="mt-2 space-y-1 text-xs leading-5 text-muted">{report.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul>
     </details>}
     <PitchChart report={report} playback={playback} preview={preview}/>
+    <CoachPanel report={report} playback={playback} adjusting={adjusting}/>
     <Spectrogram report={report} playback={playback} preview={preview}/>
     <div className="grid items-start gap-4 lg:grid-cols-[1.35fr_1fr]">
       <details className="rounded-xl border border-line bg-panel px-3 py-2">

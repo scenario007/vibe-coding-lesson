@@ -10,6 +10,7 @@ import org.http4s.implicits.*
 import scala.concurrent.duration.*
 import services.analysis.api.AnalysisRuntime
 import services.analysis.routes.AnalysisRoutes
+import services.coach.routes.CoachRoutes
 import services.lyrics.routes.LyricsRoutes
 import services.system.api.Database
 import services.system.objects.AppConfig
@@ -39,8 +40,10 @@ object Main extends IOApp.Simple:
       uploads <- Resource.eval(Semaphore[IO](2))
       queue <- Resource.eval(Semaphore[IO](1))
       lyrics <- Resource.eval(Semaphore[IO](2))
+      coach <- Resource.eval(Semaphore[IO](1))
       _ <- AnalysisRuntime.background(database, config)
-      routes = (AnalysisRoutes.routes(database, config, uploads, queue) <+> LyricsRoutes.routes(database, lyrics)).orNotFound
+      routes = (AnalysisRoutes.routes(database, config, uploads, queue) <+>
+        LyricsRoutes.routes(database, lyrics) <+> CoachRoutes.routes(database, config, coach)).orNotFound
       _ <- EmberServerBuilder.default[IO].withHost(host"127.0.0.1").withPort(Port.fromInt(config.port).get)
         .withIdleTimeout(150.seconds).withRequestHeaderReceiveTimeout(20.seconds)
         .withHttpApp(APIMessageRouter.local(routes, config)).build

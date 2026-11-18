@@ -1,4 +1,4 @@
-# VocalLab V1
+# VocalLab V2
 
 VocalLab 是在 Mac 上运行的歌唱分析工作台。上传歌曲原唱和自己的演唱，分别选择同一乐句对应的区间，即可对照音高轨迹、查看音准和稳定性指标，并复听对应音轨。
 
@@ -48,6 +48,33 @@ export PATH="/opt/homebrew/opt/openjdk@21/bin:/opt/homebrew/opt/postgresql@18/bi
 
 查询由后端调用 [LRCLIB 公开 API](https://lrclib.net/docs)，搜索只发送歌名和歌手，选定后按记录编号取 LRC。歌曲时长排序、歌词解析和录音处理在本机完成。所选歌词与偏移保存于当前浏览器标签页，刷新或用相同原唱重新对齐时可以保留。
 
+## 声乐教练（V2）
+
+完成基础报告后，打开「声乐教练」。本地专项分析复用报告的 RMS 和快速基频质量缓存。旧报告缺少该缓存时使用已有 pYIN 实测帧。难点地图可定位、单轨复听及添加、编辑、删除。证据卡列出两轨各自的测量、数据质量和音轨来源。偏移改变会让旧双轨证据和 AI 结论失效，可用「更新声学证据」保留原唱标记并重算双轨比较。
+
+填写歌名、歌手和版本后，可主动生成 AI 深度分析。配置搜索服务时先取得实际检索摘要。模型以结构化 JSON 选择本曲需要的专项工具，DSP 在当前原唱中给出真实候选，模型筛选候选并选择少量专项比较。报告及问答的指标值从本地证据解析，时间定位来自现有音轨。问答可为选中片段增加最多两项测量。
+
+工具包含高音、连续高音、高音起音、长音、颤音候选、密集转折、滑音、相对动态、低动态、声音连贯性和音高跳进。颤音及转折为声学观察。转折的音节归属、真实声压和具体发声方式无法由这些指标确认。选段长度、有效基频覆盖和分离残留都可能限制结果。
+
+### 配置 AI 文本和联网检索
+
+密钥仅配置到本机后端。可通过环境变量设置，或在 `.local/coach.env` 每行写一个 `名称=值`，用 `Stop.command`、`Start.command` 重新启动。直接运行 Scala 开发服务时使用环境变量。项目 Git 忽略 `.local/`。
+
+| 配置 | 用途 |
+| --- | --- |
+| `VOCALLAB_AI_BASE_URL` | OpenAI 兼容 API 根地址，服务会追加 `/chat/completions` |
+| `VOCALLAB_AI_MODEL` | 文本模型。如课程 TokenHub 的 `deepseek-v4.1-flash`，根地址为 `https://tokenhub.tencentmaas.com/v1` |
+| `VOCALLAB_AI_KEY` | 文本服务密钥 |
+| `VOCALLAB_AI_KEY_FILE` | 通过启动脚本从本机课程凭证 JSON 的 `api_key` 字段读取，可替代上一项 |
+| `VOCALLAB_AI_TIMEOUT_SECONDS`、`VOCALLAB_AI_MAX_TOKENS` | 单次文本请求上限，默认 24 秒、3000 token |
+| `VOCALLAB_AI_JSON_MODE` | 可选，设为 `true` 时请求提供方原生 JSON 输出。课程端点的 DeepSeek 默认启用 JSON 模式并关闭思考输出。 |
+| `VOCALLAB_SEARCH_KEY` | [Brave Web Search API](https://api-dashboard.search.brave.com/api-reference/web/search/get) 密钥，选填 |
+| `VOCALLAB_SEARCH_URL` | Brave 兼容搜索端点，默认使用 Brave 官方 Web Search |
+
+正常打开报告时只读缓存。每次 AI 深度分析最多三次模型请求、六项候选检测，每次问答最多两次模型请求和两项补充工具。网络失败时可继续使用本地专项分析。联网查询发送歌曲资料，文本分析和问答发送必要的声学摘要及用户提交的信息。原始音视频、完整曲线和密钥留在本机。
+
+教练报告和工具结果随基础报告一同保存在其本机目录。独立搜索摘要可复用七天。普通自动化通过 `scripts/coach_test.py` 提供的本地兼容测试服务验证 AI 流程。
+
 ## 项目结构与数据流
 
 - `frontend/` 使用 React、TypeScript、Vite、Tailwind 和 React Router。页面就近组织组件、状态和纯计算，API 按分析服务组织，并用 Zod 校验返回数据。
@@ -76,7 +103,7 @@ export PATH="/opt/homebrew/opt/openjdk@21/bin:/opt/homebrew/opt/postgresql@18/bi
 
 对齐从已处理的人声或所选分析音轨读取音频，以 15 ms 间隔提取平滑对数 RMS、能量差分、宽频带谱通量及演唱活动包络。用 SciPy FFT 计算有效重叠内的加权归一化互相关，融合各特征的候选，并检查次峰和特征一致性。默认搜索 ±3 秒，可在启动环境中设置 `VOCALLAB_ALIGNMENT_SEARCH_SECONDS`。长停顿、重复节奏、伴奏残留和速度漂移会降低可信度。低可信度的候选仍可复听确认。
 
-`offsetSeconds` 是选段内的秒数差，满足 `t_user = t_reference + offsetSeconds`。`originalOffsetSeconds` 另加上翻唱裁剪起点与原唱裁剪起点之差。报告使用同一个固定偏移平移翻唱包络和 F0；播放保持原速。自动重测仅重新提取轻量对齐特征，手动微调直接用缓存 F0 重算比较。首次分析的 pYIN 每约 20 ms 估计一帧；有效音高覆盖不足时，仍可按时序复听。绝对音准保留实际移调差异，整体移调补偿后的命中率另行显示。
+`offsetSeconds` 是选段内的秒数差，满足 `t_user = t_reference + offsetSeconds`。`originalOffsetSeconds` 另加上翻唱裁剪起点与原唱裁剪起点之差。报告使用同一个固定偏移平移翻唱 F0；播放保持原速。自动重测仅重新提取轻量对齐特征，手动微调直接用缓存 F0 重算比较。首次分析的 pYIN 每约 20 ms 估计一帧；有效音高覆盖不足时，仍可按时序复听。绝对音准保留实际移调差异，整体移调补偿后的命中率另行显示。
 
 模型出处、参数、用量和逐项实测见 [验证记录](docs/verification.md)。
 

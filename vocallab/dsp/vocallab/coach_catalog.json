@@ -1,0 +1,123 @@
+[
+  {
+    "id": "high_notes",
+    "label": "高音",
+    "minimumSeconds": 0.16,
+    "description": "相对音域上缘、代表音高和保持时间",
+    "dependencies": [
+      "cachedF0",
+      "RMS"
+    ],
+    "cost": "low"
+  },
+  {
+    "id": "consecutive_high_notes",
+    "label": "连续高音",
+    "minimumSeconds": 0.55,
+    "description": "高音数量、间隔和前后半段差异",
+    "dependencies": [
+      "cachedF0",
+      "RMS"
+    ],
+    "cost": "low"
+  },
+  {
+    "id": "high_note_attack",
+    "label": "高音起音",
+    "minimumSeconds": 0.2,
+    "description": "比较起始音高、过冲及进入目标的时间",
+    "dependencies": [
+      "cachedF0",
+      "RMS"
+    ],
+    "cost": "low"
+  },
+  {
+    "id": "sustained_notes",
+    "label": "长音",
+    "minimumSeconds": 0.5,
+    "description": "持续时间、音高变化和缓慢漂移",
+    "dependencies": [
+      "cachedF0",
+      "RMS"
+    ],
+    "cost": "low"
+  },
+  {
+    "id": "vibrato",
+    "label": "颤音候选",
+    "minimumSeconds": 0.8,
+    "description": "长音内去趋势后的周期、幅度和起点",
+    "dependencies": [
+      "cachedF0",
+      "RMS"
+    ],
+    "cost": "low"
+  },
+  {
+    "id": "melisma",
+    "label": "密集转折",
+    "minimumSeconds": 0.18,
+    "description": "快速音高转折，无法确认音节归属",
+    "dependencies": [
+      "cachedF0",
+      "RMS"
+    ],
+    "cost": "low"
+  },
+  {
+    "id": "glissando",
+    "label": "滑音",
+    "minimumSeconds": 0.14,
+    "description": "连续的单向音高变化",
+    "dependencies": [
+      "cachedF0",
+      "RMS"
+    ],
+    "cost": "low"
+  },
+  {
+    "id": "relative_dynamics",
+    "label": "相对动态",
+    "minimumSeconds": 0.55,
+    "description": "各轨内参照响度、动态范围及变化",
+    "dependencies": [
+      "cachedF0",
+      "RMS"
+    ],
+    "cost": "low"
+  },
+  {
+    "id": "soft_vocal_regions",
+    "label": "低动态",
+    "minimumSeconds": 0.4,
+    "description": "低相对响度下的音高与有声连续性",
+    "dependencies": [
+      "cachedF0",
+      "RMS"
+    ],
+    "cost": "low"
+  },
+  {
+    "id": "vocal_continuity",
+    "label": "声音连贯性",
+    "minimumSeconds": 0.65,
+    "description": "活动区间内的中断和乐句末尾变化",
+    "dependencies": [
+      "cachedF0",
+      "RMS"
+    ],
+    "cost": "low"
+  },
+  {
+    "id": "pitch_leaps",
+    "label": "音高跳进",
+    "minimumSeconds": 0.2,
+    "description": "相邻稳定音之间的音程、转换与保持",
+    "dependencies": [
+      "cachedF0",
+      "RMS"
+    ],
+    "cost": "low"
+  }
+]

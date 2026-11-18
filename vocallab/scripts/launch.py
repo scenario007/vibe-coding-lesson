@@ -8,7 +8,6 @@ import shutil
 import signal
 import socket
 import subprocess
-import sys
 import time
 import urllib.error
 import urllib.request
@@ -137,6 +136,34 @@ def stop_app(state):
     STATE.unlink(missing_ok=True)
 
 
+def coach_environment():
+    """Read optional backend-only provider settings for Start.command."""
+    path = LOCAL / "coach.env"
+    allowed = {
+        "VOCALLAB_AI_KEY", "VOCALLAB_AI_KEY_FILE", "VOCALLAB_AI_BASE_URL", "VOCALLAB_AI_MODEL",
+        "VOCALLAB_AI_TIMEOUT_SECONDS", "VOCALLAB_AI_MAX_TOKENS", "VOCALLAB_AI_JSON_MODE",
+        "VOCALLAB_SEARCH_KEY", "VOCALLAB_SEARCH_URL",
+    }
+    file_settings = {}
+    if path.is_file():
+        for line in path.read_text().splitlines():
+            key, separator, value = line.partition("=")
+            key = key.strip()
+            if separator and key in allowed and value.strip():
+                file_settings[key] = value.strip()
+    inherited = {key: os.environ[key] for key in allowed if key in os.environ}
+    settings = {**file_settings, **inherited}
+    key_file = settings.pop("VOCALLAB_AI_KEY_FILE", None)
+    if key_file and "VOCALLAB_AI_KEY" not in settings:
+        try:
+            value = json.loads(Path(key_file).expanduser().read_text())["api_key"]
+            if isinstance(value, str) and value.strip():
+                settings["VOCALLAB_AI_KEY"] = value.strip()
+        except (OSError, ValueError, TypeError, KeyError):
+            print("无法读取 AI 凭证文件，继续以本地模式启动。")
+    return settings, allowed
+
+
 def start():
     state = read_state()
     if all(ours(state.get(name)) for name in ("frontend", "backend")) and healthy(URL) and healthy(API + "/api/getmedialimitsapi"):
@@ -147,8 +174,10 @@ def start():
     stop_app(state)
     port_available(PORT)
     port_available(FRONTEND_PORT)
-    env = {**os.environ, "VOCALLAB_ROOT": str(ROOT), "VOCALLAB_PYTHON": sys.executable,
+    env = {**os.environ, "VOCALLAB_ROOT": str(ROOT), "VOCALLAB_PYTHON": str(ROOT / ".venv/bin/python"),
            "VOCALLAB_API_URL": API, "VOCALLAB_FRONTEND_PORT": str(FRONTEND_PORT), "CI": "true"}
+    providers, provider_keys = coach_environment()
+    frontend_env = {key: value for key, value in env.items() if key not in provider_keys}
     config = start_database() if "VOCALLAB_DB_URL" not in env else {}
     backend = ROOT / "backend"
     frontend = ROOT / "frontend"
@@ -161,14 +190,14 @@ def start():
     classpath = build.stdout.strip().splitlines()[-1]
     if "target/scala-" not in classpath:
         raise RuntimeError("无法读取 Scala 运行路径，请查看 .local/build.log。")
-    subprocess.run(["npm", "run", "build"], cwd=frontend, env=env, check=True)
+    subprocess.run(["npm", "run", "build"], cwd=frontend, env=frontend_env, check=True)
     state = {}
     try:
         child, log = spawn("backend", ["java", f"-Dvocallab.root={ROOT}", "-cp", classpath,
-                                       "services.system.utils.Main"], backend, {**env, **config}, state)
+                                       "services.system.utils.Main"], backend, {**env, **config, **providers}, state)
         wait(API + "/api/getmedialimitsapi", child, log)
         child, log = spawn("frontend", [shutil.which("node"), str(frontend / "node_modules/vite/bin/vite.js"),
-                                        "preview", "--host", "127.0.0.1"], frontend, env, state)
+                                        "preview", "--host", "127.0.0.1"], frontend, frontend_env, state)
         wait(URL, child, log)
     except BaseException:
         stop_app(state)

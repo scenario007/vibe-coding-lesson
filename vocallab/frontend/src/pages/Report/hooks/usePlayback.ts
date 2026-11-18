@@ -194,6 +194,21 @@ export function usePlayback(report: Report) {
         position(target, selected[0])
       }
     },
+    listenSelection: (role: Role, reference: TimeRange) => {
+      const target = pairRange(report, 'reference', reference)[role]
+      if (!target) return
+      const tracks = { reference: role === 'reference', user: role === 'user' }
+      const at = reference[0]
+      setEnabled(tracks)
+      setSelection({ role: 'reference', times: reference })
+      setLoop(true)
+      blocked.current.clear()
+      setError('')
+      update(at, true)
+      running.current = true
+      setPlaying(true)
+      sync(at, tracks, true, true)
+    },
     loaded: (role: Role) => sync(cursor.current, enabled, running.current, role),
     audioError: (role: Role) => {
       blocked.current.add(role)

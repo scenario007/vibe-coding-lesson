@@ -11,6 +11,7 @@ from .pitch import Pitch
 from .preprocessing import sample_rate
 
 ROLES = ("reference", "user")
+OPENING_ALIGNMENT_SECONDS = 30.0
 
 
 def analyze(manifest, progress):
@@ -76,7 +77,10 @@ def update_comparison(report, workspace, pitch, warnings, manual, reference_rang
     progress("alignment")
     if automatic is None and manual is None:
         paths = [workspace / role / (separation[role]["inputTrack"] + ".wav") for role in ROLES]
-        automatic = detect_paths(*paths, clip_range=reference_range).serializable(starts, reference_range)
+        opening = reference_range is None
+        detection_range = (0.0, min(OPENING_ALIGNMENT_SECONDS, *durations)) if opening else reference_range
+        automatic = detect_paths(*paths, clip_range=detection_range).serializable(
+            starts, detection_range, opening_window=opening)
         print(f"ALIGNMENT features={automatic['featureMilliseconds']:.2f} ms "
               f"correlation={automatic['correlationMilliseconds']:.2f} ms "
               f"total={automatic['elapsedMilliseconds']:.2f} ms", flush=True)

@@ -43,6 +43,7 @@ export function PitchChart({ report, playback, preview }: { report: Report; play
   const lrc = lyrics.selected?.lrc ?? ''
   const lyricOffset = lyrics.selected?.offset ?? 0
   const origin = report.preprocessing.referenceStart
+  const automatic = report.alignment.automatic
   const duration = report.preprocessing.referenceDuration
   const cues = useMemo(() => {
     const parsed = parseLrc(lrc)
@@ -67,8 +68,8 @@ export function PitchChart({ report, playback, preview }: { report: Report; play
     <PitchTransport report={report} playback={playback}/>
     {mapped ? <p className="mb-3 text-xs text-muted" data-testid="pitch-alignment-summary">
       {report.alignment.method === 'manual' ? '手动偏移' : '自动偏移'} {report.alignment.offset > 0 ? '+' : ''}{report.alignment.offset.toFixed(2)} 秒
-      {report.alignment.automatic?.referenceRange ? ` · 检测选区 ${report.alignment.automatic.referenceRange.map(at => timeLabel(origin + at)).join('–')}` :
-        report.alignment.automatic ? ' · 整段检测' : ''}
+      {automatic?.referenceRange ? ` · ${automatic.openingWindow ? '开头检测' : '检测选区'} ${automatic.referenceRange.map(at => timeLabel(origin + at)).join('–')}` :
+        automatic ? ' · 整段检测' : ''}
       {!report.alignment.reliable && ' · 低可信度'}
     </p> : <p className="mb-3 text-xs text-muted">暂无时间对齐结果。两轨同时播放时使用各自的选段起点。</p>}
     <ReportPlot report={report} playback={playback} axis="reference" overlay={mapped} quick={quick} preview={preview} lyrics={cues}/>

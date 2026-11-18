@@ -107,6 +107,9 @@ class Backend(unittest.TestCase):
         self.assertEqual(finished["status"], "completed", finished)
         _, report, _ = call("getanalysisresultapi", {"analysisId": job["analysisId"]})
         self.assertEqual(report["preprocessing"]["referenceDuration"], maximum)
+        self.assertTrue(report["alignment"]["automatic"]["openingWindow"])
+        self.assertEqual(report["alignment"]["automatic"]["referenceRange"], [0.0, 30.0])
+        self.assertEqual((report["pitchScore"]["start"], report["pitchScore"]["end"]), (2.0, maximum + 2))
         pitch = report["pitchTracks"]["reference"]
         self.assertGreater(len(pitch["timestamps"]), maximum * 49)
         self.assertGreater(sum(value is not None for value in pitch["guideMidiPitch"]), maximum * 40)
@@ -155,6 +158,8 @@ class Backend(unittest.TestCase):
         self.assertEqual(result["alignment"]["method"], "envelope")
         self.assertAlmostEqual(result["alignment"]["offsetSeconds"], .85, delta=.035)
         self.assertAlmostEqual(result["alignment"]["originalOffsetSeconds"], 1, delta=.035)
+        self.assertTrue(result["alignment"]["automatic"]["openingWindow"])
+        self.assertEqual(result["alignment"]["automatic"]["referenceRange"], [0.0, 5.0])
         self.assertGreater(next(m["value"] for m in result["metrics"] if m["name"] == "pitchHitRate"), .82)
         fast = result["pitchScore"]
         self.assertEqual(fast["status"], "scored", fast)
@@ -214,7 +219,8 @@ class Backend(unittest.TestCase):
 
         status, full, _ = call("adjustalignmentapi", {"analysisId": reopened_id, "manualOffset": None})
         self.assertEqual(status, 200, full)
-        self.assertIsNone(full["alignment"]["automatic"]["referenceRange"])
+        self.assertTrue(full["alignment"]["automatic"]["openingWindow"])
+        self.assertEqual(full["alignment"]["automatic"]["referenceRange"], [0.0, 5.0])
         status, later, _ = call("createanalysisapi", shorter)
         self.assertEqual(status, 200, later)
         self.assertIsNone(later["selection"]["alignmentReferenceRange"])

@@ -44,13 +44,14 @@ export function AlignmentPanel({ report, playback, adjust, adjusting, error }: {
     } else input.value = String(Number((origin + current).toFixed(2)))
   }
   const range = automatic?.referenceRange
+  const selectedDetection = automatic?.openingWindow ? undefined : range ?? undefined
   const confidence = automatic?.reliable ? (automatic.confidence < .74 ? '中等' : '较高') : '偏低'
   return <Panel className="p-4 sm:p-6">
     <h2 className="flex items-center gap-2 font-bold"><SlidersHorizontal size={18} className="text-accent"/> 时间对齐</h2>
     <div className="mt-3 space-y-1 text-xs leading-6 text-muted" aria-live="polite">
       {automatic ? <p>{automatic.offsetSeconds === null ? '自动检测未找到可用偏移' : automaticLabel(automatic.offsetSeconds)}
         {automatic.offsetSeconds !== null && ` · 可信度${confidence}`}
-        {range && ` · 原唱选区 ${timeLabel(origin + range[0])}–${timeLabel(origin + range[1])}`}</p>
+        {range && ` · ${automatic.openingWindow ? '开头检测' : '原唱选区'} ${timeLabel(origin + range[0])}–${timeLabel(origin + range[1])}`}</p>
         : <p>可用两条已处理音轨重新检测偏移。</p>}
       {hasPlaybackMapping(report) && <p>
         当前{alignment.manualOffset !== null ? '手动' : ''}偏移 {signed(applied)} 秒
@@ -69,7 +70,7 @@ export function AlignmentPanel({ report, playback, adjust, adjusting, error }: {
       </label>
       <Button type="submit" disabled={!valid || adjusting}>应用偏移</Button>
       {alignment.manualOffset !== null && automatic && <Button variant="text" disabled={adjusting}
-        onClick={() => adjust(null, range ?? undefined)}>恢复自动</Button>}
+        onClick={() => adjust(null, selectedDetection)}>恢复自动</Button>}
     </form>
     <details className="mt-3 rounded-lg border border-line px-3 py-2">
       <summary className="cursor-pointer text-xs font-medium">原唱复听与检测选区</summary>
@@ -87,11 +88,11 @@ export function AlignmentPanel({ report, playback, adjust, adjusting, error }: {
       </div>
     </details>
     <div className="mt-3 flex flex-wrap gap-2">
-      {(!automatic || range || alignment.manualOffset !== null) && <Button disabled={adjusting}
-        onClick={() => adjust(null)}>用整段自动检测</Button>}
+      {(!automatic?.openingWindow || alignment.manualOffset !== null) && <Button disabled={adjusting}
+        onClick={() => adjust(null)}>用开头自动检测</Button>}
       <Button disabled={adjusting || !referenceRange} onClick={() => adjust(null, referenceRange)}>用原唱选区检测</Button>
     </div>
-    {range && automatic?.reliable && <p className="mt-2 text-xs text-muted">同一对音轨从相同起点重新分析时，会优先在这个选区自动检测。</p>}
+    {selectedDetection && automatic?.reliable && <p className="mt-2 text-xs text-muted">同一对音轨从相同起点重新分析时，会优先在这个选区自动检测。</p>}
     {adjusting && <p role="status" className="mt-2 text-xs text-muted">正在更新对齐…</p>}
     {error && <p role="alert" className="mt-2 text-sm text-danger">{error}</p>}
     <details className="mt-4 border-t border-line pt-3">

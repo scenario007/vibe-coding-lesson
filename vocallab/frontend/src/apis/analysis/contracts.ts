@@ -51,7 +51,7 @@ const alignmentFeatureScores = z.record(z.string(), z.object({
   offsetSeconds: z.number(), score: z.number().min(-1).max(1), peakScore: z.number().min(-1).max(1),
 }))
 const alignmentDetection = z.object({
-  referenceRange: z.tuple([seconds, seconds]).nullish(),
+  referenceRange: z.tuple([seconds, seconds]).nullish(), openingWindow: z.boolean().nullish(),
   offsetSeconds: z.number().nullable(), originalOffsetSeconds: z.number().nullable(),
   confidence: fraction, reliable: z.boolean(), method: z.literal('envelope'),
   featureScores: alignmentFeatureScores, warnings: z.array(z.string()),

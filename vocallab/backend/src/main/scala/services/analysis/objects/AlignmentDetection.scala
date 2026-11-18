@@ -14,7 +14,8 @@ final case class AlignmentDetection(
   warnings: Vector[String],
   featureMilliseconds: Double,
   correlationMilliseconds: Double,
-  elapsedMilliseconds: Double
+  elapsedMilliseconds: Double,
+  openingWindow: Option[Boolean]
 )
 
 object AlignmentDetection:

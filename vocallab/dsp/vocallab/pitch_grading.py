@@ -103,7 +103,8 @@ def grade(reference: HarmonicPitch, user: HarmonicPitch, preprocessing: dict, al
     step = reference.step
     origin = preprocessing["referenceStart"]
     duration = preprocessing["referenceDuration"]
-    chosen = (alignment.get("automatic") or {}).get("referenceRange")
+    automatic = alignment.get("automatic") or {}
+    chosen = None if automatic.get("openingWindow") else automatic.get("referenceRange")
     start, end = chosen if chosen else (0, duration)
     start, end = max(0, min(duration, start)), max(0, min(duration, end))
     lower, upper = np.searchsorted(np.arange(len(reference.midi)) * step, [start, end])

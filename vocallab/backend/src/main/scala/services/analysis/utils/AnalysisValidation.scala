@@ -66,6 +66,8 @@ private[analysis] object AnalysisValidation:
     }
     val detection = alignment.automatic.forall { auto =>
       ratio(auto.confidence) && auto.method == AlignmentMethod.envelope &&
+        auto.referenceRange.forall(referenceRangeFits(job.selection, _)) &&
+        (!auto.openingWindow.contains(true) || auto.referenceRange.exists(_._1 == 0)) &&
         auto.offsetSeconds.forall(_.isFinite) &&
         auto.originalOffsetSeconds.forall(_.isFinite) &&
         Vector(auto.featureMilliseconds, auto.correlationMilliseconds, auto.elapsedMilliseconds).forall(t => t.isFinite && t >= 0) &&

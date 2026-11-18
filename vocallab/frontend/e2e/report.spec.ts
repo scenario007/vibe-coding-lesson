@@ -47,6 +47,7 @@ test('plays either or both aligned tracks and scrolls the tall pitch plot around
   await curveSource.selectOption('harmonic')
   const chart = page.getByRole('img', { name: '原唱与翻唱对齐音高曲线' })
   await expect(chart).toBeVisible()
+  await expect(page.getByTestId('pitch-alignment-summary')).toContainText('开头检测 0:00.00–0:05.80')
   expect((await chart.boundingBox())!.height).toBe(600)
   for (const note of ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3']) {
     await expect(chart.getByText(note, { exact: true })).toBeVisible()

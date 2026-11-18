@@ -24,8 +24,8 @@ class Detection:
     feature_ms: float
     correlation_ms: float
 
-    def serializable(self, starts: tuple[float, float], reference_range=None) -> dict:
-        return dict(referenceRange=reference_range, offsetSeconds=self.offset, originalOffsetSeconds=original_offset(self.offset, starts),
+    def serializable(self, starts: tuple[float, float], reference_range=None, *, opening_window=False) -> dict:
+        return dict(referenceRange=reference_range, openingWindow=opening_window, offsetSeconds=self.offset, originalOffsetSeconds=original_offset(self.offset, starts),
                     confidence=round(self.confidence, 3), reliable=self.reliable, method=METHOD,
                     featureScores=self.feature_scores, warnings=self.warnings,
                     featureMilliseconds=round(self.feature_ms, 2), correlationMilliseconds=round(self.correlation_ms, 2),

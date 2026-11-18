@@ -142,3 +142,45 @@ def test_manual_adjustment_reuses_f0_and_recomputes_comparison(reference, tmp_pa
     assert update["alignment"]["timeMapping"][0] == [0, 1]
     hit_rate = lambda report: next(m["value"] for m in report["metrics"] if m["name"] == "pitchHitRate")
     assert hit_rate(update) > max(.9, hit_rate(wrong))
+
+
+def test_default_alignment_uses_opening_even_when_the_later_offset_is_different(tmp_path):
+    from vocallab.pitch import Pitch
+    from vocallab.report import realign
+
+    duration = 67
+    original = np.zeros(RATE * duration, dtype=np.float32)
+    cover = np.zeros_like(original)
+
+    def place(samples, audio, at):
+        index = round(at * RATE)
+        samples[index:index + len(audio)] = audio
+
+    place(original, song(), .45)
+    place(cover, song(semitones=3), .95)
+    for time in (31, 39, 47, 55):
+        place(original, song(), time)
+        place(cover, song(semitones=3), time + 1.55)
+
+    for role, audio in (("reference", original), ("user", cover)):
+        directory = tmp_path / role
+        directory.mkdir()
+        sf.write(directory / "original.wav", audio, RATE)
+
+    times = np.arange(0, duration, .02)
+    missing = np.full(len(times), np.nan)
+    pitch = Pitch(times, missing, missing, np.zeros(len(times), dtype=bool), np.zeros(len(times)),
+                  np.zeros(len(times)), [], 1)
+    report = dict(preprocessing=dict(referenceStart=8.0, userStart=4.0,
+                                     referenceDuration=duration, userDuration=duration),
+                  pitchTracks=dict(reference=pitch.serializable(8.0), user=pitch.serializable(4.0)),
+                  alignment=dict(warnings=[]), warnings=[],
+                  separation={role: {"enabled": False, "inputTrack": "original"} for role in ("reference", "user")})
+
+    result = realign(report, tmp_path, None, None, lambda _: None)
+    automatic = result["alignment"]["automatic"]
+    assert automatic["referenceRange"] == (0.0, 30.0)
+    assert automatic["openingWindow"] and automatic["reliable"]
+    assert automatic["offsetSeconds"] == pytest.approx(.5, abs=.025)
+    assert result["alignment"]["timeMapping"][-1][0] > 60
+    assert (result["pitchScore"]["start"], result["pitchScore"]["end"]) == (8.0, 75.0)

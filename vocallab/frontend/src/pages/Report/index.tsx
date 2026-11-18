@@ -45,7 +45,7 @@ function AnalysisResult({ report, preview, adjust, adjusting, error, scoring, sc
         <summary className="cursor-pointer text-sm font-semibold text-muted">pYIN 声学观察</summary>
         <Segments report={report} playback={playback}/>
       </details>
-      <AlignmentPanel key={JSON.stringify([report.alignment.method, report.alignment.offset, report.alignment.automatic?.referenceRange])}
+      <AlignmentPanel key={JSON.stringify([report.alignment.method, report.alignment.offset, report.alignment.automatic?.referenceRange, report.alignment.automatic?.openingWindow])}
         report={report} playback={playback} adjusting={adjusting || scoring} adjust={adjust} error={error}/>
     </div>
   </div>

@@ -77,20 +77,19 @@ private[coach] object CoachStore:
         yield saved
     }
 
-  def research(config: AppConfig, song: SongInfo): IO[ResearchResult] =
-    if !CoachProviders.searchAvailable then CoachProviders.search(song)
-    else
-      val label = Vector(song.title, song.artist, song.version).map(_.toLowerCase(java.util.Locale.ROOT)).mkString("\u0000")
-      val dir = config.runData.resolve("coach-research")
-      val path = dir.resolve(s"${digest(CoachProviders.searchEndpoint + label)}.json")
-      for
-        now <- IO.realTimeInstant
-        fresh <- IO.blocking(Files.isRegularFile(path) && Files.getLastModifiedTime(path).toInstant.isAfter(now.minusSeconds(7L * 86400)))
-        cached <- if fresh then read[ResearchResult](path) else IO.pure(None)
-        result <- cached.fold {
-          CoachProviders.search(song).flatTap { data =>
-            if Set("results", "empty").contains(data.status) then IO.blocking(Files.createDirectories(dir)).void *> write(path, data).void
-            else IO.unit
-          }
-        }(data => IO.println(s"[Coach] search cache hit sources=${data.sources.size}").as(data))
-      yield result
+  def research(config: AppConfig, report: AnalysisReport, song: SongInfo): IO[ResearchResult] =
+    val label = Vector(song.title, song.artist, song.version).map(_.toLowerCase(java.util.Locale.ROOT)).mkString("\u0000")
+    val dir = config.runData.resolve("coach-research")
+    for
+      identity <- CoachProviders.searchIdentity(config)
+      path = dir.resolve(s"${digest(identity + label)}.json")
+      now <- IO.realTimeInstant
+      fresh <- IO.blocking(Files.isRegularFile(path) && Files.getLastModifiedTime(path).toInstant.isAfter(now.minusSeconds(7L * 86400)))
+      cached <- if fresh then read[ResearchResult](path) else IO.pure(None)
+      result <- cached.fold {
+        CoachProviders.search(config, report.analysisId, song).flatTap { data =>
+          if Set("results", "empty").contains(data.status) then IO.blocking(Files.createDirectories(dir)).void *> write(path, data).void
+          else IO.unit
+        }
+      }(data => IO.println(s"[Coach] search cache hit sources=${data.sources.size}").as(data))
+    yield result

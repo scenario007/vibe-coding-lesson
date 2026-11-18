@@ -9,7 +9,11 @@ final case class CoachView(
   stale: Boolean,
   aiAvailable: Boolean,
   searchAvailable: Boolean,
-  tools: Vector[ToolDefinition]
+  tools: Vector[ToolDefinition],
+  model: Option[String],
+  searchProvider: String,
+  keyOverrides: Set[String],
+  usage: CoachUsageSummary
 )
 
 object CoachView:

@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from uuid import uuid4
 import urllib.parse
 import urllib.request
 
@@ -86,7 +87,7 @@ class FixtureProvider(BaseHTTPRequestHandler):
             content = dict(answer="已检查周期性证据，覆盖不足的地方保留不确定性。",
                            evidenceIds=[item["id"] for item in data["evidence"][:1]])
         self.send_json(dict(choices=[dict(message=dict(content=json.dumps(content, ensure_ascii=False)))],
-                            usage=dict(total_tokens=24)))
+                            usage=dict(total_tokens=24, prompt_tokens=18, completion_tokens=6, prompt_tokens_details=dict(cached_tokens=4))))
 
     def log_message(self, *_):
         pass
@@ -117,7 +118,7 @@ class CoachIntegration(unittest.TestCase):
         return result
 
     def analyze(self, title="", deep=False, expected=200, **args):
-        return self.invoke("analyzecoach", expected, song=dict(title=title, artist="测试", version="录音室", notes=""),
+        return self.invoke("analyzecoach", expected, song=dict(title=title, artist=getattr(self, "artist", "测试"), version="录音室", notes=""),
                            deep=deep, extraTools=[], highThreshold=None, refresh=False, **args)
 
     def test_local_map_edit_and_realign(self):
@@ -141,21 +142,41 @@ class CoachIntegration(unittest.TestCase):
         removed = self.invoke("editdifficulty", id=first["id"], remove=True)
         self.assertTrue(all(d["id"] != first["id"] for d in removed["session"]["difficulties"]))
 
+    def test_key_never_returned_and_override_reverts(self):
+        value = "integration-secret-12345"
+        self.invoke("setcoachkey", 400, kind="../outside", key=value)
+        self.invoke("setcoachkey", 400, kind="ai", key="short")
+        saved = self.invoke("setcoachkey", kind="ai", key=value)
+        self.assertIn("ai", saved["keyOverrides"])
+        self.assertNotIn(value, json.dumps(self.invoke("getcoach")))
+        reverted = self.invoke("setcoachkey", kind="ai", key=None)
+        self.assertNotIn("ai", reverted["keyOverrides"])
+
     @unittest.skipUnless(os.getenv("VOCALLAB_TEST_COACH_PROVIDER"), "Mock provider not configured")
     def test_ai_selects_tools_cites_evidence_and_can_ask(self):
         self.invoke("adjustalignment", manualOffset=.85)
+        self.artist = "测试-" + uuid4().hex[:8]
         first = self.analyze("高音练习", deep=True)
         session = first["session"]
         self.assertEqual(session["plan"]["tools"][0]["tool"], "high_notes")
         self.assertEqual(len(session["sources"]), 1)
         self.assertEqual(session["sources"][0]["url"], "https://example.com/research")
         self.assertTrue(session["report"]["priorities"])
+        self.assertEqual(first["usage"]["textCalls"], 3)
+        self.assertEqual(first["usage"]["inputTokens"], 54)
+        self.assertEqual(first["usage"]["outputTokens"], 18)
+        self.assertEqual(first["usage"]["cachedTokens"], 12)
+        self.assertIsNone(first["usage"]["estimatedYuan"])
+        self.assertEqual(first["usage"]["unpricedSearches"], 1)
         mark = session["difficulties"][0]
         self.assertIn(mark["id"], [c["id"] for c in session["candidates"]])
         self.assertIn("sustained_notes", [item["tool"] for item in session["observations"]])
 
         before = stats()
         self.assertEqual(self.analyze("高音练习", deep=True)["session"], session)
+        self.assertEqual(stats(), before)
+        direct = self.invoke("lookupcoachsources", song=session["song"])
+        self.assertEqual(direct["sources"], session["sources"])
         self.assertEqual(stats(), before)
         question = self.invoke("askcoach", question="这里有周期波动吗？", segmentId=mark["id"])
         turn = question["session"]["history"][-1]

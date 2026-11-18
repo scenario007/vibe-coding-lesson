@@ -26,12 +26,28 @@ private[coach] object CoachWorkflow:
   private def interval(report: AnalysisReport, start: Double, end: Double): Boolean =
     start.isFinite && end.isFinite && start >= 0 && end <= report.preprocessing.referenceDuration + .00001 && end - start >= .10
 
-  private def view(session: Option[CoachSession], report: AnalysisReport, catalog: Vector[ToolDefinition]): CoachView =
-    CoachView(session, session.exists(_.revision != CoachStore.revision(report)),
-      CoachProviders.aiAvailable, CoachProviders.searchAvailable, catalog)
+  private def view(config: AppConfig, session: Option[CoachSession], report: AnalysisReport,
+      catalog: Vector[ToolDefinition]): IO[CoachView] =
+    for
+      ai <- CoachProviders.aiAvailable(config)
+      search <- CoachProviders.searchProvider(config)
+      overrides <- Vector("ai", "search").traverse(kind => CoachCredentials.overrideKey(config, kind)
+        .map(key => Option.when(key.nonEmpty)(kind)))
+      usage <- CoachBilling.summary(config, report.analysisId)
+    yield CoachView(session, session.exists(_.revision != CoachStore.revision(report)),
+      ai, true, catalog, CoachProviders.model, search, overrides.flatten.toSet, usage)
 
   def get(config: AppConfig, report: AnalysisReport): IO[CoachView] =
-    (CoachStore.load(config, report), CoachStore.catalog(config)).mapN((session, catalog) => view(session, report, catalog))
+    (CoachStore.load(config, report), CoachStore.catalog(config)).tupled.flatMap((session, catalog) =>
+      view(config, session, report, catalog))
+
+  def updateKey(config: AppConfig, report: AnalysisReport, input: SetCoachKeyRequest): IO[CoachView] =
+    CoachCredentials.save(config, input.kind, input.key) *> get(config, report)
+
+  def lookup(config: AppConfig, report: AnalysisReport, input: SongInfo): IO[ResearchResult] =
+    val song = SongInfo(input.title.trim, input.artist.trim, input.version.trim, "")
+    check(text(song.title, 160) && song.artist.length <= 120 && song.version.length <= 120,
+      "请填写有效的歌曲名称及版本信息。") *> CoachStore.research(config, report, song)
 
   private def target(id: String, tool: String, start: Double, end: Double): Json =
     Json.obj("id" -> id.asJson, "tool" -> tool.asJson, "start" -> start.asJson, "end" -> end.asJson)
@@ -88,7 +104,7 @@ private[coach] object CoachWorkflow:
       feedback.practice.steps.nonEmpty && feedback.practice.steps.size <= 6 && feedback.practice.steps.forall(text(_, 300)) &&
       text(feedback.practice.difficulty, 300) && text(feedback.practice.verification, 400)
 
-  private def drafts(report: AnalysisReport, song: SongInfo, sources: Vector[ResearchSource],
+  private def drafts(config: AppConfig, report: AnalysisReport, song: SongInfo, sources: Vector[ResearchSource],
       selected: Vector[String], catalog: Vector[ToolDefinition], deep: Boolean): IO[CoachPlan] =
     if !deep then IO.pure(CoachPlan("从现有音轨测量可复听的声学候选。", Vector.empty,
       selected.map(ToolChoice(_, "本地专项选择")), Vector.empty))
@@ -96,7 +112,7 @@ private[coach] object CoachWorkflow:
       val allowed = toolIds(catalog)
       val known = sources.map(_.id).toSet
       for
-        plan <- CoachProviders.generate[CoachPlan]("歌曲研究与分析计划", CoachPrompts.plan,
+        plan <- CoachProviders.generate[CoachPlan](config, report.analysisId, "歌曲研究与分析计划", CoachPrompts.plan,
           Json.obj("song" -> song.asJson, "sources" -> sources.asJson, "audioOverview" -> context(report),
             "availableTools" -> catalog.asJson))
         _ <- check(text(plan.summary, 1600) && plan.hypotheses.size <= 8 && plan.limitations.size <= 8 &&
@@ -107,14 +123,14 @@ private[coach] object CoachWorkflow:
           "AI 分析计划包含未注册工具或无效研究引用。", modelOutput = true)
       yield plan
 
-  private def choose(song: SongInfo, candidates: Vector[AcousticCandidate], plan: CoachPlan, sources: Vector[ResearchSource],
+  private def choose(config: AppConfig, report: AnalysisReport, song: SongInfo, candidates: Vector[AcousticCandidate], plan: CoachPlan, sources: Vector[ResearchSource],
       catalog: Vector[ToolDefinition], deep: Boolean): IO[(Vector[Difficulty], Vector[String])] =
     if !deep || candidates.isEmpty then IO.pure((priority(candidates, catalog), Vector.empty))
     else
       val byId = candidates.map(c => c.id -> c).toMap
       val sourceIds = sources.map(_.id).toSet
       for
-        decision <- CoachProviders.generate[MapDecision]("歌曲难点图", CoachPrompts.map,
+        decision <- CoachProviders.generate[MapDecision](config, report.analysisId, "歌曲难点图", CoachPrompts.map,
           Json.obj("song" -> song.asJson, "plan" -> plan.asJson, "sources" -> sources.asJson, "candidates" -> candidates.asJson,
             "availableTools" -> catalog.asJson))
         _ <- check(decision.choices.size <= 6 && decision.choices.map(_.segmentId).distinct.size == decision.choices.size &&
@@ -129,13 +145,13 @@ private[coach] object CoachWorkflow:
         }.sortBy(_.start)
       yield (items, decision.limitations)
 
-  private def synthesize(report: AnalysisReport, session: CoachSession): IO[Option[CoachReport]] =
+  private def synthesize(config: AppConfig, report: AnalysisReport, session: CoachSession): IO[Option[CoachReport]] =
     if session.difficulties.isEmpty then IO.pure(None)
     else
       val ids = session.difficulties.map(_.id).toSet
       val facts = evidence(session.observations)
       for
-        feedback <- CoachProviders.generate[CoachReport]("声乐分析报告", CoachPrompts.report,
+        feedback <- CoachProviders.generate[CoachReport](config, report.analysisId, "声乐分析报告", CoachPrompts.report,
           Json.obj("song" -> session.song.asJson, "plan" -> session.plan.asJson, "sources" -> session.sources.asJson,
             "difficultyMap" -> session.difficulties.asJson, "evidence" -> evidenceJson(session.observations),
             "dataQuality" -> session.observations.map(item =>
@@ -150,9 +166,10 @@ private[coach] object CoachWorkflow:
 
   def analyze(config: AppConfig, report: AnalysisReport, input: AnalyzeCoachRequest): IO[CoachView] =
     val song = SongInfo(input.song.title.trim, input.song.artist.trim, input.song.version.trim, input.song.notes.trim)
-    val provider = Option.when(input.deep)(CoachProviders.identity + "|" + CoachProviders.searchEndpoint + "|" + CoachProviders.searchAvailable)
     for
       catalog <- CoachStore.catalog(config)
+      search <- CoachProviders.searchIdentity(config)
+      provider = Option.when(input.deep)(CoachProviders.identity + "|" + search)
       _ <- check(song.title.length <= 160 && song.artist.length <= 120 && song.version.length <= 120 &&
         song.notes.length <= 600 && (!input.deep || song.title.nonEmpty), "请填写有效的歌曲名称及版本信息。")
       _ <- check(validTools(input.extraTools, toolIds(catalog), 2) &&
@@ -174,7 +191,8 @@ private[coach] object CoachWorkflow:
           finishReport(config, report, s)
         case Some(s) => IO.println("[Coach] session cache hit").as(s)
         case None => analysis(config, report, input, song, provider, old, catalog)
-    yield view(Some(state), report, catalog)
+      result <- view(config, Some(state), report, catalog)
+    yield result
 
   private def analysis(config: AppConfig, report: AnalysisReport, input: AnalyzeCoachRequest, song: SongInfo,
       provider: Option[String], old: Option[CoachSession], catalog: Vector[ToolDefinition]): IO[CoachSession] =
@@ -183,15 +201,17 @@ private[coach] object CoachWorkflow:
     val sameSong = old.filter(_.song == song)
     val manual = sameSong.toVector.flatMap(_.difficulties.filter(_.manual)).take(8)
     for
-      _ <- IO.raiseWhen(deep && !CoachProviders.aiAvailable)(ApiError(Status.ServiceUnavailable, "请先配置 AI 文本服务。"))
-      researched <- if deep then CoachStore.research(config, song) else IO.pure(ResearchResult(Vector.empty, "local"))
-      plan <- drafts(report, song, researched.sources, localTools, catalog, deep)
+      ai <- CoachProviders.aiAvailable(config)
+      source <- CoachProviders.searchProvider(config)
+      _ <- IO.raiseWhen(deep && !ai)(ApiError(Status.ServiceUnavailable, "请先配置 AI 文本服务。"))
+      researched <- if deep then CoachStore.research(config, report, song) else IO.pure(ResearchResult(Vector.empty, "local"))
+      plan <- drafts(config, report, song, researched.sources, localTools, catalog, deep)
       tools = (plan.tools.map(_.tool) ++ input.extraTools).distinct.take(algorithmLimit)
       completePlan = plan.copy(tools = plan.tools ++ tools.filterNot(plan.tools.map(_.tool).contains)
         .map(ToolChoice(_, "用户补充选择")))
       detected <- CoachStore.acoustic(config, report,
         Json.obj("tools" -> tools.asJson, "highThreshold" -> input.highThreshold.asJson))
-      decision <- choose(song, detected.candidates, completePlan, researched.sources, catalog, deep)
+      decision <- choose(config, report, song, detected.candidates, completePlan, researched.sources, catalog, deep)
       // Keep edited marks first, with a bounded number of tool calls for the resulting map.
       marked = (manual.map(_.copy(sourceIds = Vector.empty, analysisTools = Vector.empty)) ++
         decision._1.filterNot(c => manual.exists(_.id == c.id))).take(8).sortBy(_.start)
@@ -199,7 +219,8 @@ private[coach] object CoachWorkflow:
       initial = CoachSession(CoachStore.revision(report), if deep then "ai" else "local", song, researched.sources,
         researched.status, completePlan, detected.candidates, marked, measured.observations,
         detected.runs ++ measured.runs, None, Vector.empty, Option.when(deep)(CoachProviders.model).flatten,
-        (sourceStatus(researched.status) ++ decision._2 ++ Option.when(marked.isEmpty)("没有达到测量条件的难点候选。"))
+        (sourceStatus(researched.status) ++ Option.when(deep && source == "wikipedia")(
+          "本次检索范围为中文维基百科，主要用于核对歌曲背景，声乐结论以实测证据为准。") ++ decision._2 ++ Option.when(marked.isEmpty)("没有达到测量条件的难点候选。"))
           .distinct, input.extraTools, input.highThreshold, provider)
       // Preserve usable DSP results if the external synthesis fails.
       _ <- CoachStore.save(config, report, initial)
@@ -208,7 +229,7 @@ private[coach] object CoachWorkflow:
 
   private def finishReport(config: AppConfig, report: AnalysisReport, session: CoachSession): IO[CoachSession] =
     val refreshed = session.copy(warnings = session.warnings.filterNot(_.startsWith("AI ")))
-    synthesize(report, session).attempt.flatMap {
+    synthesize(config, report, session).attempt.flatMap {
       case Right(result) => CoachStore.save(config, report, refreshed.copy(report = result))
       case Left(error: ApiError) =>
         CoachStore.save(config, report, refreshed.copy(warnings = refreshed.warnings :+ error.getMessage))
@@ -241,7 +262,8 @@ private[coach] object CoachWorkflow:
         difficulties = updated, observations = measured.observations, runs = retainedRuns ++ measured.runs,
         report = None, history = Vector.empty, warnings = loaded.warnings.filterNot(_.startsWith("没有达到")) :+
           "难点已编辑，相关 AI 结论需要重新生成。"))
-    yield view(Some(saved), report, catalog)
+      result <- view(config, Some(saved), report, catalog)
+    yield result
 
   private def required(config: AppConfig, report: AnalysisReport): IO[CoachSession] =
     CoachStore.load(config, report).flatMap(value => IO.fromOption(value)(
@@ -273,7 +295,7 @@ private[coach] object CoachWorkflow:
         "history" -> session.history.takeRight(3).map(t => Json.obj("question" -> t.question.asJson,
           "answer" -> t.answer.answer.asJson)).asJson, "currentSummary" -> session.report.map(_.summary).asJson,
         "evidence" -> evidenceJson(existing))
-      followup <- CoachProviders.generate[CoachFollowup]("问答测量计划", CoachPrompts.followup,
+      followup <- CoachProviders.generate[CoachFollowup](config, report.analysisId, "问答测量计划", CoachPrompts.followup,
         payload.deepMerge(Json.obj("availableTools" -> catalog.asJson)))
       _ <- check(validTools(followup.tools, toolIds(catalog), 2) &&
         followup.segmentId.forall(id => session.difficulties.exists(_.id == id) && selected.forall(_.id == id) &&
@@ -287,7 +309,7 @@ private[coach] object CoachWorkflow:
         else CoachStore.acoustic(config, report, Json.obj("targets" -> extra.asJson, "highThreshold" -> session.highThreshold.asJson))
       available = (batch.observations ++ existing.filter(item => focus.forall(_.id == item.segmentId))).distinctBy(_.id)
       facts = evidence(available)
-      answer <- CoachProviders.generate[CoachAnswer]("教练回复", CoachPrompts.answer,
+      answer <- CoachProviders.generate[CoachAnswer](config, report.analysisId, "教练回复", CoachPrompts.answer,
         payload.deepMerge(Json.obj("evidence" -> evidenceJson(available), "measurementStatus" -> available.map(item =>
           Json.obj("id" -> item.id.asJson, "status" -> item.status.asJson,
             "warnings" -> (item.reference.warnings ++ item.user.toVector.flatMap(_.warnings)).distinct.asJson)).asJson,
@@ -296,4 +318,5 @@ private[coach] object CoachWorkflow:
         "AI 回复包含无法验证的证据引用。", modelOutput = true)
       turn = CoachTurn(question, focus.map(_.id), measuredRange, answer, available, batch.runs)
       saved <- CoachStore.save(config, report, session.copy(history = (session.history :+ turn).takeRight(10)))
-    yield view(Some(saved), report, catalog)
+      result <- view(config, Some(saved), report, catalog)
+    yield result

@@ -58,7 +58,7 @@ export PATH="/opt/homebrew/opt/openjdk@21/bin:/opt/homebrew/opt/postgresql@18/bi
 
 ### 配置 AI 文本和联网检索
 
-密钥仅配置到本机后端。可通过环境变量设置，或在 `.local/coach.env` 每行写一个 `名称=值`，用 `Stop.command`、`Start.command` 重新启动。直接运行 Scala 开发服务时使用环境变量。项目 Git 忽略 `.local/`。
+在报告页打开「AI 服务设置」即可录入文本或 Brave Search 密钥。设置只保存在本机后端，保存后即时生效，移除覆盖可恢复项目配置。也可通过环境变量设置，或在 `.local/coach.env` 每行写一个 `名称=值`，用 `Stop.command`、`Start.command` 重新启动。直接运行 Scala 开发服务时使用环境变量。项目 Git 忽略 `.local/`。
 
 | 配置 | 用途 |
 | --- | --- |
@@ -68,8 +68,10 @@ export PATH="/opt/homebrew/opt/openjdk@21/bin:/opt/homebrew/opt/postgresql@18/bi
 | `VOCALLAB_AI_KEY_FILE` | 通过启动脚本从本机课程凭证 JSON 的 `api_key` 字段读取，可替代上一项 |
 | `VOCALLAB_AI_TIMEOUT_SECONDS`、`VOCALLAB_AI_MAX_TOKENS` | 单次文本请求上限，默认 24 秒、3000 token |
 | `VOCALLAB_AI_JSON_MODE` | 可选，设为 `true` 时请求提供方原生 JSON 输出。课程端点的 DeepSeek 默认启用 JSON 模式并关闭思考输出。 |
-| `VOCALLAB_SEARCH_KEY` | [Brave Web Search API](https://api-dashboard.search.brave.com/api-reference/web/search/get) 密钥，选填 |
+| `VOCALLAB_SEARCH_KEY` | [Brave Web Search API](https://api-dashboard.search.brave.com/api-reference/web/search/get) 密钥，选填。没有 Brave 密钥时通过中文维基百科查询歌曲背景 |
 | `VOCALLAB_SEARCH_URL` | Brave 兼容搜索端点，默认使用 Brave 官方 Web Search |
+
+「联网查歌曲资料」可单独运行，并与深度分析共享查询缓存。报告展示此版本记录的文本输入、输出、缓存用量，以及已知定价时的估算人民币金额。估算按腾讯云公开峰谷价格计算，账户实际扣费以服务商账单为准。旧调用及无法定价的搜索不会被补记为零。
 
 正常打开报告时只读缓存。每次 AI 深度分析最多三次模型请求、六项候选检测，每次问答最多两次模型请求和两项补充工具。网络失败时可继续使用本地专项分析。联网查询发送歌曲资料，文本分析和问答发送必要的声学摘要及用户提交的信息。原始音视频、完整曲线和密钥留在本机。
 

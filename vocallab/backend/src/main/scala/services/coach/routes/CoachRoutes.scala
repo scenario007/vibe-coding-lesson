@@ -17,8 +17,11 @@ object CoachRoutes:
     val reads = json(db, (input: AnalysisIdRequest) => GetCoachAPIMessage(input, config))
     val writes = json(db, (input: AnalyzeCoachRequest) => AnalyzeCoachAPIMessage(input, config)) <+>
       json(db, (input: EditDifficultyRequest) => EditDifficultyAPIMessage(input, config)) <+>
-      json(db, (input: AskCoachRequest) => AskCoachAPIMessage(input, config))
-    val operations = Set(name[AnalyzeCoachAPIMessage], name[EditDifficultyAPIMessage], name[AskCoachAPIMessage])
+      json(db, (input: AskCoachRequest) => AskCoachAPIMessage(input, config)) <+>
+      json(db, (input: SetCoachKeyRequest) => SetCoachKeyAPIMessage(input, config)) <+>
+      json(db, (input: LookupCoachSourcesRequest) => LookupCoachSourcesAPIMessage(input, config))
+    val operations = Set(name[AnalyzeCoachAPIMessage], name[EditDifficultyAPIMessage], name[AskCoachAPIMessage],
+      name[SetCoachKeyAPIMessage], name[LookupCoachSourcesAPIMessage])
     reads <+> HttpRoutes[IO] { request =>
       if request.uri.path.segments.lastOption.exists(segment => operations(segment.decoded())) then
         OptionT(queue.tryPermit.use {

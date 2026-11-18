@@ -19,6 +19,13 @@ const difficulty = z.object({
 })
 const toolRun = z.object({ tool: z.string(), status, milliseconds: z.number().nonnegative() })
 const source = z.object({ id: z.string(), title: z.string(), url: z.string().url(), summary: z.string() })
+export const researchResult = z.object({ sources: z.array(source), status: z.string() })
+const usage = z.object({
+  textCalls: z.number().int().nonnegative(), inputTokens: z.number().int().nonnegative(),
+  outputTokens: z.number().int().nonnegative(), cachedTokens: z.number().int().nonnegative(),
+  estimatedYuan: z.number().nonnegative().nullable(), unpricedTextCalls: z.number().int().nonnegative(),
+  unpricedSearches: z.number().int().nonnegative(),
+})
 const feedback = z.object({
   segmentId: z.string(), evidenceIds: strings, observation: z.string(), interpretation: z.string(),
   practice: z.object({ goal: z.string(), steps: strings, difficulty: z.string(), verification: z.string() }),
@@ -39,6 +46,7 @@ const coachSession = z.object({
 })
 export const coachView = z.object({
   session: coachSession.nullable(), stale: z.boolean(), aiAvailable: z.boolean(), searchAvailable: z.boolean(),
+  model: z.string().nullable(), searchProvider: z.enum(['wikipedia', 'brave']), keyOverrides: strings, usage,
   tools: z.array(z.object({ id: z.string(), label: z.string(), minimumSeconds: z.number(), description: z.string() })),
 })
 
@@ -48,3 +56,5 @@ export type Difficulty = z.infer<typeof difficulty>
 export type Observation = z.infer<typeof observation>
 export type Feedback = z.infer<typeof feedback>
 export type ResearchSource = z.infer<typeof source>
+
+export type ResearchResult = z.infer<typeof researchResult>

@@ -100,14 +100,22 @@ export function PitchPlot({ limits, origin, axis, first, second = emptyPoints, t
 
   const hoverTime = hover === null ? null : from + hover * span
   const hoverX = hoverTime === null ? null : x(hoverTime)
-  const pitchA = hoverTime === null ? null : pitchAt(firstVisible, hoverTime)
-  const pitchB = hoverTime === null ? null : pitchAt(secondVisible, hoverTime)
   const colorA = axis === 'reference' ? referenceColor : userColor
-  const hoveredNotes = [
-    ...(pitchA === null || pitchA > high ? [] : [{ midi: pitchA, color: colorA }]),
-    ...(pitchB === null || pitchB > high ? [] : [{ midi: pitchB, color: userColor }]),
-  ]
-  const groupNotes = hoveredNotes.length === 2 && Math.abs(y(hoveredNotes[0].midi) - y(hoveredNotes[1].midi)) < 35
+
+  function notesAt(at: number) {
+    return [
+      { midi: pitchAt(firstVisible, at), color: colorA },
+      { midi: pitchAt(secondVisible, at), color: userColor },
+    ].flatMap(({ midi, color }) => midi !== null && midi <= high ? [{ midi, color }] : [])
+  }
+
+  const centerNotes = notesAt(visibleTime)
+  const hoveredNotes = hoverTime === null || playing ? [] : notesAt(hoverTime)
+  const markers = [{ kind: 'playhead', position: center, notes: centerNotes }]
+  // Keep the playhead label readable when the pointer is over the same area.
+  if (hoverX !== null && (Math.abs(hoverX - center) > 48 || centerNotes.length === 0)) {
+    markers.push({ kind: 'hover', position: hoverX, notes: hoveredNotes })
+  }
 
   function move(event: PointerEvent<SVGSVGElement>) {
     const rect = event.currentTarget.getBoundingClientRect()
@@ -187,14 +195,19 @@ export function PitchPlot({ limits, origin, axis, first, second = emptyPoints, t
                 fill="none" stroke={userColor} strokeWidth={1.75} vectorEffect="non-scaling-stroke"/>}
             </g>
             <line data-testid="pitch-playhead" x1={center} x2={center} y1={top} y2={bottom} stroke="#eee8ff" strokeWidth="1.5"/>
-            {hoverX !== null && !playing && hoveredNotes.map(note =>
-              <circle key={note.color} cx={hoverX} cy={y(note.midi)} r={4} fill={note.color}/>)}
+            {markers.flatMap(({ kind, position, notes }) => notes.map(note =>
+              <circle key={`${kind}-${note.color}`} cx={position} cy={y(note.midi)} r={4} fill={note.color}/>))}
           </g>
         </svg>
-        {hoverX !== null && !playing && (groupNotes ?
-          <PitchNoteTooltip notes={hoveredNotes} x={hoverX / width * 100} y={y(Math.max(...hoveredNotes.map(note => note.midi))) / height * 100}/> :
-          hoveredNotes.map(note =>
-            <PitchNoteTooltip key={note.color} notes={[note]} x={hoverX / width * 100} y={y(note.midi) / height * 100}/>))}
+        {markers.filter(marker => marker.notes.length > 0).map(({ kind, position, notes }) => {
+          const together = notes.length === 2 && Math.abs(y(notes[0].midi) - y(notes[1].midi)) < 35
+          const groups = together ? [notes] : notes.map(note => [note])
+          return <div key={kind} data-testid={`pitch-${kind}-notes`}>
+            {groups.map(group => <PitchNoteTooltip key={group[0].color} notes={group}
+              x={position / width * 100} y={y(Math.max(...group.map(note => note.midi))) / height * 100}
+              emphasis={kind === 'playhead'}/>)}
+          </div>
+        })}
       </div>
       {lyrics && lyrics.length > 0 && <div aria-label="歌词时间轴" className="relative -mt-2 mb-2 h-9 overflow-hidden border-t border-line"
         style={{ marginLeft: `${left / width * 100}%`, marginRight: `${right / width * 100}%` }}>

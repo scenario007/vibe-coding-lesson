@@ -34,10 +34,15 @@ def extract(path: Path) -> HarmonicPitch:
 
 def _periodicity(frames: np.ndarray, frequency: np.ndarray, rate: int) -> np.ndarray:
     """Measure how well one cycle predicts the next directly in the waveform."""
-    lag = np.rint(rate / frequency).astype(int)
-    indices = (frames.shape[1] - 1024 - lag[:, None]) // 2 + np.arange(1024)
+    exact_lag = rate / frequency
+    lag = exact_lag.astype(int)[:, None]
+    fraction = (exact_lag - lag[:, 0]).astype(frames.dtype, copy=False)[:, None]
+    indices = (frames.shape[1] - 1024 - lag) // 2 + np.arange(1024)
     left = np.take_along_axis(frames, indices, axis=1)
-    right = np.take_along_axis(frames, indices + lag[:, None], axis=1)
+    right = np.take_along_axis(frames, indices + lag, axis=1)
+    right += fraction * (np.take_along_axis(frames, indices + lag + 1, axis=1) - right)
+    left -= np.mean(left, axis=1, keepdims=True)
+    right -= np.mean(right, axis=1, keepdims=True)
     return np.sum(left * right, axis=1) / np.maximum(
         np.sqrt(np.sum(left ** 2, axis=1) * np.sum(right ** 2, axis=1)), 1e-12
     )
@@ -58,7 +63,7 @@ def _follow_candidates(pitches: np.ndarray, emission: np.ndarray) -> np.ndarray:
         cumulative = emission[phrase[0]].copy()
         for before, current in zip(phrase[:-1], phrase[1:]):
             distance = np.abs(pitches[before, :, None] - pitches[current, None, :])
-            transition = np.minimum(.16 * distance, .60) + 3.0 * (distance >= 9)
+            transition = np.minimum(.14 * distance, .56) + .80 * (distance >= 9)
             transition = np.nan_to_num(transition, nan=4.0)
             costs = cumulative[:, None] + transition / np.sqrt(current - before)
             back[current] = np.argmin(costs, axis=0)
@@ -87,6 +92,7 @@ def _bridge_short_gaps(output: np.ndarray, energy: np.ndarray, floor: float) -> 
 
 def track(mono: np.ndarray, rate: int) -> HarmonicPitch:
     """Group spectral peaks by harmonic spacing and omit unsupported frames."""
+    mono = np.asarray(mono, dtype=np.float32)
     hop = round(.02 * rate)
     window_size = 2048
     transform_size = 8192
@@ -104,7 +110,7 @@ def track(mono: np.ndarray, rate: int) -> HarmonicPitch:
     bins = np.minimum(np.rint(frequency * transform_size / rate).astype(int), transform_size // 2)
     weights = orders ** -.65
     taper = signal.windows.hann(window_size, sym=False).astype(np.float32)
-    pitches = np.full((len(frames), 5), np.nan)
+    pitches = np.full((len(frames), 3), np.nan)
     costs = np.full_like(pitches, np.inf)
     offsets = np.arange(-5, 6)
 
@@ -140,39 +146,44 @@ def track(mono: np.ndarray, rate: int) -> HarmonicPitch:
         pitches[indices[usable], 0] = candidates[best[usable]]
         costs[indices[usable], 0] = 0
 
-        direct_periodicity = _periodicity(voiced_batch, fundamentals[best], rate)
-
-        # Check the lower candidates with the original local peak test and with
-        # the longer partial series, which also requires waveform confirmation.
-        for state, (multiple, use_extended) in enumerate(((2, False), (3, False), (2, True), (3, True)), start=1):
+        # A lower octave must explain independent partials and a longer waveform
+        # period. Nearly equal period scores favor the shorter repetition.
+        for state, multiple in enumerate((2, 3), start=1):
             center = best - round(12 * np.log2(multiple) * bins_per_semitone)
             near = np.clip(center[:, None] + offsets, 0, len(candidates) - 1)
-            partials = orders if use_extended else orders[:8]
-            partial_weights = weights[:len(partials)]
-            source = evidence if use_extended else primary
-            local = source[rows[:, None], near, :]
-            shared = partials % multiple == 0
+            local = evidence[rows[:, None], near, :]
+            shared = orders % multiple == 0
             independent = local[:, :, ~shared]
+            parent = local[:, :, shared]
             independent_peak = independent.max(axis=2)
-            minimum_peak = .022 if multiple == 2 else .045
-            base_match = local[:, :, shared].max(axis=2)
-            plausible = (independent_peak >= minimum_peak) & (base_match >= (.12 if use_extended else .20))
-            strength = (np.sqrt(independent) * partial_weights[~shared]).sum(axis=2)
-            strength += .22 * (np.sqrt(local[:, :, shared]) * partial_weights[shared]).sum(axis=2)
+            plausible = (independent_peak >= (.035 if multiple == 2 else .055)) & (parent.max(axis=2) >= .15)
+            strength = (np.sqrt(independent) * weights[~shared]).sum(axis=2)
+            strength += .22 * (np.sqrt(parent) * weights[shared]).sum(axis=2)
             strength = np.where(plausible, strength, -1)
             choice = np.argmax(strength, axis=1)
             chosen_bin = near[rows, choice]
-            strongest_peak = independent_peak[rows, choice]
-            additional_peaks = (independent[rows, choice] >= .095).sum(axis=1) >= 2
-            supported = usable & (center >= 0) & (strength[rows, choice] >= 0)
-            penalty = np.clip(.30 - 1.5 * strongest_peak, -.50, .38) - .26 * additional_peaks
-            if use_extended:
-                alternative_periodicity = _periodicity(voiced_batch, fundamentals[chosen_bin], rate)
-                period_gain = alternative_periodicity - direct_periodicity
-                supported &= (alternative_periodicity >= .40) & (period_gain >= -.12)
-                penalty -= np.clip(period_gain, -.25, .9)
+            lower_frequency = fundamentals[chosen_bin]
+            longer = _periodicity(voiced_batch, lower_frequency, rate)
+            shorter = _periodicity(voiced_batch, lower_frequency * multiple, rate)
+            gain = longer - shorter
+            independent_power = np.sum(independent[rows, choice] ** 2, axis=1)
+            shared_power = np.sum(parent[rows, choice] ** 2, axis=1)
+            share = independent_power / np.maximum(independent_power + shared_power, 1e-10)
+            period_evidence = (longer >= .48) & (gain >= (.10 if multiple == 2 else .14)) & (share >= .055)
+            # A clean, nearly periodic lower source may have very soft odd
+            # partials. Check its fundamental and first independent overtone.
+            low = primary[rows, chosen_bin]
+            overtone = low[:, 1:5][:, ~shared[1:5]].max(axis=1)
+            audible_fundamental = (gain >= .045) & (low[:, 0] >= .085)
+            weak_fundamental = (gain >= .022) & (low[:, 0] >= .05) & (overtone >= .045)
+            missing_fundamental = (gain >= .045) & (share >= .014) & (overtone >= .075)
+            clear_period = (longer >= .93) & (audible_fundamental | weak_fundamental | missing_fundamental)
+            supported = usable & (center >= 0) & (strength[rows, choice] >= 0) & (period_evidence | clear_period)
+            penalty = .22 - np.minimum(1.25, 1.6 * gain) - np.minimum(.36, share)
+            penalty -= np.clip((longer - .82) * 3.0, 0, .50)
+            penalty = np.where(clear_period, np.minimum(penalty, -.10), penalty)
             pitches[indices[supported], state] = candidates[chosen_bin[supported]]
-            costs[indices[supported], state] = penalty[supported] + (.15 if multiple == 3 else 0)
+            costs[indices[supported], state] = penalty[supported] + (.10 if multiple == 3 else 0)
 
     output = _follow_candidates(pitches, costs)
     # Remove isolated detections without filling gaps or smoothing away vibrato.

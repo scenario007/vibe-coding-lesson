@@ -82,3 +82,38 @@ def test_higher_partials_resolve_double_frequency_when_fundamental_is_weak():
     sound += .13 * np.sin(11 * phase) + .14 * np.sin(13 * phase)
     values = track(sound.astype(np.float32), rate).midi[35:65]
     assert np.mean(np.abs(values - 60) < .5) >= .98
+
+
+def test_nearby_low_partial_residue_cannot_pull_a_high_note_down_an_octave():
+    rate = 22050
+    time = np.arange(rate * 2) / rate
+    lower = (time >= .13) & (time < .65)
+    higher = time >= .65
+    high_hz = 440 * 2 ** (1 / 12)
+    audio = np.zeros_like(time)
+
+    def add_harmonics(active, hz, weights):
+        phase = 2 * np.pi * hz * time[active] + .6
+        audio[active] += .23 * sum(weight * np.sin(order * phase) for order, weight in enumerate(weights, 1))
+
+    add_harmonics(lower, high_hz / 2, [.55, .28, .18, .08])
+    add_harmonics(higher, high_hz, [.34, .34, .33, .38, 1, .5])
+    add_harmonics(higher, high_hz / 2 + 4, [.20, 0, .184, 0, .174, 0, .18, 0, .124])
+
+    result = track(audio.astype(np.float32), rate)
+    frames = np.arange(result.midi.size) * result.step
+    assert np.mean(np.abs(result.midi[(frames >= .20) & (frames < .55)] - 58) <= .5) >= .98
+    assert np.mean(np.abs(result.midi[(frames >= .86) & (frames < 1.78)] - 70) <= .5) >= .98
+
+
+def test_short_legitimate_octave_jump_keeps_the_high_note():
+    rate = 22050
+    time = np.arange(rate * 2) / rate
+    audio = np.zeros_like(time, dtype=np.float32)
+    for start, end, pitch in ((.25, .8, 58), (.8, 1.06, 70), (1.06, 1.75, 58)):
+        active = (time >= start) & (time < end)
+        phase = 2 * np.pi * (440 * 2 ** ((pitch - 69) / 12)) * time[active]
+        audio[active] = .41 * np.sin(phase) + .22 * np.sin(phase * 2) + .17 * np.sin(phase * 3)
+    result = track(audio, rate)
+    frames = np.arange(result.midi.size) * result.step
+    assert np.mean(np.abs(result.midi[(frames >= .86) & (frames <= 1.00)] - 70) <= .5) >= .98

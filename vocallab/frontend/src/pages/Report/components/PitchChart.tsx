@@ -169,7 +169,7 @@ export function PitchPlot({ total, start, axis, first, second = emptyPoints, act
             stroke={index === 0 && axis === 'reference' ? referenceColor : userColor} strokeWidth={1.2}
             strokeDasharray="3 3" strokeLinecap="round" vectorEffect="non-scaling-stroke"/>)}
           <path data-testid={harmonic ? `harmonic-curve-${axis}` : undefined} d={paths[0].solid} strokeLinecap="round" fill="none" stroke={axis === 'reference' ? referenceColor : userColor} strokeWidth={2.7} vectorEffect="non-scaling-stroke"/>
-          <path d={paths[1].solid} strokeLinecap="round" fill="none" stroke={userColor} strokeWidth={1.75} vectorEffect="non-scaling-stroke"/>
+          <path data-testid={harmonic && overlay ? "harmonic-curve-user" : undefined} d={paths[1].solid} strokeLinecap="round" fill="none" stroke={userColor} strokeWidth={1.75} vectorEffect="non-scaling-stroke"/>
           {activeTime !== null && <line x1={x(activeTime)} x2={x(activeTime)} y1={T} y2={H-B} stroke="#eee8ff" opacity={.75}/>}
           {hoverX !== null && <line x1={hoverX} x2={hoverX} y1={T} y2={H-B} stroke="#9da3b4" strokeDasharray="5 4"/>}
           {hoverX !== null && hoveredNotes.map(note =>
@@ -223,7 +223,8 @@ export function PitchChart({ report, playback, preview }: { report: Report; play
       <div><h2 id="pitch-heading" className="flex items-center gap-2 font-bold"><Activity size={19} className="text-accent"/> 音高曲线</h2>
       <p className="mt-1.5 text-xs leading-5 text-muted">{method === 'manual' ? '按手动对齐点显示对应位置，两轨保持原始速度。' :
         method === 'guide' ? '按近似复听位置叠放曲线，适合用耳朵核对。' :
-        mapped ? '以原唱时间为坐标，绿色曲线按乐句对齐，保留我的实际音高。' :
+        mapped ? (method === 'envelope' ? '以原唱时间为坐标平移绿色曲线，保留实际音高。' :
+          '绿色曲线显示在对应的原唱时间上。') :
         '匹配可信度不足，两条曲线使用各自的原始时间。'}</p></div>
       <div className="flex flex-wrap items-center gap-4 text-xs font-medium">
         <span className="text-accent">● 原唱</span><span className="text-mint">● 我的演唱</span>

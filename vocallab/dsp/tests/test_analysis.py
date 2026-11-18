@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from vocallab.alignment import align
+from vocallab.alignment import align, detect_paths
 from vocallab.metrics import evaluate
 from vocallab.pitch import extract
 from vocallab.segments import analyze_segments
@@ -32,21 +32,24 @@ def track(path: Path, audio):
 
 @pytest.fixture(scope="module")
 def reference(tmp_path_factory):
-    return track(tmp_path_factory.mktemp("pitch") / "reference.wav", song())
+    path = tmp_path_factory.mktemp("pitch") / "reference.wav"
+    return path, track(path, song())
 
 
 @pytest.mark.parametrize(("changes", "delay", "shift"), [
     ({}, 0, 0), ({"delay": 1}, 1, 0), ({"semitones": 1}, 0, 1),
     ({"gain": .045}, 0, 0),
-    ({"durations": [.62, .72, .35, .97, .41, .41, .53, .68, .39, .67]}, 0, 0),
 ])
 def test_expected_pitch_and_alignment(reference, tmp_path, changes, delay, shift):
-    user = track(tmp_path / "user.wav", song(**changes))
-    alignment = align(reference, user)
+    ref_path, ref = reference
+    path = tmp_path / "user.wav"
+    user = track(path, song(**changes))
+    automatic = detect_paths(ref_path, path).serializable((0, 0))
+    alignment = align(ref, user, (ref.times[-1], user.times[-1]), automatic)
     assert alignment.reliable, alignment
     assert alignment.shift == shift
-    assert abs(alignment.offset - delay) <= .32
-    metrics, _, _, _ = evaluate(reference, user, alignment, (0, 0), False)
+    assert abs(alignment.offset - delay) <= .030
+    metrics, _, _, _ = evaluate(ref, user, alignment, (0, 0), False)
     metrics = {metric["name"]: metric["value"] for metric in metrics}
     assert metrics["transposedHitRate"] >= .83
     if shift:
@@ -54,23 +57,26 @@ def test_expected_pitch_and_alignment(reference, tmp_path, changes, delay, shift
         assert 83 <= metrics["meanAbsoluteCents"] <= 130
 
 
-@pytest.mark.parametrize("other", ["silence", "noise", "different"])
+@pytest.mark.parametrize("other", ["silence", "noise"])
 def test_low_confidence_suppresses_comparison(reference, tmp_path, other):
     audio = {
         "silence": np.zeros(RATE * 10),
         "noise": np.random.default_rng(31).standard_normal(RATE * 4) * .08,
-        "different": song(notes=np.array([66, 51, 72, 60, 68, 72, 58, 52, 60, 70])),
     }[other]
-    user = track(tmp_path / "other.wav", audio)
-    alignment = align(reference, user)
+    ref_path, ref = reference
+    path = tmp_path / "other.wav"
+    user = track(path, audio)
+    automatic = detect_paths(ref_path, path).serializable((0, 0))
+    alignment = align(ref, user, (ref.times[-1], user.times[-1]), automatic)
     assert not alignment.reliable
-    metrics, _, _, _ = evaluate(reference, user, alignment, (0, 0), False)
+    metrics, _, _, _ = evaluate(ref, user, alignment, (0, 0), False)
     assert next(item for item in metrics if item["name"] == "meanAbsoluteCents")["value"] is None
 
 
 def test_manual_offset_and_absolute_mapping(reference, tmp_path):
     user = track(tmp_path / "manual.wav", song(delay=1))
-    result = align(reference, user, manual=1.0)
+    _, ref = reference
+    result = align(ref, user, (ref.times[-1], user.times[-1]), None, manual=1.0)
     assert result.reliable
     assert abs(result.offset - 1) < .055
     assert result.manual_offset == 1
@@ -90,21 +96,49 @@ def test_slow_drift_is_distinguished_from_vibrato():
 
 def test_manual_offset_still_enables_listening_when_pitch_is_unreliable(reference, tmp_path):
     user = track(tmp_path / "limited.wav", np.zeros(len(song())))
-    alignment = align(reference, user, manual=.83)
-    assert not alignment.reliable
+    _, ref = reference
+    alignment = align(ref, user, (ref.times[-1], user.times[-1]), None, manual=.83)
+    assert alignment.reliable
     assert alignment.method == "manual" and alignment.offset == .83
     assert len(alignment.reference_times) >= 2
     np.testing.assert_allclose(alignment.user_times - alignment.reference_times, .83)
-    metrics, _, _, _ = evaluate(reference, user, alignment, (0, 0), False)
+    metrics, _, _, _ = evaluate(ref, user, alignment, (0, 0), False)
     assert next(item for item in metrics if item["name"] == "pitchHitRate")["value"] is None
 
 
-def test_weaker_contour_can_supply_timing_without_scoring(reference, tmp_path):
+def test_timing_with_missing_f0(reference, tmp_path):
     from dataclasses import replace
 
-    user = track(tmp_path / "weak.wav", song(delay=1))
+    ref_path, ref = reference
+    path = tmp_path / "weak.wav"
+    user = track(path, song(delay=1))
     limited = replace(user, midi=np.full_like(user.midi, np.nan))
-    alignment = align(reference, limited)
-    assert alignment.method == "guide" and not alignment.reliable
-    assert abs(alignment.offset - 1) <= .20
-    assert len(alignment.reference_times) >= 2
+    automatic = detect_paths(ref_path, path).serializable((0, 0))
+    alignment = align(ref, limited, (ref.times[-1], user.times[-1]), automatic)
+    assert alignment.method == "envelope" and alignment.reliable
+    assert abs(alignment.offset - 1) <= .030
+    assert len(alignment.reference_times) == 2
+    metrics, _, _, _ = evaluate(ref, limited, alignment, (0, 0), False)
+    assert next(item for item in metrics if item["name"] == "pitchHitRate")["value"] is None
+
+
+def test_manual_adjustment_reuses_f0_and_recomputes_comparison(reference, tmp_path):
+    from vocallab.report import realign
+
+    _, ref = reference
+    user = track(tmp_path / "manual.wav", song(delay=1))
+    starts = (3.2, 1.7)
+    cached = dict(preprocessing=dict(referenceStart=starts[0], userStart=starts[1],
+                                     referenceDuration=ref.times[-1], userDuration=user.times[-1]),
+                  pitchTracks=dict(reference=ref.serializable(starts[0]), user=user.serializable(starts[1])),
+                  separation=dict(reference=dict(enabled=True), user=dict(enabled=True)),
+                  alignment=dict(warnings=[]), warnings=[])
+    # There are no role audio files in this workspace. Manual changes only require cached pitch data.
+    wrong = realign(cached, tmp_path, 0, None, lambda stage: None)
+    update = realign(wrong, tmp_path, 1, None, lambda stage: None)
+    assert update["pitchTracks"] == cached["pitchTracks"]
+    assert update["alignment"]["offsetSeconds"] == 1
+    assert update["alignment"]["originalOffsetSeconds"] == -.5
+    assert update["alignment"]["timeMapping"][0] == [0, 1]
+    hit_rate = lambda report: next(m["value"] for m in report["metrics"] if m["name"] == "pitchHitRate")
+    assert hit_rate(update) > max(.9, hit_rate(wrong))

@@ -14,11 +14,18 @@ export function duration(report: Report, role: Role) {
 export function hasPlaybackMapping(report: Report) {
   const alignment = report.alignment
   return alignment.timeMapping.length >= 2 &&
-    (alignment.reliable || alignment.method === 'manual' || alignment.method === 'guide')
+    (alignment.reliable || alignment.method === 'manual' || alignment.method === 'guide' || alignment.method === 'envelope')
 }
 
 export function translate(report: Report, from: Role, time: number): number | null {
   if (!hasPlaybackMapping(report)) return null
+  const fixedOffset = report.alignment.offsetSeconds
+  if (fixedOffset != null) {
+    const target = from === 'reference' ? 'user' : 'reference'
+    const mapped = from === 'reference' ? time + fixedOffset : time - fixedOffset
+    const limit = duration(report, target)
+    return mapped < -1e-6 || mapped > limit + 1e-6 ? null : Math.max(0, Math.min(limit, mapped))
+  }
   const map = report.alignment.timeMapping
   const source = from === 'reference' ? 0 : 1
   if (!map.length || time < map[0][source] - .0001 || time > map.at(-1)![source] + .0001) return null

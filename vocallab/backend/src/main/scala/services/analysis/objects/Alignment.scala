@@ -12,7 +12,11 @@ final case class Alignment(
   warnings: Vector[String],
   manualOffset: Option[Double],
   timeMapping: Vector[(Double, Double)],
-  method: Option[AlignmentMethod]
+  method: Option[AlignmentMethod],
+  offsetSeconds: Option[Double],
+  originalOffsetSeconds: Option[Double],
+  featureScores: Option[Map[String, AlignmentFeatureScore]],
+  automatic: Option[AlignmentDetection]
 )
 
 object Alignment:

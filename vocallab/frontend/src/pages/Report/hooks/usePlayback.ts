@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Report, Role, TrackKind } from '../../../apis/analysis/contracts'
 import { duration, pairRange, translate, type ComparisonRange, type TimeRange } from '../functions/timeline'
 
@@ -8,7 +8,9 @@ export function usePlayback(report: Report) {
     reference: report.separation.reference.inputTrack, user: report.separation.user.inputTrack,
   })
   const [times, setTimes] = useState<Record<Role, number>>({ reference: 0, user: 0 })
-  const [range, setRange] = useState<ComparisonRange>({ reference: null, user: null })
+  const [selection, setSelection] = useState<{ role: Role; times: TimeRange } | null>(null)
+  const range = useMemo<ComparisonRange>(() => selection
+    ? pairRange(report, selection.role, selection.times) : { reference: null, user: null }, [report, selection])
   const [loop, setLoop] = useState(false)
   const [playing, setPlaying] = useState(false)
   const [error, setError] = useState('')
@@ -53,8 +55,8 @@ export function usePlayback(report: Report) {
   }
 
   function selectRange(next: ComparisonRange, target = active) {
-    setRange(next)
     const selected = next[target]
+    if (selected) setSelection({ role: target, times: selected })
     if (target !== active) {
       const resume = Boolean(player.current && !player.current.paused)
       pending.current = { time: selected?.[0] ?? times[target], play: resume }
@@ -100,7 +102,7 @@ export function usePlayback(report: Report) {
 
   return { active, kind: kinds[active], time: times[active], times, range, loop, error, playing, player, loaded,
     play, selectRole, selectTrack, selectRange, jump, position, setPlaying, setLoop, setError,
-    changeRange: (selection: TimeRange) => setRange(pairRange(report, active, selection)),
+    changeRange: (times: TimeRange) => setSelection({ role: active, times }),
     ended: () => {
       const selected = range[active]
       if (loop && selected) jump(selected[0], true)

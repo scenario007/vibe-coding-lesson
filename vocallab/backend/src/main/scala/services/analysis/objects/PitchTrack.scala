@@ -11,7 +11,8 @@ final case class PitchTrack(
   voicedFlags: Vector[Boolean],
   voicedProbabilities: Vector[Double],
   rms: Vector[Double],
-  guideMidiPitch: Option[Vector[Option[Double]]]
+  guideMidiPitch: Option[Vector[Option[Double]]],
+  quality: Option[Double]
 )
 
 object PitchTrack:

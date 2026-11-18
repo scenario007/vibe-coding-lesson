@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import type { Job, PitchPreview, Report } from '../../../apis/analysis/contracts'
 import { AdjustAlignmentAPI } from '../../../apis/analysis/AdjustAlignmentAPI'
 import { GetAnalysisAPI } from '../../../apis/analysis/GetAnalysisAPI'
@@ -15,7 +14,6 @@ export function useReport(id: string) {
   const [adjusting, setAdjusting] = useState(false)
   const [error, setError] = useState('')
   const [refresh, setRefresh] = useState(0)
-  const navigate = useNavigate()
 
   useEffect(() => {
     setView({ status: 'loading' })
@@ -63,12 +61,13 @@ export function useReport(id: string) {
     return () => { controller.abort(); window.clearTimeout(timer) }
   }, [id, refresh])
 
-  async function adjust(offset: number | null) {
+  async function adjust(offset: number | null, referenceRange?: [number, number]) {
     setAdjusting(true)
     setError('')
     try {
-      const job = await new AdjustAlignmentAPI(id, offset).send()
-      navigate(`/analysis/${job.analysisId}`)
+      const report = await new AdjustAlignmentAPI(id, offset, referenceRange).send()
+      setView(current => current.status === 'ready' && current.report.analysisId === report.analysisId
+        ? { ...current, report } : current)
     } catch (e) { setError((e as Error).message) } finally { setAdjusting(false) }
   }
 

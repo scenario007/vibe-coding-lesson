@@ -1,11 +1,41 @@
 from dataclasses import dataclass, replace
+from math import gcd
+import os
+from pathlib import Path
+from time import perf_counter
 
 import numpy as np
-from numba import njit
+import soundfile as sf
+from scipy import fft, ndimage, signal
 
-from .pitch import Pitch
+FRAME_STEP = .015
+RATE = 12000
+METHOD = "envelope"
+WEIGHTS = {"envelope": .36, "energyChange": .25, "onset": .24, "activity": .15}
 
-GRID = 0.06
+
+@dataclass(frozen=True)
+class Detection:
+    offset: float | None
+    confidence: float
+    reliable: bool
+    feature_scores: dict
+    warnings: list[str]
+    feature_ms: float
+    correlation_ms: float
+
+    def serializable(self, starts: tuple[float, float], reference_range=None) -> dict:
+        return dict(referenceRange=reference_range, offsetSeconds=self.offset, originalOffsetSeconds=original_offset(self.offset, starts),
+                    confidence=round(self.confidence, 3), reliable=self.reliable, method=METHOD,
+                    featureScores=self.feature_scores, warnings=self.warnings,
+                    featureMilliseconds=round(self.feature_ms, 2), correlationMilliseconds=round(self.correlation_ms, 2),
+                    elapsedMilliseconds=round(self.feature_ms + self.correlation_ms, 2))
+
+
+@dataclass(frozen=True)
+class Features:
+    values: dict[str, np.ndarray]
+    activity: np.ndarray
 
 
 @dataclass(frozen=True)
@@ -13,181 +43,185 @@ class Alignment:
     reference_times: np.ndarray
     user_times: np.ndarray
     offset: float
-    tempo_ratio: float
     shift: int | None
     confidence: float
     reliable: bool
     warnings: list[str]
     manual_offset: float | None
-    method: str = "pitch"
+    automatic: dict | None
 
-    def serializable(self) -> dict:
-        return dict(offset=round(self.offset, 3), tempoRatio=round(self.tempo_ratio, 4),
-                    transposeSemitones=self.shift, confidence=round(self.confidence, 3),
+    @property
+    def method(self):
+        return "manual" if self.manual_offset is not None else METHOD
+
+    def serializable(self, starts: tuple[float, float]) -> dict:
+        active_offset = self.offset if len(self.reference_times) else None
+        return dict(offset=self.offset, offsetSeconds=active_offset, originalOffsetSeconds=original_offset(active_offset, starts),
+                    tempoRatio=1.0, transposeSemitones=self.shift, confidence=round(self.confidence, 3),
                     reliable=self.reliable, warnings=self.warnings, manualOffset=self.manual_offset, method=self.method,
-                    timeMapping=[[round(float(r), 4), round(float(u), 4)]
-                                 for r, u in zip(self.reference_times, self.user_times)])
+                    featureScores=self.automatic["featureScores"] if self.automatic else {},
+                    automatic=self.automatic, timeMapping=np.column_stack((self.reference_times, self.user_times)).round(6).tolist())
 
 
-def nearest(times: np.ndarray, track: Pitch) -> np.ndarray:
-    indices = np.rint(times / (track.times[1] - track.times[0])).astype(int)
+def original_offset(offset: float | None, starts: tuple[float, float]) -> float | None:
+    return None if offset is None else round(offset + starts[1] - starts[0], 6)
+
+
+def load_mono(path: Path, clip_range=None) -> tuple[np.ndarray, int]:
+    with sf.SoundFile(path) as source:
+        rate = source.samplerate
+        if clip_range is None:
+            audio = source.read(dtype="float32", always_2d=True)
+        else:
+            start, end = (round(t * rate) for t in clip_range)
+            source.seek(start)
+            audio = source.read(end - start, dtype="float32", always_2d=True)
+    mono = audio.mean(axis=1)
+    if audio.shape[1] > 1:
+        channel_power = np.mean(audio ** 2, axis=0)
+        if np.mean(mono ** 2) < .1 * channel_power.max():
+            mono = audio[:, channel_power.argmax()]
+    return mono, rate
+
+
+def features(samples: np.ndarray, rate: int) -> Features:
+    if rate != RATE:
+        divisor = gcd(rate, RATE)
+        samples = signal.resample_poly(samples, RATE // divisor, rate // divisor)
+    hop = round(FRAME_STEP * RATE)
+    width = 480
+    padded = np.pad(samples, width // 2)
+    frames = np.lib.stride_tricks.sliding_window_view(padded, width)[::hop]
+    rms = np.sqrt(np.einsum("ij,ij->i", frames, frames) / width)
+    quiet, loud = np.quantile(rms, [.15, .95])
+    floor = max(1e-6, quiet * 1.25, loud * .025)
+    span = max(1e-6, loud - floor)
+    relative = np.maximum(rms - floor, 0) / span
+    envelope = ndimage.gaussian_filter1d(np.log1p(8 * np.minimum(relative, 3)), 2.0)
+    activity = ndimage.gaussian_filter1d(np.clip(relative * 5, 0, 1), 2.0)
+    change = np.gradient(ndimage.gaussian_filter1d(envelope, 1.5))
+
+    # Broad bands make flux largely insensitive to harmonics moving between adjacent FFT bins.
+    spectral = np.abs(fft.rfft(frames * signal.windows.hann(width, sym=False).astype(np.float32), axis=1)) ** 2
+    bands = np.array([0, 150, 300, 600, 1200, 2400, 4000]) * width // RATE
+    power = np.sqrt(np.add.reduceat(spectral, bands, axis=1))
+    scale = np.maximum(np.quantile(power, .90, axis=0), max(1e-5, power.max() * .02))
+    compressed = np.log1p(5 * power / scale)
+    flux = np.mean(np.maximum(np.diff(compressed, axis=0, prepend=compressed[:1]), 0), axis=1)
+    onset = ndimage.gaussian_filter1d(flux, 1.5) * ndimage.maximum_filter1d(activity, 7)
+    return Features(dict(envelope=envelope, energyChange=change, onset=onset, activity=activity), activity)
+
+
+def detect(reference: Features, user: Features, search_seconds: float) -> Detection:
+    started = perf_counter()
+    ra, ua = reference.activity, user.activity
+    all_lags = signal.correlation_lags(len(ua), len(ra))
+    indices = np.flatnonzero(np.abs(all_lags) * FRAME_STEP <= search_seconds + 1e-9)
+    lags = all_lags[indices]
+
+    def correlate(r, u):
+        return signal.correlate(u, r, method="fft")[indices]
+
+    def elapsed():
+        return (perf_counter() - started) * 1000
+
+    rv, uv = (ra >= .28).astype(float), (ua >= .28).astype(float)
+    paired = correlate(rv, uv)
+    overlap = np.minimum(len(ra), len(ua) - lags) - np.maximum(0, -lags)
+    min_duration = min(2.0, min(len(ra), len(ua)) * FRAME_STEP * .65)
+    min_voice = max(.35 / FRAME_STEP, .30 * min(rv.sum(), uv.sum()))
+    usable = (overlap * FRAME_STEP >= min_duration) & (paired >= min_voice - 1e-6)
+    if not usable.any():
+        return Detection(None, 0, False, {}, ["共同演唱时间太短，无法估计偏移。"], 0, elapsed())
+
+    ones_r, ones_u = np.ones(len(ra)), np.ones(len(ua))
+    # Per-lag weighted Pearson. Weight is the mean activity of the two frames, so shared silence has zero weight.
+    weight = np.maximum(correlate(ra, ones_u) + correlate(ones_r, ua), 1e-8)
+
+    def weighted(r, u):
+        return correlate(r * ra, u) + correlate(r, u * ua)
+
+    curves = {}
+    for name in WEIGHTS:
+        r, u = reference.values[name], user.values[name]
+        sx, sy = weighted(r, ones_u), weighted(ones_r, u)
+        vx = weighted(r * r, ones_u) - sx * sx / weight
+        vy = weighted(ones_r, u * u) - sy * sy / weight
+        norm = np.sqrt(np.maximum(vx, 0) * np.maximum(vy, 0))
+        covariance = weighted(r, u) - sx * sy / weight
+        scores = np.divide(covariance, norm, out=np.zeros_like(norm), where=norm > 1e-7).clip(-1, 1)
+        if np.max(norm[usable]) > 1e-7:
+            curves[name] = scores
+
+    if not curves:
+        return Detection(None, 0, False, {}, ["演唱强弱变化不足，无法估计偏移。"], 0, elapsed())
+
+    support = np.clip(paired / max(1.0, min(rv.sum(), uv.sum())), 0, 1)
+    combined = sum(WEIGHTS[name] * scores for name, scores in curves.items()) / sum(WEIGHTS[name] for name in curves)
+    combined -= .15 * (1 - support)
+    best = int(np.argmax(np.where(usable, combined, -np.inf)))
+    offset = round(float(lags[best] * FRAME_STEP), 4)
+    score = float(combined[best])
+    distant = usable & (np.abs(lags - lags[best]) * FRAME_STEP >= .30)
+    margin = score - float(np.max(combined[distant])) if distant.any() else 1.0
+    feature_scores = {}
+    for name, scores in curves.items():
+        peak = int(np.argmax(np.where(usable, scores, -np.inf)))
+        feature_scores[name] = dict(offsetSeconds=round(float(lags[peak] * FRAME_STEP), 4),
+                                    score=round(float(scores[best]), 3), peakScore=round(float(scores[peak]), 3))
+
+    warnings = []
+    if score < .32:
+        warnings.append("两轨的演唱强弱和起音匹配较弱，请复听确认偏移。")
+    if margin < .045:
+        warnings.append("有多个相近的时间偏移，重复节奏可能造成歧义。")
+    agreeing = sum(abs(row["offsetSeconds"] - offset) <= .20 and row["score"] >= .23
+                   for row in feature_scores.values())
+    if agreeing < 2:
+        warnings.append("声学特征给出的偏移不一致，建议手动微调。")
+    if abs(offset) >= search_seconds - FRAME_STEP and search_seconds >= FRAME_STEP:
+        warnings.append("检测值靠近搜索边界，可能需要扩大偏移范围。")
+    confidence = float(np.clip(score, 0, 1) * min(1.0, .4 + margin / .15) * min(1.0, .4 + agreeing * .3))
+    return Detection(offset if score >= .12 else None, min(confidence, .44) if warnings else confidence,
+                     not warnings, feature_scores, warnings, 0, elapsed())
+
+
+def detect_paths(reference: Path, user: Path, search_seconds: float | None = None, clip_range=None) -> Detection:
+    if search_seconds is None:
+        search_seconds = float(os.getenv("VOCALLAB_ALIGNMENT_SEARCH_SECONDS", "3"))
+    if not np.isfinite(search_seconds) or search_seconds <= 0:
+        raise ValueError("Alignment search range must be positive and finite.")
+    started = perf_counter()
+    ref = features(*load_mono(reference, clip_range))
+    usr = features(*load_mono(user, clip_range))
+    feature_ms = (perf_counter() - started) * 1000
+    return replace(detect(ref, usr, search_seconds), feature_ms=feature_ms)
+
+
+def nearest(times, track):
+    indices = np.rint((times - track.times[0]) / (track.times[1] - track.times[0])).astype(int)
     in_bounds = (indices >= 0) & (indices < len(track.times))
     return np.where(in_bounds, track.midi[np.clip(indices, 0, len(track.times) - 1)], np.nan)
 
 
-def coarse(ref: np.ndarray, usr: np.ndarray) -> tuple:
-    positions = np.arange(len(ref))
-    ref_valid = np.isfinite(ref)
-    max_offset = min(round(30 / GRID), max(2, round(max(len(ref), len(usr)) * 0.45)))
-    offsets = np.arange(-max_offset, max_offset + 1, 2)
-    ratios = np.unique(np.r_[1.0, np.arange(0.70, 1.401, 0.025)])
-    candidates = []
-    for ratio in ratios:
-        mapped = np.rint(ratio * positions).astype(int)[None, :] + offsets[:, None]
-        valid = (mapped >= 0) & (mapped < len(usr))
-        midi = np.where(valid, usr[np.clip(mapped, 0, len(usr) - 1)], np.nan)
-        delta = midi - ref
-        paired = np.isfinite(delta)
-        counts = np.sum(paired, axis=1)
-        eligible = counts >= max(8, np.count_nonzero(ref_valid) * 0.38,
-                                 np.count_nonzero(np.isfinite(usr)) * 0.35)
-        if not np.any(eligible):
-            continue
-        local = delta[eligible]
-        shift = np.rint(np.nanmedian(local, axis=1))
-        residual = np.abs(local - shift[:, None])
-        score = np.nansum(np.minimum(residual, 3.0), axis=1) / counts[eligible]
-        score += 1.8 * (1 - counts[eligible] / max(1, np.count_nonzero(ref_valid)))
-        score += 0.10 * np.abs(ratio - 1) + 0.0001 * np.abs(offsets[eligible])
-        candidates.extend((float(error), ratio, int(offset), int(s))
-                          for error, offset, s in zip(score, offsets[eligible], shift))
-    if not candidates:
-        return 4.0, 1.0, 0, 0, 0.0
-    candidates.sort()
-    error, ratio, offset, shift = candidates[0]
-    alternative = next((row for row in candidates[1:]
-                        if abs(row[2] - offset) * GRID > 0.65
-                        and abs(row[2] - offset + (row[1] - ratio) * len(ref) * 0.5) * GRID > 0.65),
-                       (error + 1, 0, 0, 0))
-    return error, ratio, offset, shift, alternative[0] - error
-
-
-@njit(cache=True)
-def bounded_path(ref, usr, ratio, offset, shift, band):
-    n, m = len(ref), len(usr)
-    costs = np.full((n, m), np.inf)
-    directions = np.zeros((n, m), dtype=np.int8)
-    start = max(0, int(np.ceil(-offset / ratio)))
-    stop = min(n - 1, int(np.floor((m - 1 - offset) / ratio)))
-    for i in range(start, stop + 1):
-        target = int(round(i * ratio + offset))
-        for j in range(max(0, target - band), min(m, target + band + 1)):
-            local = 0.15
-            if np.isfinite(ref[i]) and np.isfinite(usr[j]):
-                local = min(3.2, abs(usr[j] - ref[i] - shift))
-            elif np.isfinite(ref[i]) != np.isfinite(usr[j]):
-                local = 1.45
-            local += 0.25 * abs(j - target) / max(1, band)
-            if i == start and j == min(m - 1, max(0, target)):
-                costs[i, j] = local
-            if i > start and j >= 1 and costs[i - 1, j - 1] + local < costs[i, j]:
-                costs[i, j], directions[i, j] = costs[i - 1, j - 1] + local, 1
-            if i > start and j >= 2 and costs[i - 1, j - 2] + local + 0.4 < costs[i, j]:
-                costs[i, j], directions[i, j] = costs[i - 1, j - 2] + local + 0.4, 2
-            if i > start + 1 and j >= 1 and costs[i - 2, j - 1] + local + 0.4 < costs[i, j]:
-                costs[i, j], directions[i, j] = costs[i - 2, j - 1] + local + 0.4, 3
-    if start >= stop:
-        return np.empty(0), np.empty(0)
-    j = min(m - 1, max(0, int(round(stop * ratio + offset))))
-    if not np.isfinite(costs[stop, j]):
-        return np.empty(0), np.empty(0)
-    x = []
-    y = []
-    i = stop
-    while i >= start:
-        x.append(i * GRID)
-        y.append(j * GRID)
-        step = directions[i, j]
-        if step == 0:
-            break
-        i -= 2 if step == 3 else 1
-        j -= 2 if step == 2 else 1
-    return np.asarray(x)[::-1], np.asarray(y)[::-1]
-
-
-def evidence(r, u, x, y, shift):
-    delta = u[np.rint(y / GRID).astype(int)] - r[np.rint(x / GRID).astype(int)]
-    matched = np.isfinite(delta)
-    paired = int(np.count_nonzero(matched))
-    r_voiced = np.count_nonzero(np.isfinite(r))
-    u_voiced = np.count_nonzero(np.isfinite(u))
-    coverage = min(1.0, paired / max(1, r_voiced, u_voiced))
-    density = min(r_voiced / max(len(r), 1), u_voiced / max(len(u), 1))
-    if paired:
-        errors = np.abs(delta[matched] - shift)
-        median, agreement = float(np.median(errors)), float(np.mean(errors <= 1.0))
-    else:
-        median, agreement = 99.0, 0.0
-    return paired, coverage, density, median, agreement, x[matched]
-
-
-def align(reference: Pitch, user: Pitch, manual: float | None = None) -> Alignment:
-    rt = np.arange(0, reference.times[-1], GRID)
-    ut = np.arange(0, user.times[-1], GRID)
-    r, u = nearest(rt, reference), nearest(ut, user)
-    warnings = []
-    if manual is not None:
-        # A user-supplied anchor is independent of pitch confidence and has no time stretch.
-        start, end = max(0.0, -manual), min(reference.times[-1], user.times[-1] - manual)
-        x = np.linspace(start, end, max(2, int((end-start) / GRID) + 1)) if end - start > .04 else np.empty(0)
-        y = x + manual
-        delta = nearest(y, user) - nearest(x, reference)
-        delta = delta[np.isfinite(delta)]
-        shift = int(np.rint(np.median(delta))) if delta.size else 0
-        coverage = min(1.0, delta.size / max(1, np.isfinite(r).sum(), np.isfinite(u).sum()))
-        density = min(np.isfinite(r).mean(), np.isfinite(u).mean())
-        agreement = float(np.mean(np.abs(delta - shift) <= 1.0)) if delta.size else 0.0
-        confident = coverage >= .42 and delta.size * GRID >= 1.0 and density >= .12 and agreement >= .70 and abs(shift) <= 12
-        if not confident:
-            warnings.append("已按手动对齐点同步复听。音高证据不足，暂不生成对比评分。")
-        return Alignment(x, y, manual, 1.0, shift if confident else None,
-                         coverage * agreement if confident else 0.0, bool(confident), warnings, manual, "manual")
-
-    error, ratio, offset, shift, margin = coarse(r, u)
-    width = min(2.5, max(0.48, len(r) * GRID * 0.05))
-    x, y = bounded_path(r, u, ratio, offset, shift, round(width / GRID))
-    paired, coverage, density, median, agreement, _ = evidence(r, u, x, y, shift)
-    confident = coverage >= 0.42 and paired * GRID >= 1.0 and median <= 0.65 and agreement >= 0.70
-    confident &= error <= 1.70 and abs(shift) <= 12 and density >= 0.12
-    ambiguous = margin < 0.055 and 0.22 < error < 4
-    if np.isfinite(r).sum() >= 8:
-        melody = r[np.isfinite(r)]
-        transitions = np.count_nonzero(np.diff(np.isfinite(r)))
-        ambiguous |= np.ptp(np.quantile(melody, [.15, .85])) < .55 and transitions < 4
-    confident &= not ambiguous
-    strength = min(1.0, coverage / 0.78) * agreement * (1 - min(median, 1.0) * 0.35)
-    if confident:
-        if shift:
-            warnings.append("检测到可能的整体移调。移调后的命中率单独列出。")
-        return Alignment(x, y, offset * GRID, ratio, shift, strength, True, warnings, None)
-
-    if reference.guide_midi is not None and user.guide_midi is not None:
-        gr = nearest(rt, replace(reference, midi=reference.guide_midi))
-        gu = nearest(ut, replace(user, midi=user.guide_midi))
-        score, speed, lag, key, separation = coarse(gr, gu)
-        gx, gy = bounded_path(gr, gu, speed, lag, key, round(width / GRID))
-        count, overlap, guide_density, residual, same, anchors = evidence(gr, gu, gx, gy, key)
-        # Require distinct, distributed melody anchors for timing-only use of softer pitch estimates.
-        if (count * GRID >= 2.0 and overlap >= .48 and guide_density >= .14 and residual <= .6
-                and same >= .78 and score <= 1.45 and separation >= .09 and abs(key) <= 12
-                and np.ptp(anchors) >= 3.0 and np.ptp(gr[np.isfinite(gr)]) >= 3.0):
-            left = max(0, np.searchsorted(gx, anchors[0]) - 1)
-            right = min(len(gx), np.searchsorted(gx, anchors[-1]) + 2)
-            return Alignment(gx[left:right], gy[left:right], lag * GRID, speed, None, min(.44, overlap * same),
-                             False, ["已用较弱的旋律证据提供近似复听位置，暂不生成对比评分。"], None, "guide")
-
-    if ambiguous:
-        warnings.append("出现多个相近的时间匹配。可参考复听并手动设置偏移。")
-    warnings.append("音高轮廓或有效重叠不足。可在两条轨上分别定位同一句，再用当前位置对齐。")
-    return Alignment(np.empty(0), np.empty(0), 0.0, 1.0, None, min(0.44, strength * 0.55),
-                     False, warnings, None)
+def align(reference, user, durations, automatic: dict | None, manual: float | None = None) -> Alignment:
+    candidate = automatic["offsetSeconds"] if automatic else None
+    chosen = manual if manual is not None else candidate
+    offset = chosen if chosen is not None else 0.0
+    start, end = max(0.0, -offset), min(durations[0], durations[1] - offset)
+    x = np.array([start, end]) if chosen is not None and end > start else np.empty(0)
+    y = x + offset
+    reliable = bool(len(x) and (manual is not None or (automatic and automatic["reliable"])))
+    confidence = 1.0 if reliable and manual is not None else automatic["confidence"] if automatic and manual is None else 0.0
+    warnings = list(automatic["warnings"]) if automatic and manual is None else []
+    # Pitch is compared only after timing is fixed. Pitch quality cannot change the detected offset.
+    compare = (reference.times >= start) & (reference.times <= end)
+    delta = nearest(reference.times[compare] + offset, user) - reference.midi[compare] if len(x) else np.empty(0)
+    paired = delta[np.isfinite(delta)]
+    shift = int(np.rint(np.median(paired))) if paired.size else 0
+    if abs(shift) > 12 or (shift and np.mean(np.abs(paired - shift) <= 1.0) < .65):
+        shift = 0
+    if reliable and paired.size >= 30 and shift:
+        warnings.append("检测到可能的整体移调。移调后的命中率单独列出。")
+    return Alignment(x, y, offset, shift if reliable and paired.size >= 30 else None,
+                     confidence, reliable, warnings, manual, automatic)

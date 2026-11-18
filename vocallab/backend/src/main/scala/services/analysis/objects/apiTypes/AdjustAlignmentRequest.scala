@@ -7,7 +7,8 @@ import services.analysis.objects.*
 
 final case class AdjustAlignmentRequest(
   analysisId: UUID,
-  manualOffset: Option[Double]
+  manualOffset: Option[Double],
+  referenceRange: Option[(Double, Double)]
 )
 
 object AdjustAlignmentRequest:

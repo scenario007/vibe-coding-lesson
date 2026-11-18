@@ -136,7 +136,7 @@ class Backend(unittest.TestCase):
         self.assertEqual(data[:4], b"fLaC")
         self.assertTrue(headers["Content-Range"].startswith("bytes 0-63/"))
         clip = dict(reference=dict(mediaId=reference["id"], start=.30, end=5.30, separate=False),
-                    user=dict(mediaId=user["id"], start=.30, end=6.30, separate=False), manualOffset=None)
+                    user=dict(mediaId=user["id"], start=.45, end=6.45, separate=False), manualOffset=None)
         status, _, _ = call("createanalysisapi", {**clip, "reference": {**clip["reference"], "end": 900}})
         self.assertEqual(status, 400)
         status, job, _ = call("createanalysisapi", clip)
@@ -152,7 +152,9 @@ class Backend(unittest.TestCase):
         self.assertEqual(result["analysisId"], id)
         self.assertEqual(result["pitchTracks"]["reference"]["originalStart"], .30)
         self.assertTrue(result["alignment"]["reliable"], result["alignment"])
-        self.assertAlmostEqual(result["alignment"]["offset"], 1, delta=.35)
+        self.assertEqual(result["alignment"]["method"], "envelope")
+        self.assertAlmostEqual(result["alignment"]["offsetSeconds"], .85, delta=.035)
+        self.assertAlmostEqual(result["alignment"]["originalOffsetSeconds"], 1, delta=.035)
         self.assertGreater(next(m["value"] for m in result["metrics"] if m["name"] == "pitchHitRate"), .82)
         for role, expected in [("reference", 5), ("user", 6)]:
             status, audio, _ = fetch(f"getanalyzedaudioapi/{id}/{role}/original")
@@ -160,17 +162,27 @@ class Backend(unittest.TestCase):
             with wave.open(io.BytesIO(audio)) as wav:
                 self.assertAlmostEqual(wav.getnframes()/wav.getframerate(), expected, delta=.02)
                 if role == "user":
-                    samples = struct.unpack(f"<{round(.52*wav.getframerate())}h", wav.readframes(round(.52*wav.getframerate())))
+                    count = round(.40 * wav.getframerate())
+                    samples = struct.unpack(f"<{count}h", wav.readframes(count))
                     self.assertLess(math.sqrt(sum(value**2 for value in samples) / len(samples)), 300)
         self.assertEqual(fetch(f"getanalyzedaudioapi/{id}/user/vocals")[0], 404)
         self.assertEqual(fetch(f"getanalyzedaudioapi/{id}/user/original", headers={"Range":"bytes=99999999-"})[0], 416)
-        status, adjusted, _ = call("adjustalignmentapi", {"analysisId": id, "manualOffset": 1.0})
-        self.assertEqual(status, 200)
-        self.assertNotEqual(id, adjusted["analysisId"])
-        adjusted_job, _ = wait_for(adjusted["analysisId"])
-        self.assertEqual(adjusted_job["status"], "completed", adjusted_job)
-        adjusted_result = call("getanalysisresultapi", {"analysisId": adjusted["analysisId"]})[1]
-        self.assertEqual(adjusted_result["alignment"]["manualOffset"], 1.0)
+        status, _, _ = call("adjustalignmentapi", {"analysisId": id, "manualOffset": 90})
+        self.assertEqual(status, 400)
+        status, _, _ = call("adjustalignmentapi", {"analysisId": id, "manualOffset": None, "referenceRange": [3, 8]})
+        self.assertEqual(status, 400)
+        status, adjusted, _ = call("adjustalignmentapi", {"analysisId": id, "manualOffset": .10})
+        self.assertEqual(status, 200, adjusted)
+        self.assertEqual(id, adjusted["analysisId"])
+        self.assertEqual(adjusted["alignment"]["manualOffset"], .10)
+        self.assertEqual(adjusted["pitchTracks"], result["pitchTracks"])
+        self.assertEqual(adjusted["alignment"]["automatic"], result["alignment"]["automatic"])
+        self.assertNotEqual(adjusted["metrics"], result["metrics"])
+        status, selected, _ = call("adjustalignmentapi", {"analysisId": id, "manualOffset": None, "referenceRange": [.5, 4.5]})
+        self.assertEqual(status, 200, selected)
+        self.assertEqual(selected["alignment"]["automatic"]["referenceRange"], [.5, 4.5])
+        self.assertAlmostEqual(selected["alignment"]["offsetSeconds"], .85, delta=.035)
+        self.assertEqual(selected["alignment"], call("getanalysisresultapi", {"analysisId": id})[1]["alignment"])
 
     @unittest.skipUnless(os.getenv("VOCALLAB_PHONE_FIXTURE"), "Optional original phone video")
     def test_original_phone_video(self):
@@ -209,10 +221,9 @@ class Backend(unittest.TestCase):
         print("Song metrics:", {metric["name"]: metric["value"] for metric in result["metrics"]})
         status, repeat, _ = call("adjustalignmentapi", {"analysisId": id, "manualOffset": 0})
         self.assertEqual(status, 200, repeat)
-        finished, _ = wait_for(repeat["analysisId"], deadline=180)
-        self.assertEqual(finished["status"], "completed", finished)
-        result = call("getanalysisresultapi", {"analysisId": repeat["analysisId"]})[1]
-        self.assertTrue(result["separation"]["reference"]["cached"])
+        self.assertEqual(repeat["analysisId"], id)
+        self.assertEqual(repeat["separation"], result["separation"])
+        self.assertEqual(repeat["pitchTracks"], result["pitchTracks"])
 
 
 if __name__ == "__main__":

@@ -28,8 +28,21 @@ class Pitch:
                     f0Hz=nullable(self.hz), midiPitch=nullable(self.midi),
                     voicedFlags=self.voiced.tolist(),
                     voicedProbabilities=self.probability.round(5).tolist(),
-                    rms=self.rms.round(7).tolist(),
+                    rms=self.rms.round(7).tolist(), quality=self.quality,
                     guideMidiPitch=nullable(self.guide_midi) if self.guide_midi is not None else None)
+
+
+    @classmethod
+    def from_report(cls, track: dict, warnings: list[str]):
+        def array(key):
+            return np.asarray(track[key], dtype=float)
+
+        # Old reports recorded quality-related warnings instead of the factor.
+        quality = track.get("quality")
+        if quality is None:
+            quality = .78 if any("削波" in warning or "电平偏低" in warning for warning in warnings) else 1.0
+        return cls(array("timestamps"), array("f0Hz"), array("midiPitch"), np.asarray(track["voicedFlags"]),
+                   array("voicedProbabilities"), array("rms"), warnings, quality)
 
 
 def extract(path: Path) -> Pitch:

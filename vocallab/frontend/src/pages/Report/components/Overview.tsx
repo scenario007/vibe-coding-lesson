@@ -38,7 +38,7 @@ export function Overview({ report }: { report: Report }) {
     <div className="flex flex-wrap gap-x-5 gap-y-2 py-2 text-xs text-muted">
       <span>原唱有效 F0 {ratio(metric('referenceF0Coverage')?.value)}</span>
       <span>我的演唱有效 F0 {ratio(metric('userF0Coverage')?.value)}</span>
-      <span>近似时间偏差 {timing === null || timing === undefined ? '—' : `${Math.round(timing*1000)} ms`}</span>
+      {timing != null && <span>近似时间偏差 {Math.round(timing*1000)} ms</span>}
       {Boolean(report.alignment.transposeSemitones) && <span className="text-accent">可能整体移调 {report.alignment.transposeSemitones} 半音 · 补偿后命中率 {ratio(metric('transposedHitRate')?.value)}</span>}
     </div>
     {report.warnings.length > 0 && <Panel className="flex items-start gap-3 border-[#59433e] bg-[#242020] p-4">

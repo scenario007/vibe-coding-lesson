@@ -1,7 +1,10 @@
 import { request } from '../request'
-import { job } from './contracts'
+import { report } from './contracts'
 
 export class AdjustAlignmentAPI {
-  constructor(private readonly analysisId: string, private readonly manualOffset: number | null) {}
-  send() { return request(this, job, { analysisId: this.analysisId, manualOffset: this.manualOffset }) }
+  constructor(private readonly analysisId: string, private readonly manualOffset: number | null,
+    private readonly referenceRange?: [number, number]) {}
+  send() {
+    return request(this, report, { analysisId: this.analysisId, manualOffset: this.manualOffset, referenceRange: this.referenceRange })
+  }
 }

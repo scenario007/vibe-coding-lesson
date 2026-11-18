@@ -3,7 +3,7 @@ package services.analysis.objects
 import io.circe.{Decoder, Encoder}
 
 enum AlignmentMethod:
-  case pitch, guide, manual
+  case pitch, guide, manual, envelope
 
 object AlignmentMethod:
   given Encoder[AlignmentMethod] = Encoder.encodeString.contramap(_.toString)

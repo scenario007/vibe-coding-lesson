@@ -44,10 +44,22 @@ const separation = z.object({
   parameters: z.object({ segment_size: z.number().int(), override_model_segment_size: z.boolean(),
     overlap: z.number().int(), batch_size: z.number().int(), pitch_shift: z.number().int() }).nullable(),
 })
+const alignmentFeatureScores = z.record(z.string(), z.object({
+  offsetSeconds: z.number(), score: z.number().min(-1).max(1), peakScore: z.number().min(-1).max(1),
+}))
+const alignmentDetection = z.object({
+  referenceRange: z.tuple([seconds, seconds]).nullish(),
+  offsetSeconds: z.number().nullable(), originalOffsetSeconds: z.number().nullable(),
+  confidence: fraction, reliable: z.boolean(), method: z.literal('envelope'),
+  featureScores: alignmentFeatureScores, warnings: z.array(z.string()),
+  featureMilliseconds: seconds, correlationMilliseconds: seconds, elapsedMilliseconds: seconds,
+})
 const alignment = z.object({
   offset: z.number(), tempoRatio: z.number().positive(), transposeSemitones: z.number().int().nullable(),
   confidence: fraction, reliable: z.boolean(), warnings: z.array(z.string()), manualOffset: z.number().nullable(),
-  method: z.enum(['pitch', 'guide', 'manual']).nullish(),
+  method: z.enum(['pitch', 'guide', 'manual', 'envelope']).nullish(),
+  offsetSeconds: z.number().nullish(), originalOffsetSeconds: z.number().nullish(),
+  featureScores: alignmentFeatureScores.nullish(), automatic: alignmentDetection.nullish(),
   timeMapping: z.array(z.tuple([seconds, seconds])),
 }).refine(a => (!a.reliable || a.timeMapping.length > 1) && a.timeMapping.every(([r,u], i) =>
   i === 0 || (r > a.timeMapping[i-1][0] && u > a.timeMapping[i-1][1])))

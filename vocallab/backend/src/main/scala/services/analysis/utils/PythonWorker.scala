@@ -1,12 +1,13 @@
 package services.analysis.utils
 
-import cats.effect.{IO, Ref}
+import cats.effect.{IO, Ref, Resource}
 import io.circe.parser.decode
 import io.circe.syntax.*
-import java.nio.file.{Files, Path}
+import java.nio.file.{Files, Path, StandardCopyOption}
 import scala.concurrent.duration.*
 import org.http4s.Status
 import services.analysis.objects.*
+import services.analysis.objects.apiTypes.AdjustAlignmentRequest
 import services.analysis.tables.AnalysisTable.AnalysisTable
 import services.system.api.Database
 import services.system.objects.{ApiError, AppConfig}
@@ -52,10 +53,32 @@ private[analysis] object PythonWorker:
       message <- error.get
       _ <- IO.raiseUnless(exit == 0)(ApiError(Status.UnprocessableEntity,
         message.getOrElse(if exit == 137 then "分析进程内存不足，请尝试较短的片段。" else "声学分析进程异常退出，请查看本地日志。")))
-      size <- IO.blocking(Files.size(result))
+      verified <- readReport(result, job)
+      _ <- IO.blocking(Files.deleteIfExists(request))
+    yield verified
+
+  def realign(job: AnalysisJob, input: AdjustAlignmentRequest, config: AppConfig): IO[AnalysisReport] =
+    val workspace = LocalFiles.analysis(config, job.analysisId)
+    val report = workspace.resolve("result.json")
+    val options = input.manualOffset.toList.flatMap(value => List("--manual", value.toString)) ++
+      input.referenceRange.toList.flatMap((start, end) => List("--reference-range", start.toString, end.toString))
+    Resource.make(IO.blocking(Files.createTempDirectory(workspace, "realign-")))(LocalFiles.remove).use { directory =>
+      val updated = directory.resolve("result.json")
+      val args = List(config.python.toString, "-m", "vocallab", "realign", report.toString, updated.toString)
+      for
+        exit <- Command.run(args ++ options, config.root.resolve("dsp"), 15.seconds,
+          line => IO.println(s"[DSP ${job.analysisId}] $line"))
+        _ <- IO.raiseUnless(exit == 0)(ApiError(Status.UnprocessableEntity, "重新对齐失败，请检查两条音轨。"))
+        verified <- readReport(updated, job)
+        _ <- IO.blocking(Files.move(updated, report, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING))
+      yield verified
+    }
+
+  private def readReport(path: Path, job: AnalysisJob): IO[AnalysisReport] =
+    for
+      size <- IO.blocking(Files.size(path))
       _ <- IO.raiseWhen(size > 16777216)(new IllegalStateException("分析结果超过大小限制。"))
-      raw <- IO.blocking(Files.readString(result))
+      raw <- IO.blocking(Files.readString(path))
       report <- IO.fromEither(decode[AnalysisReport](raw))
       verified <- AnalysisValidation.report(report, job)
-      _ <- IO.blocking(Files.deleteIfExists(request))
     yield verified

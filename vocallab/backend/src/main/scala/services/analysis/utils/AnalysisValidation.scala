@@ -24,12 +24,20 @@ private[analysis] object AnalysisValidation:
           clip.end - clip.start <= config.maxClip)(ApiError(Status.BadRequest,
             s"片段须在媒体范围内，且长度为 1 到 ${config.maxClip} 秒。"))
       }
-    val referenceDuration = input.reference.end - input.reference.start
-    val userDuration = input.user.end - input.user.start
-    val offset = input.manualOffset.forall(value => value.isFinite &&
-      math.min(referenceDuration, userDuration - value) - math.max(0.0, -value) >= 0.1)
-    IO.raiseUnless(offset)(ApiError(Status.BadRequest, "该偏移会让两条音轨失去重叠，请选择各轨内的对应位置。")) *>
-      validate(input.reference) *> validate(input.user)
+    alignmentAdjustment(input, input.manualOffset, None) *> validate(input.reference) *> validate(input.user)
+
+  def alignmentAdjustment(selection: AnalysisSelection, manual: Option[Double],
+                          referenceRange: Option[(Double, Double)]): IO[Unit] =
+    val referenceDuration = selection.reference.end - selection.reference.start
+    val userDuration = selection.user.end - selection.user.start
+    val offsetFits = manual.forall(value => value.isFinite &&
+      math.min(referenceDuration, userDuration - value) - math.max(0.0, -value) >= 0.1 - 1e-9)
+    val rangeFits = referenceRange.forall { (start, stop) =>
+      manual.isEmpty && start.isFinite && stop.isFinite && start >= 0 && stop - start >= 1.0 &&
+        stop <= math.min(referenceDuration, userDuration) + 1e-9
+    }
+    IO.raiseUnless(offsetFits)(ApiError(Status.BadRequest, "该偏移会让两条音轨失去重叠，请选择各轨内的对应位置。")) *>
+      IO.raiseUnless(rangeFits)(ApiError(Status.BadRequest, "对齐选区须在两轨片段范围内，且至少 1 秒。"))
 
   def report(report: AnalysisReport, job: AnalysisJob): IO[AnalysisReport] =
     def ratio(value: Double): Boolean = value.isFinite && value >= 0 && value <= 1
@@ -47,6 +55,20 @@ private[analysis] object AnalysisValidation:
     val mapping = map.forall((r, u) => r.isFinite && u.isFinite && r >= 0 && u >= 0 &&
       r <= report.preprocessing.referenceDuration + 0.001 && u <= report.preprocessing.userDuration + 0.001) &&
       map.zip(map.drop(1)).forall((a, b) => a._1 < b._1 && a._2 < b._2)
+    val alignment = report.alignment
+    val fixed = alignment.offsetSeconds.forall { offset =>
+      offset.isFinite && offset == alignment.offset && alignment.tempoRatio == 1 &&
+        alignment.originalOffsetSeconds.exists(original => math.abs(original -
+          (offset + report.preprocessing.userStart - report.preprocessing.referenceStart)) <= 1e-6) &&
+        (map.isEmpty || map.size == 2 && map.forall((r, u) => math.abs(u - r - offset) <= 1.1e-6))
+    }
+    val detection = alignment.automatic.forall { auto =>
+      ratio(auto.confidence) && auto.method == AlignmentMethod.envelope &&
+        auto.offsetSeconds.forall(_.isFinite) &&
+        auto.originalOffsetSeconds.forall(_.isFinite) &&
+        Vector(auto.featureMilliseconds, auto.correlationMilliseconds, auto.elapsedMilliseconds).forall(t => t.isFinite && t >= 0) &&
+        auto.featureScores.values.forall(s => s.offsetSeconds.isFinite && ratio(math.abs(s.score)) && ratio(math.abs(s.peakScore)))
+    }
     val metrics = report.metrics.map(_.name).toSet == MetricName.values.toSet &&
       report.metrics.size == MetricName.values.length && report.metrics.forall(m =>
         m.validFrames >= 0 && ratio(m.coverage) && m.value.forall(value =>
@@ -56,7 +78,7 @@ private[analysis] object AnalysisValidation:
       report.userMetadata.id == job.selection.user.mediaId &&
       ratio(report.confidence) && ratio(report.alignment.confidence) &&
       track(report.pitchTracks.reference, job.selection.reference) && track(report.pitchTracks.user, job.selection.user) &&
-      mapping && metrics && (!(report.alignment.reliable ||
+      mapping && fixed && detection && metrics && (!(report.alignment.reliable ||
         report.alignment.method.exists(method => method == AlignmentMethod.manual || method == AlignmentMethod.guide)) ||
         map.size >= 2)
     IO.raiseUnless(valid)(new IllegalStateException("Python report failed result validation.")).as(report)

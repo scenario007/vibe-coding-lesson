@@ -13,5 +13,7 @@ object CoachBillingCheck:
     assert(CoachBilling.estimate(base, model, 1000, 200, 900, offPeak).contains(BigDecimal("0.000918")))
     assert(CoachBilling.estimate(base, model, 1000, 200, 900, peak).contains(BigDecimal("0.001836")))
     assert(CoachBilling.estimate(base, model, 1000, 200, 900, weekend).contains(BigDecimal("0.000918")))
+    assert(CoachBilling.estimate("https://api.deepseek.com/anthropic/v1/messages", "deepseek-flash",
+      1000, 200, 900, offPeak).contains(BigDecimal("0.000918")))
     assert(CoachBilling.estimate(base, "unknown", 1000, 200, 900, peak).isEmpty)
     assert(CoachBilling.estimate("https://example.com/v1", model, 1000, 200, 900, peak).isEmpty)

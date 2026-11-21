@@ -26,7 +26,10 @@ private[coach] object CoachBilling:
   private[coach] def estimate(url: String, model: String, input: Long, output: Long, cached: Long, at: Instant): Option[BigDecimal] =
     // Published TokenHub Guangzhou list rates, checked 2026-11-18. Account discounts and credits are unknown.
     val known = Set("deepseek-v4.1-flash", "deepseek-v4.1-flash-1017")
-    Option.when(Try(URI.create(url)).toOption.exists(_.getHost == "tokenhub.tencentmaas.com") && known(model)) {
+    val host = Try(URI.create(url)).toOption.map(_.getHost)
+    val tokenHubFlash = host.contains("tokenhub.tencentmaas.com") && known(model)
+    val deepSeekFlash = host.contains("api.deepseek.com") && model == "deepseek-flash"
+    Option.when(tokenHubFlash || deepSeekFlash) {
       val local = at.atZone(ZoneId.of("Asia/Shanghai"))
       val time = local.toLocalTime
       def during(from: Int, until: Int): Boolean =
@@ -48,6 +51,19 @@ private[coach] object CoachBilling:
       amount <- estimate(url, model, a, b, cached, at)
     yield amount
     record(config, id, CoachUsage("text", input.getOrElse(0L), output.getOrElse(0L), cached, cost))
+
+  def deepSeekResearch(config: AppConfig, id: UUID, url: String, response: Json, at: Instant): IO[Unit] =
+    val usage = response.hcursor.downField("usage")
+    val uncached = usage.get[Long]("input_tokens").toOption.filter(_ >= 0)
+    val output = usage.get[Long]("output_tokens").toOption.filter(_ >= 0)
+    val cached = usage.get[Long]("cache_read_input_tokens").getOrElse(0L).max(0)
+    val input = uncached.map(_ + cached)
+    val amount = for
+      a <- input
+      b <- output
+      price <- estimate(url, "deepseek-flash", a, b, cached, at)
+    yield price
+    record(config, id, CoachUsage("text", input.getOrElse(0L), output.getOrElse(0L), cached, amount))
 
   def externalSearch(config: AppConfig, id: UUID): IO[Unit] =
     record(config, id, CoachUsage("search", 0, 0, 0, None))

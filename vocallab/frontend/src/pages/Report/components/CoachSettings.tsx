@@ -4,10 +4,10 @@ import type { CoachView } from '../../../apis/coach/contracts'
 
 export function CoachSettings({ view, busy, onClose, saveKey }: {
   view: CoachView; busy: boolean; onClose: () => void;
-  saveKey: (kind: 'ai' | 'search', key: string | null) => Promise<boolean>
+  saveKey: (kind: 'ai' | 'deepseek' | 'search', key: string | null) => Promise<boolean>
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
-  const [kind, setKind] = useState<'ai' | 'search'>('ai')
+  const [kind, setKind] = useState<'ai' | 'deepseek' | 'search'>('ai')
   const [key, setKey] = useState('')
   const [notice, setNotice] = useState('')
   useEffect(() => { dialog.current?.showModal() }, [])
@@ -34,9 +34,11 @@ export function CoachSettings({ view, busy, onClose, saveKey }: {
           setNotice('')
         }}>
           <option value="ai">AI 文本服务</option>
-          <option value="search">Brave Search（可选，全网页搜索）</option>
+          <option value="deepseek">DeepSeek 官方联网研究</option>
+          <option value="search">Brave Search（可选）</option>
         </select>
       </label>
+      {kind === 'deepseek' && <p className="text-xs text-muted">填写 DeepSeek 开放平台的密钥，生成 AI 深度分析时模型会按需上网研究。</p>}
       <label className="grid gap-1 text-sm">API Key
         <input className="rounded border border-line bg-canvas p-2" type="password" value={key}
           autoComplete="off" spellCheck={false} minLength={8} maxLength={4096}

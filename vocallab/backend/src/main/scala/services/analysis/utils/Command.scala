@@ -19,6 +19,7 @@ private[analysis] object Command:
       builder.redirectErrorStream(true)
       builder.environment().remove("VOCALLAB_AI_KEY")
       builder.environment().remove("VOCALLAB_SEARCH_KEY")
+      builder.environment().remove("VOCALLAB_DEEPSEEK_KEY")
       env.foreach((key, value) => builder.environment().put(key, value))
       builder.start()
     })(stop)

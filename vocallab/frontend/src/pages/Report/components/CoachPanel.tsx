@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ListMusic, MessageCircle, Sparkles } from 'lucide-react'
 import type { Report } from '../../../apis/analysis/contracts'
-import type { Feedback, Observation, ResearchResult, SongInfo } from '../../../apis/coach/contracts'
+import type { Feedback, Observation, SongInfo } from '../../../apis/coach/contracts'
 import { Button } from '../../../components/ui/Button'
 import { Panel } from '../../../components/ui/Panel'
 import { timeLabel } from '../functions/timeline'
@@ -52,9 +52,6 @@ export function CoachPanel({ report, playback, adjusting }: { report: Report; pl
   const threshold = thresholdDraft ?? session?.highThreshold?.toString() ?? ''
   const [selectedId, setSelected] = useState<string>()
   const [settings, setSettings] = useState(false)
-  const [lookup, setLookup] = useState<{ query: string; data: ResearchResult } | null>(null)
-  const query = JSON.stringify([song.title.trim(), song.artist.trim(), song.version.trim(), view?.searchProvider])
-  const found = lookup?.query === query ? lookup.data : null
   const [question, setQuestion] = useState('')
   const [scope, setScope] = useState<'report' | 'difficulty' | 'selection'>('difficulty')
   const selected = session?.difficulties.find(item => item.id === selectedId)
@@ -78,7 +75,9 @@ export function CoachPanel({ report, playback, adjusting }: { report: Report; pl
         <p className="mt-1 text-sm text-muted">从当前选段定位演唱难点，复听并比较实测表现。</p>
       </div>
       {view && <div className="flex flex-wrap items-center gap-2">
-        <p className="text-xs text-muted">{view.aiAvailable ? view.model : '本地模式'} · {view.searchProvider === 'brave' ? 'Brave 网页搜索' : '维基百科检索'}</p>
+        <p className="text-xs text-muted">{view.aiAvailable ? view.model : '本地模式'} · {{
+          deepseek: 'DeepSeek 联网已配置', brave: 'Brave 研究已配置', none: 'AI 联网未配置',
+        }[view.searchProvider]}</p>
         <Button variant="text" onClick={() => setSettings(true)}>AI 服务设置</Button>
       </div>}
     </header>
@@ -92,7 +91,7 @@ export function CoachPanel({ report, playback, adjusting }: { report: Report; pl
           (view.usage.textCalls || view.usage.unpricedSearches ? '待估算' : '暂无记录') : `¥${view.usage.estimatedYuan.toFixed(4)}`}</summary>
         <p className="mt-1 text-xs text-muted">已记录 {view.usage.textCalls} 次文本调用 · 输入 {view.usage.inputTokens} · 输出 {view.usage.outputTokens} tokens
           {view.usage.cachedTokens > 0 && ` · 缓存命中 ${view.usage.cachedTokens}`}。</p>
-        <p className="mt-1 text-xs text-muted">按腾讯云公开单价估算，实际扣费以服务商账单为准。旧调用可能没有计量记录。
+        <p className="mt-1 text-xs text-muted">按服务商公开单价估算，实际扣费以服务商账单为准。旧调用可能没有计量记录。
           {view.usage.unpricedTextCalls > 0 && ` 有 ${view.usage.unpricedTextCalls} 次文本调用无可用价格或用量。`}
           {view.usage.unpricedSearches > 0 && ` 有 ${view.usage.unpricedSearches} 次 Brave 搜索未计入金额。`}</p>
       </details>
@@ -131,10 +130,6 @@ export function CoachPanel({ report, playback, adjusting }: { report: Report; pl
           <Button disabled={blocked} onClick={() => void coach.analyze(song, false, extra, threshold === '' ? null : Number(threshold), false)}>
             <ListMusic size={16}/> 本地专项分析
           </Button>
-          <Button disabled={blocked || !song.title.trim()} onClick={async () => {
-            const data = await coach.lookup(song)
-            if (data) setLookup({ query, data })
-          }}>联网查歌曲资料</Button>
           <Button variant="primary" type="submit" disabled={blocked || !view.aiAvailable || !song.title.trim()}>
             <Sparkles size={16}/> 生成 AI 深度分析
           </Button>
@@ -148,18 +143,9 @@ export function CoachPanel({ report, playback, adjusting }: { report: Report; pl
         </div>
         {view.aiAvailable && <p className="text-xs text-muted">主动生成或提问会发送歌曲信息、问题和必要的声学摘要。音频及视频保存在本机。</p>}
       </form>
-      {found && <section aria-label="联网检索结果" className="rounded-lg border border-line p-3 text-sm">
-        <h3 className="font-semibold">联网检索结果</h3>
-        {found.status === 'unavailable' ? <p className="mt-1 text-muted">搜索服务暂不可用，可稍后重试。</p> :
-          found.sources.length === 0 ? <p className="mt-1 text-muted">未找到相关资料。可核对歌名、歌手或版本。</p> :
-          <ul className="mt-2 space-y-2">{found.sources.map(source => <li key={source.id}>
-            <SourceLinks ids={[source.id]} sources={found.sources}/><p className="text-xs text-muted">{source.summary}</p>
-          </li>)}</ul>}
-        {view.searchProvider === 'wikipedia' && <p className="mt-2 text-xs text-muted">中文维基百科主要提供歌曲背景和发行信息。</p>}
-      </section>}
       {operation && <p role="status" className="text-sm text-accent">{{
         local: '正在测量本地声学特征…', deep: '正在研究歌曲、选择专项工具并生成报告…',
-        settings: '正在保存设置…', lookup: '正在联网检索…', edit: '正在保存难点并更新证据…', recheck: '正在更新双轨证据…', ask: '教练正在核对证据…',
+        settings: '正在保存设置…', edit: '正在保存难点并更新证据…', recheck: '正在更新双轨证据…', ask: '教练正在核对证据…',
       }[operation]}</p>}
       {session && <>
         {view.stale && <div className="flex flex-wrap items-center gap-2 rounded-lg border border-accent/60 p-2">

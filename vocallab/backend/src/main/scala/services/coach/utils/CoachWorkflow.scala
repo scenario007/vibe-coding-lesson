@@ -31,11 +31,11 @@ private[coach] object CoachWorkflow:
     for
       ai <- CoachProviders.aiAvailable(config)
       search <- CoachProviders.searchProvider(config)
-      overrides <- Vector("ai", "search").traverse(kind => CoachCredentials.overrideKey(config, kind)
+      overrides <- Vector("ai", "deepseek", "search").traverse(kind => CoachCredentials.overrideKey(config, kind)
         .map(key => Option.when(key.nonEmpty)(kind)))
       usage <- CoachBilling.summary(config, report.analysisId)
     yield CoachView(session, session.exists(_.revision != CoachStore.revision(report)),
-      ai, true, catalog, CoachProviders.model, search, overrides.flatten.toSet, usage)
+      ai, search != "none", catalog, CoachProviders.model, search, overrides.flatten.toSet, usage)
 
   def get(config: AppConfig, report: AnalysisReport): IO[CoachView] =
     (CoachStore.load(config, report), CoachStore.catalog(config)).tupled.flatMap((session, catalog) =>
@@ -43,11 +43,6 @@ private[coach] object CoachWorkflow:
 
   def updateKey(config: AppConfig, report: AnalysisReport, input: SetCoachKeyRequest): IO[CoachView] =
     CoachCredentials.save(config, input.kind, input.key) *> get(config, report)
-
-  def lookup(config: AppConfig, report: AnalysisReport, input: SongInfo): IO[ResearchResult] =
-    val song = SongInfo(input.title.trim, input.artist.trim, input.version.trim, "")
-    check(text(song.title, 160) && song.artist.length <= 120 && song.version.length <= 120,
-      "请填写有效的歌曲名称及版本信息。") *> CoachStore.research(config, report, song)
 
   private def target(id: String, tool: String, start: Double, end: Double): Json =
     Json.obj("id" -> id.asJson, "tool" -> tool.asJson, "start" -> start.asJson, "end" -> end.asJson)
@@ -66,10 +61,10 @@ private[coach] object CoachWorkflow:
       }
 
   private def sourceStatus(status: String): Vector[String] = status match
-    case "results" => Vector("联网来源为检索摘要，歌曲版本和观点仍需核对。")
+    case "results" => Vector("联网资料已纳入分析计划。请按实际录音核对版本和观点。")
     case "empty" => Vector("未检索到可用的歌曲资料，分析以录音测量为依据。")
     case "unavailable" => Vector("联网检索暂不可用，分析以录音测量为依据。")
-    case "unconfigured" => Vector("未配置联网检索，歌曲难点假设来自当前声学数据及通用知识。")
+    case "unconfigured" => Vector("未配置 AI 联网服务，本次依据本地声学数据及通用知识。")
     case _ => Vector.empty
 
   private def context(report: AnalysisReport): Json =
@@ -177,7 +172,7 @@ private[coach] object CoachWorkflow:
       old <- CoachStore.load(config, report)
       cached = old.filter(s => !input.refresh && s.revision == CoachStore.revision(report) &&
         s.song == song && s.provider == provider && s.requestedTools == input.extraTools &&
-        s.highThreshold == input.highThreshold)
+        s.highThreshold == input.highThreshold && s.researchStatus != "unavailable")
       state <- if input.recheck.contains(true) then
         for
           previous <- required(config, report)
@@ -202,7 +197,6 @@ private[coach] object CoachWorkflow:
     val manual = sameSong.toVector.flatMap(_.difficulties.filter(_.manual)).take(8)
     for
       ai <- CoachProviders.aiAvailable(config)
-      source <- CoachProviders.searchProvider(config)
       _ <- IO.raiseWhen(deep && !ai)(ApiError(Status.ServiceUnavailable, "请先配置 AI 文本服务。"))
       researched <- if deep then CoachStore.research(config, report, song) else IO.pure(ResearchResult(Vector.empty, "local"))
       plan <- drafts(config, report, song, researched.sources, localTools, catalog, deep)
@@ -219,8 +213,7 @@ private[coach] object CoachWorkflow:
       initial = CoachSession(CoachStore.revision(report), if deep then "ai" else "local", song, researched.sources,
         researched.status, completePlan, detected.candidates, marked, measured.observations,
         detected.runs ++ measured.runs, None, Vector.empty, Option.when(deep)(CoachProviders.model).flatten,
-        (sourceStatus(researched.status) ++ Option.when(deep && source == "wikipedia")(
-          "本次检索范围为中文维基百科，主要用于核对歌曲背景，声乐结论以实测证据为准。") ++ decision._2 ++ Option.when(marked.isEmpty)("没有达到测量条件的难点候选。"))
+        (sourceStatus(researched.status) ++ decision._2 ++ Option.when(marked.isEmpty)("没有达到测量条件的难点候选。"))
           .distinct, input.extraTools, input.highThreshold, provider)
       // Preserve usable DSP results if the external synthesis fails.
       _ <- CoachStore.save(config, report, initial)

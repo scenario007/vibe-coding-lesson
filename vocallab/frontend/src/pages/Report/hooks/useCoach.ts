@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import type { CoachView, ResearchResult, SongInfo } from '../../../apis/coach/contracts'
+import type { CoachView, SongInfo } from '../../../apis/coach/contracts'
 import { AnalyzeCoachAPI } from '../../../apis/coach/AnalyzeCoachAPI'
 import { AskCoachAPI } from '../../../apis/coach/AskCoachAPI'
 import { EditDifficultyAPI } from '../../../apis/coach/EditDifficultyAPI'
 import { GetCoachAPI } from '../../../apis/coach/GetCoachAPI'
-import { LookupCoachSourcesAPI } from '../../../apis/coach/LookupCoachSourcesAPI'
 import { SetCoachKeyAPI } from '../../../apis/coach/SetCoachKeyAPI'
 import type { Report } from '../../../apis/analysis/contracts'
 
-type Operation = 'local' | 'deep' | 'edit' | 'ask' | 'recheck' | 'settings' | 'lookup'
+type Operation = 'local' | 'deep' | 'edit' | 'ask' | 'recheck' | 'settings'
 
 export function useCoach(report: Report) {
   const id = report.analysisId
@@ -59,16 +58,8 @@ export function useCoach(report: Report) {
       run(deep ? 'deep' : 'local', () => new AnalyzeCoachAPI(id, { song, deep, extraTools, highThreshold, refresh }).send()),
     recheck: (song: SongInfo) => run('recheck', () => new AnalyzeCoachAPI(id,
       { song, deep: false, extraTools: [], highThreshold: null, refresh: false, recheck: true }).send()),
-    saveKey: (kind: 'ai' | 'search', key: string | null) =>
+    saveKey: (kind: 'ai' | 'deepseek' | 'search', key: string | null) =>
       run('settings', () => new SetCoachKeyAPI(id, kind, key).send()),
-    lookup: async (song: SongInfo) => {
-      let found: ResearchResult | null = null
-      await run('lookup', async () => {
-        found = await new LookupCoachSourcesAPI(id, song).send()
-        return new GetCoachAPI(id).send()
-      })
-      return found as ResearchResult | null
-    },
     edit: (input: ConstructorParameters<typeof EditDifficultyAPI>[1]) =>
       run('edit', () => new EditDifficultyAPI(id, input).send()),
     ask: (input: ConstructorParameters<typeof AskCoachAPI>[1]) =>

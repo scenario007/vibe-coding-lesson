@@ -56,12 +56,15 @@ test('maps acoustic measures, edits and plays a region, and invalidates old evid
     await expect(settings.getByText('已移除此处设置，恢复项目配置。')).toBeVisible()
     await settings.getByRole('button', { name: '关闭' }).click()
     await coach.getByLabel('歌名').fill('高音显示测试')
-    await coach.getByRole('button', { name: '联网查歌曲资料' }).click()
-    await expect(coach.getByRole('region', { name: '联网检索结果' }).getByRole('link', { name: '本地测试来源' })).toBeVisible()
+    await expect(coach.getByRole('button', { name: '联网查歌曲资料' })).toHaveCount(0)
+    const native = await coach.getByText('DeepSeek 联网已配置', { exact: false }).count() > 0
     await coach.getByRole('button', { name: '生成 AI 深度分析' }).click()
     await expect(coach.getByRole('region', { name: 'AI 声乐分析报告' })).toBeVisible()
+    await coach.getByText('歌曲研究与分析计划', { exact: true }).click()
+    await expect(coach.getByRole('link', { name: '本地测试来源' }).first()).toBeVisible()
     await coach.getByText('本报告 AI 估算费用 待估算', { exact: true }).click()
-    await expect(coach.getByText(/已记录 3 次文本调用 · 输入 54 · 输出 18 tokens/)).toBeVisible()
+    await expect(coach.getByText(native ? /已记录 4 次文本调用 · 输入 74 · 输出 23 tokens/ :
+      /已记录 3 次文本调用 · 输入 54 · 输出 18 tokens/)).toBeVisible()
     await map.getByRole('button', { name: /^定位 实测难点/ }).click()
     await coach.getByLabel('你的问题').fill('这段有周期性波动吗？')
     await coach.getByRole('button', { name: '发送问题' }).click()

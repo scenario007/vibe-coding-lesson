@@ -17,13 +17,16 @@ private[coach] object CoachCredentials:
   }.recover { case _: java.nio.file.NoSuchFileException => None }
 
   def key(config: AppConfig, kind: String): IO[Option[String]] =
-    val env = if kind == "ai" then "VOCALLAB_AI_KEY" else "VOCALLAB_SEARCH_KEY"
+    val env = kind match
+      case "ai" => "VOCALLAB_AI_KEY"
+      case "deepseek" => "VOCALLAB_DEEPSEEK_KEY"
+      case _ => "VOCALLAB_SEARCH_KEY"
     overrideKey(config, kind).map(_.orElse(sys.env.get(env).map(_.trim).filter(_.nonEmpty)))
 
   def save(config: AppConfig, kind: String, key: Option[String]): IO[Unit] =
     val value = key.map(_.trim)
     for
-      _ <- IO.raiseUnless(Set("ai", "search")(kind) && value.forall(s =>
+      _ <- IO.raiseUnless(Set("ai", "deepseek", "search")(kind) && value.forall(s =>
         s.length >= 8 && s.length <= 4096 && s.forall(c => c >= '!' && c <= '~')))(
         ApiError(Status.BadRequest, "密钥格式无效。请仅粘贴服务提供的密钥。"))
       _ <- value match

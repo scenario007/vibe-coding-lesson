@@ -42,9 +42,6 @@ private[coach] object CoachWorkflow:
     (CoachStore.load(config, report), CoachStore.catalog(config)).tupled.flatMap((session, catalog) =>
       view(config, session, report, catalog))
 
-  def updateKey(config: AppConfig, report: AnalysisReport, input: SetCoachKeyRequest): IO[CoachView] =
-    CoachCredentials.save(config, input.kind, input.key) *> get(config, report)
-
   private def target(id: String, tool: String, start: Double, end: Double): Json =
     Json.obj("id" -> id.asJson, "tool" -> tool.asJson, "start" -> start.asJson, "end" -> end.asJson)
 

@@ -3,12 +3,11 @@ import { ListMusic, MessageCircle, Sparkles } from 'lucide-react'
 import type { Report } from '../../../apis/analysis/contracts'
 import type { Feedback, Observation, SongInfo } from '../../../apis/coach/contracts'
 import { Button } from '../../../components/ui/Button'
-import { Panel } from '../../../components/ui/Panel'
 import { timeLabel } from '../functions/timeline'
 import { statuses } from '../functions/coachEvidence'
 import { useCoach } from '../hooks/useCoach'
 import type { Playback } from '../hooks/usePlayback'
-import { CoachSettings } from './CoachSettings'
+import { CoachSettings } from '../../../components/CoachSettings'
 import { DifficultyMap, EvidenceList, SourceLinks } from './DifficultyMap'
 
 const field = 'min-w-0 rounded-lg border border-line bg-canvas px-2.5 py-2 text-sm text-ink'
@@ -51,7 +50,6 @@ export function CoachPanel({ report, playback, adjusting }: { report: Report; pl
   const [thresholdDraft, setThreshold] = useState<string | null>(null)
   const threshold = thresholdDraft ?? session?.highThreshold?.toString() ?? ''
   const [selectedId, setSelected] = useState<string>()
-  const [settings, setSettings] = useState(false)
   const [question, setQuestion] = useState('')
   const [scope, setScope] = useState<'report' | 'difficulty' | 'selection'>('difficulty')
   const selected = session?.difficulties.find(item => item.id === selectedId)
@@ -68,24 +66,25 @@ export function CoachPanel({ report, playback, adjusting }: { report: Report; pl
     }
   }
 
-  return <Panel aria-labelledby="coach-title" className="space-y-4 p-4 sm:p-6">
+  return <section aria-labelledby="coach-title" className="space-y-5 rounded-xl border border-amber-200/15 bg-[#211e1b] p-4 sm:p-6">
     <header className="flex flex-wrap items-start justify-between gap-2">
       <div>
-        <h2 id="coach-title" className="flex items-center gap-2 text-lg font-bold"><Sparkles size={19} className="text-accent"/> 声乐教练</h2>
+        <h2 id="coach-title" className="flex items-center gap-2.5 text-lg font-bold">
+          <span className="grid size-9 place-items-center rounded-lg bg-amber-200/12 text-amber-200"><Sparkles size={18}/></span> 声乐教练
+        </h2>
         <p className="mt-1 text-sm text-muted">从当前选段定位演唱难点，复听并比较实测表现。</p>
       </div>
       {view && <div className="flex flex-wrap items-center gap-2">
         <p className="text-xs text-muted">{view.aiAvailable ? view.model : '本地模式'} · {{
           deepseek: 'DeepSeek 联网已配置', brave: 'Brave 研究已配置', none: 'AI 联网未配置',
         }[view.searchProvider]}</p>
-        <Button variant="text" onClick={() => setSettings(true)}>AI 服务设置</Button>
+        <CoachSettings variant="text" onChanged={coach.retry}/>
       </div>}
     </header>
     {coach.loading && <p role="status" className="text-sm text-muted">正在读取教练分析…</p>}
     {coach.error && <p role="alert" className="text-sm text-danger">{coach.error}</p>}
     {!view && !coach.loading && <Button onClick={coach.retry}>重试读取</Button>}
     {view && <>
-      {settings && <CoachSettings view={view} busy={blocked} onClose={() => setSettings(false)} saveKey={coach.saveKey}/>}
       <details className="rounded-lg border border-line px-3 py-2 text-sm">
         <summary className="cursor-pointer">本报告 AI 估算费用 {view.usage.estimatedYuan === null ?
           (view.usage.textCalls || view.usage.unpricedSearches ? '待估算' : '暂无记录') : `¥${view.usage.estimatedYuan.toFixed(4)}`}</summary>
@@ -95,7 +94,7 @@ export function CoachPanel({ report, playback, adjusting }: { report: Report; pl
           {view.usage.unpricedTextCalls > 0 && ` 有 ${view.usage.unpricedTextCalls} 次文本调用无可用价格或用量。`}
           {view.usage.unpricedSearches > 0 && ` 有 ${view.usage.unpricedSearches} 次 Brave 搜索未计入金额。`}</p>
       </details>
-      <form className="space-y-3" onSubmit={event => {
+      <form className="space-y-3 rounded-xl border border-line bg-panel p-3 sm:p-4" onSubmit={event => {
         event.preventDefault()
         void coach.analyze(song, true, extra, threshold === '' ? null : Number(threshold), false)
       }}>
@@ -145,7 +144,7 @@ export function CoachPanel({ report, playback, adjusting }: { report: Report; pl
       </form>
       {operation && <p role="status" className="text-sm text-accent">{{
         local: '正在测量本地声学特征…', deep: '正在研究歌曲、选择专项工具并生成报告…',
-        settings: '正在保存设置…', edit: '正在保存难点并更新证据…', recheck: '正在更新双轨证据…', ask: '教练正在核对证据…',
+        edit: '正在保存难点并更新证据…', recheck: '正在更新双轨证据…', ask: '教练正在核对证据…',
       }[operation]}</p>}
       {session && <>
         {view.stale && <div className="flex flex-wrap items-center gap-2 rounded-lg border border-accent/60 p-2">
@@ -183,7 +182,7 @@ export function CoachPanel({ report, playback, adjusting }: { report: Report; pl
         </details>
         <DifficultyMap report={report} playback={playback} view={view} coach={coach}
           selected={selected} onSelect={setSelected} blocked={blocked}/>
-        {session.report && !view.stale && <section aria-label="AI 声乐分析报告" className="space-y-3 rounded-lg border border-line bg-canvas p-3">
+        {session.report && !view.stale && <section aria-label="AI 声乐分析报告" className="space-y-3 rounded-xl border border-amber-200/25 bg-[#26221b] p-3 sm:p-4">
           <h3 className="font-semibold">AI 声乐分析报告</h3>
           <p className="text-sm text-muted">{session.report.summary}</p>
           {([['演唱优势', session.report.strengths], ['优先练习', session.report.priorities]] as const).map(([label, items]) =>
@@ -194,7 +193,7 @@ export function CoachPanel({ report, playback, adjusting }: { report: Report; pl
             </div>)}
           {session.report.limitations.map((line, i) => <p className="text-xs text-muted" key={i}>{line}</p>)}
         </section>}
-        {view.aiAvailable && !view.stale && <section aria-label="片段问答" className="space-y-3 border-t border-line pt-3">
+        {view.aiAvailable && !view.stale && <section aria-label="片段问答" className="space-y-3 rounded-xl border border-accent/25 bg-[#242031] p-3 sm:p-4">
           <h3 className="flex items-center gap-2 font-semibold"><MessageCircle size={16} className="text-accent"/> 教练问答</h3>
           {session.history.length > 0 && <ol className="max-h-96 space-y-2 overflow-y-auto" aria-label="问答记录">
             {session.history.map((turn, index) => <li key={index} className="rounded-lg border border-line bg-canvas p-3 text-sm">
@@ -231,5 +230,5 @@ export function CoachPanel({ report, playback, adjusting }: { report: Report; pl
         </section>}
       </>}
     </>}
-  </Panel>
+  </section>
 }

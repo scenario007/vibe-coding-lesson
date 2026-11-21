@@ -55,3 +55,16 @@ export type Difficulty = z.infer<typeof difficulty>
 export type Observation = z.infer<typeof observation>
 export type Feedback = z.infer<typeof feedback>
 export type ResearchSource = z.infer<typeof source>
+
+export const coachSettings = z.object({
+  model: z.string().nullable(), searchProvider: z.enum(['deepseek', 'brave', 'none']),
+  configuredKeys: strings, keyOverrides: strings,
+})
+
+const connectionCheck = z.object({
+  status: z.enum(['ok', 'failed', 'inconclusive', 'unconfigured']),
+  message: z.string(),
+})
+
+export const coachConnectionTest = z.object({ text: connectionCheck, search: connectionCheck })
+export type CoachConnectionTest = z.infer<typeof coachConnectionTest>

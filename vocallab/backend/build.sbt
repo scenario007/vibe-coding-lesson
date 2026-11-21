@@ -1,6 +1,6 @@
 ThisBuild / scalaVersion := "3.3.3"
 ThisBuild / organization := "course.vocallab"
-ThisBuild / version := "2.0.3"
+ThisBuild / version := "2.0.4"
 lazy val root = (project in file(".")).settings(
   name := "vocallab",
   libraryDependencies ++= Seq(

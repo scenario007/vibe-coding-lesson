@@ -1,4 +1,5 @@
 import { ArrowRight, AudioLines, Info, LoaderCircle } from 'lucide-react'
+import { CoachSettings } from '../../components/CoachSettings'
 import { Button } from '../../components/ui/Button'
 import { MediaCard } from './components/MediaCard'
 import { StudioLyrics } from './components/StudioLyrics'
@@ -13,6 +14,13 @@ export default function Studio() {
       <h1 className="text-4xl leading-tight font-bold tracking-[-0.055em] sm:text-5xl">对比原唱与我的演唱</h1>
       <p className="mt-3 max-w-[42rem] text-sm leading-7 text-muted sm:text-base">上传两段音频或视频，查看对应乐句的音高、长音稳定性和节奏偏差，定位听得见的差异。</p>
     </section>
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/25 bg-accent/6 px-4 py-3">
+      <div>
+        <p className="text-sm font-semibold">AI 声乐教练</p>
+        <p className="mt-0.5 text-xs text-muted">可在上传前配置并测试文本模型和联网检索。</p>
+      </div>
+      <CoachSettings/>
+    </div>
     <div className="grid items-start gap-4 md:grid-cols-2">
       <MediaCard role="reference" state={studio.uploads.reference} limits={studio.limits}
         choose={file => void studio.choose('reference', file)} clear={() => studio.clear('reference')}

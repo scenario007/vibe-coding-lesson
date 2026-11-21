@@ -4,6 +4,7 @@ import cats.data.OptionT
 import cats.effect.IO
 import cats.effect.std.Semaphore
 import cats.syntax.all.*
+import io.circe.Json
 import org.http4s.{HttpRoutes, Status}
 import services.analysis.objects.apiTypes.AnalysisIdRequest
 import services.coach.api.*
@@ -14,13 +15,15 @@ import services.system.routes.APIMessageRouter.{json, name}
 
 object CoachRoutes:
   def routes(db: Database, config: AppConfig, queue: Semaphore[IO]): HttpRoutes[IO] =
-    val reads = json(db, (input: AnalysisIdRequest) => GetCoachAPIMessage(input, config))
+    val reads = json(db, (input: AnalysisIdRequest) => GetCoachAPIMessage(input, config)) <+>
+      json(db, (_: Json) => GetCoachSettingsAPIMessage(config))
     val writes = json(db, (input: AnalyzeCoachRequest) => AnalyzeCoachAPIMessage(input, config)) <+>
       json(db, (input: EditDifficultyRequest) => EditDifficultyAPIMessage(input, config)) <+>
       json(db, (input: AskCoachRequest) => AskCoachAPIMessage(input, config)) <+>
-      json(db, (input: SetCoachKeyRequest) => SetCoachKeyAPIMessage(input, config))
+      json(db, (input: SetCoachKeyRequest) => SetCoachKeyAPIMessage(input, config)) <+>
+      json(db, (_: Json) => TestCoachConnectionAPIMessage(config))
     val operations = Set(name[AnalyzeCoachAPIMessage], name[EditDifficultyAPIMessage], name[AskCoachAPIMessage],
-      name[SetCoachKeyAPIMessage])
+      name[SetCoachKeyAPIMessage], name[TestCoachConnectionAPIMessage])
     reads <+> HttpRoutes[IO] { request =>
       if request.uri.path.segments.lastOption.exists(segment => operations(segment.decoded())) then
         OptionT(queue.tryPermit.use {

@@ -4,10 +4,9 @@ import { AnalyzeCoachAPI } from '../../../apis/coach/AnalyzeCoachAPI'
 import { AskCoachAPI } from '../../../apis/coach/AskCoachAPI'
 import { EditDifficultyAPI } from '../../../apis/coach/EditDifficultyAPI'
 import { GetCoachAPI } from '../../../apis/coach/GetCoachAPI'
-import { SetCoachKeyAPI } from '../../../apis/coach/SetCoachKeyAPI'
 import type { Report } from '../../../apis/analysis/contracts'
 
-type Operation = 'local' | 'deep' | 'edit' | 'ask' | 'recheck' | 'settings'
+type Operation = 'local' | 'deep' | 'edit' | 'ask' | 'recheck'
 
 export function useCoach(report: Report) {
   const id = report.analysisId
@@ -58,8 +57,6 @@ export function useCoach(report: Report) {
       run(deep ? 'deep' : 'local', () => new AnalyzeCoachAPI(id, { song, deep, extraTools, highThreshold, refresh }).send()),
     recheck: (song: SongInfo) => run('recheck', () => new AnalyzeCoachAPI(id,
       { song, deep: false, extraTools: [], highThreshold: null, refresh: false, recheck: true }).send()),
-    saveKey: (kind: 'ai' | 'deepseek' | 'search', key: string | null) =>
-      run('settings', () => new SetCoachKeyAPI(id, kind, key).send()),
     edit: (input: ConstructorParameters<typeof EditDifficultyAPI>[1]) =>
       run('edit', () => new EditDifficultyAPI(id, input).send()),
     ask: (input: ConstructorParameters<typeof AskCoachAPI>[1]) =>

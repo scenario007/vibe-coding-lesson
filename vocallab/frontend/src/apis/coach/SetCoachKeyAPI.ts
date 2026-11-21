@@ -1,7 +1,9 @@
 import { request } from '../request'
-import { coachView } from './contracts'
+import { coachSettings } from './contracts'
+
+export type CoachKeyKind = 'ai' | 'deepseek' | 'search'
 
 export class SetCoachKeyAPI {
-  constructor(private readonly analysisId: string, private readonly kind: 'ai' | 'deepseek' | 'search', private readonly key: string | null) {}
-  send() { return request(this, coachView, { analysisId: this.analysisId, kind: this.kind, key: this.key }) }
+  constructor(private readonly kind: CoachKeyKind, private readonly key: string | null) {}
+  send() { return request(this, coachSettings, { kind: this.kind, key: this.key }) }
 }

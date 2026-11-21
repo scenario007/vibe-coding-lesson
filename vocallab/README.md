@@ -58,7 +58,7 @@ export PATH="/opt/homebrew/opt/openjdk@21/bin:/opt/homebrew/opt/postgresql@18/bi
 
 ### 配置 AI 文本和联网检索
 
-在报告页打开「AI 服务设置」即可录入文本、DeepSeek 官方联网或 Brave Search 密钥。设置只保存在本机后端，保存后即时生效，移除覆盖可恢复项目配置。也可通过环境变量设置，或在 `.local/coach.env` 每行写一个 `名称=值`，用 `Stop.command`、`Start.command` 重新启动。直接运行 Scala 开发服务时使用环境变量。项目 Git 忽略 `.local/`。
+在上传分析前，从工作台打开「AI 服务设置」即可录入文本、DeepSeek 官方联网或 Brave Search 密钥。设置只保存在本机后端，保存后即时生效，移除覆盖可恢复项目配置。保存后可点「测试连接」，文本和联网会分别显示结果。连接测试发送少量固定测试内容，可能产生服务商用量费用。报告页也可打开同一份设置。也可通过环境变量设置，或在 `.local/coach.env` 每行写一个 `名称=值`，用 `Stop.command`、`Start.command` 重新启动。直接运行 Scala 开发服务时使用环境变量。项目 Git 忽略 `.local/`。
 
 | 配置 | 用途 |
 | --- | --- |

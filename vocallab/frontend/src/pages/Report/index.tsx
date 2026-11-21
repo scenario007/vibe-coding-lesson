@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowUpRight, CircleAlert, LoaderCircle } from 'lucide-react'
+import { ArrowLeft, CircleAlert, LoaderCircle, ScanLine } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import type { PitchPreview, Report as AnalysisReport, Stage } from '../../apis/analysis/contracts'
 import { Button } from '../../components/ui/Button'
@@ -8,6 +8,7 @@ import { AlignmentPanel } from './components/AlignmentPanel'
 import { PitchChart } from './components/PitchChart'
 import { PitchPreviewPanel } from './components/PitchPreviewPanel'
 import { Spectrogram } from './components/Spectrogram'
+import { ReportHeader } from './components/ReportHeader'
 import { Segments } from './components/Segments'
 import type { TimeRange } from './functions/timeline'
 import { usePlayback } from './hooks/usePlayback'
@@ -24,30 +25,35 @@ function AnalysisResult({ report, preview, adjust, adjusting, error }: {
   report: AnalysisReport; preview: PitchPreview; adjust: (offset: number | null, range?: TimeRange) => void; adjusting: boolean; error: string;
 }) {
   const playback = usePlayback(report)
-  return <div className="grid gap-4">
-    <header className="mb-1 flex flex-wrap items-end justify-between gap-4">
-      <div className="min-w-0">
-        <h1 className="text-4xl font-bold tracking-[-0.05em]">演唱分析报告</h1>
-        <p className="mt-2 truncate text-sm text-muted" title={report.referenceMetadata.name+' / '+report.userMetadata.name}>
-          <span className="text-accent">{report.referenceMetadata.name}</span> <span className="mx-1">/</span> <span className="text-mint">{report.userMetadata.name}</span>
-        </p>
-      </div>
-      <Link to="/" className="flex items-center gap-1.5 rounded-lg border border-line bg-panel px-3.5 py-2.5 text-sm font-semibold hover:bg-raised">编辑分析 <ArrowUpRight size={15}/></Link>
-    </header>
+  return <div className="grid min-w-0 gap-5">
+    <ReportHeader report={report}/>
     {report.warnings.length > 0 && <details className="rounded-xl border border-line bg-panel px-4 py-3">
       <summary className="cursor-pointer text-xs font-semibold text-muted"><CircleAlert size={14} className="mr-2 inline text-accent"/>录音与分析提示</summary>
       <ul className="mt-2 space-y-1 text-xs leading-5 text-muted">{report.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul>
     </details>}
-    <PitchChart report={report} playback={playback} preview={preview}/>
-    <CoachPanel report={report} playback={playback} adjusting={adjusting}/>
-    <Spectrogram report={report} playback={playback} preview={preview}/>
-    <div className="grid items-start gap-4 lg:grid-cols-[1.35fr_1fr]">
-      <details className="rounded-xl border border-line bg-panel px-3 py-2">
-        <summary className="cursor-pointer text-sm font-semibold text-muted">pYIN 声学观察</summary>
-        <Segments report={report} playback={playback}/>
-      </details>
-      <AlignmentPanel key={JSON.stringify([report.alignment.method, report.alignment.offset, report.alignment.automatic?.referenceRange, report.alignment.automatic?.openingWindow])}
-        report={report} playback={playback} adjusting={adjusting} adjust={adjust} error={error}/>
+    <div id="report-pitch" className="min-w-0 scroll-mt-16 overflow-hidden rounded-xl border-t-2 border-accent/65">
+      <PitchChart report={report} playback={playback} preview={preview}/>
+    </div>
+    <section id="report-evidence" aria-labelledby="evidence-title"
+      className="min-w-0 scroll-mt-16 rounded-2xl border border-mint/20 bg-[#14201f] p-3 sm:p-4">
+      <div className="mb-3 flex items-center gap-2.5">
+        <span className="grid size-9 place-items-center rounded-lg bg-mint/12 text-mint"><ScanLine size={18}/></span>
+        <h2 id="evidence-title" className="text-lg font-bold">声学观察与对齐</h2>
+      </div>
+      <div className="grid min-w-0 items-start gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <div className="grid min-w-0 gap-3">
+          <Spectrogram report={report} playback={playback} preview={preview}/>
+          <details className="rounded-xl border border-line bg-panel px-3 py-2">
+            <summary className="cursor-pointer text-sm font-semibold text-muted">pYIN 声学观察</summary>
+            <Segments report={report} playback={playback}/>
+          </details>
+        </div>
+        <AlignmentPanel key={JSON.stringify([report.alignment.method, report.alignment.offset, report.alignment.automatic?.referenceRange, report.alignment.automatic?.openingWindow])}
+          report={report} playback={playback} adjusting={adjusting} adjust={adjust} error={error}/>
+      </div>
+    </section>
+    <div id="report-coach" className="min-w-0 scroll-mt-16 overflow-hidden rounded-xl border-t-2 border-amber-200/65">
+      <CoachPanel report={report} playback={playback} adjusting={adjusting}/>
     </div>
   </div>
 }

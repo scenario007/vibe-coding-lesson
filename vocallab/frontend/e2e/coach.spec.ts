@@ -11,6 +11,26 @@ test.beforeAll(() => {
 test('maps acoustic measures, edits and plays a region, and invalidates old evidence after realignment', async ({ page }) => {
   test.setTimeout(150_000)
   await page.goto('/')
+  if (process.env.VOCALLAB_TEST_COACH_PROVIDER) {
+    await page.getByRole('button', { name: 'AI 服务设置' }).click()
+    const settings = page.getByRole('dialog', { name: 'AI 服务设置' })
+    const key = settings.getByLabel('API Key')
+    await expect(key).toHaveAttribute('type', 'password')
+    try {
+      await key.fill('fixture-deepseek')
+      await expect(settings.getByRole('button', { name: '测试连接' })).toBeDisabled()
+      await settings.getByRole('button', { name: '保存密钥' }).click()
+      await expect(settings.getByText('密钥已保存。')).toBeVisible()
+      await expect(key).toHaveValue('')
+      await settings.getByRole('button', { name: '测试连接' }).click()
+      await expect(settings.getByText('文本模型 · 可用')).toBeVisible()
+      await expect(settings.getByText('联网检索 · 可用')).toBeVisible()
+    } finally {
+      await settings.getByRole('button', { name: '恢复项目配置' }).click()
+      await expect(settings.getByText('已移除此处设置，恢复项目配置。')).toBeVisible()
+      await settings.getByRole('button', { name: '关闭' }).click()
+    }
+  }
   const reference = page.getByRole('region', { name: '原唱' })
   const cover = page.getByRole('region', { name: '我的演唱' })
   await reference.getByLabel('原唱文件').setInputFiles(resolve(fixtures, 'reference.mp3'))
@@ -20,6 +40,12 @@ test('maps acoustic measures, edits and plays a region, and invalidates old evid
   await cover.getByLabel('终点（秒）').fill('6.8')
   await page.getByRole('button', { name: '开始分析' }).click()
   await expect(page.getByRole('heading', { name: '演唱分析报告' })).toBeVisible({ timeout: 100_000 })
+  const navigation = page.getByRole('navigation', { name: '报告导航' })
+  await navigation.getByRole('link', { name: '声学证据' }).click()
+  await expect(page).toHaveURL(/#report-evidence$/)
+  await expect(page.getByRole('heading', { name: '声学观察与对齐' })).toBeInViewport()
+  await navigation.getByRole('link', { name: 'AI 声乐教练' }).click()
+  await expect(page).toHaveURL(/#report-coach$/)
   const coach = page.getByRole('region', { name: '声乐教练' })
   await coach.getByRole('button', { name: '本地专项分析' }).click()
   const map = coach.getByRole('region', { name: '歌曲难点地图' })
@@ -44,18 +70,7 @@ test('maps acoustic measures, edits and plays a region, and invalidates old evid
   await expect(page.getByText('音准分', { exact: true })).toHaveCount(0)
 
   if (process.env.VOCALLAB_TEST_COACH_PROVIDER) {
-    await coach.getByRole('button', { name: 'AI 服务设置' }).click()
-    const settings = page.getByRole('dialog', { name: 'AI 服务设置' })
-    const key = settings.getByLabel('API Key')
-    await expect(key).toHaveAttribute('type', 'password')
-    await key.fill('temporary-browser-key')
-    await settings.getByRole('button', { name: '保存密钥' }).click()
-    await expect(settings.getByText('密钥已保存。')).toBeVisible()
-    await expect(key).toHaveValue('')
-    await settings.getByRole('button', { name: '恢复项目配置' }).click()
-    await expect(settings.getByText('已移除此处设置，恢复项目配置。')).toBeVisible()
-    await settings.getByRole('button', { name: '关闭' }).click()
-    await coach.getByLabel('歌名').fill('高音显示测试')
+    await coach.getByLabel('歌名').fill(`高音显示测试 ${Date.now()}`)
     await expect(coach.getByRole('button', { name: '联网查歌曲资料' })).toHaveCount(0)
     const native = await coach.getByText('DeepSeek 联网已配置', { exact: false }).count() > 0
     await coach.getByRole('button', { name: '生成 AI 深度分析' }).click()

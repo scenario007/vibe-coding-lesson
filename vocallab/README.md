@@ -68,7 +68,7 @@ export PATH="/opt/homebrew/opt/openjdk@21/bin:/opt/homebrew/opt/postgresql@18/bi
 | `VOCALLAB_AI_KEY_FILE` | 通过启动脚本从本机课程凭证 JSON 的 `api_key` 字段读取，可替代上一项 |
 | `VOCALLAB_AI_TIMEOUT_SECONDS`、`VOCALLAB_AI_MAX_TOKENS` | 单次文本请求上限，默认 24 秒、3000 token |
 | `VOCALLAB_AI_JSON_MODE` | 可选，设为 `true` 时请求提供方原生 JSON 输出。课程端点的 DeepSeek 默认启用 JSON 模式并关闭思考输出。 |
-| `VOCALLAB_DEEPSEEK_KEY` | [DeepSeek 开放平台](https://platform.deepseek.com/) API Key，用于模型自主联网研究 |
+| `VOCALLAB_DEEPSEEK_KEY` | [DeepSeek 开放平台](https://platform.deepseek.com/) API Key，同时用于官方文本分析、问答和模型自主联网；配置后优先于课程文本服务 |
 | `VOCALLAB_SEARCH_KEY` | [Brave Web Search API](https://api-dashboard.search.brave.com/api-reference/web/search/get) 密钥，选填。未配置 DeepSeek 官方联网时可用于 AI 分析内的歌曲研究 |
 | `VOCALLAB_SEARCH_URL` | Brave 兼容搜索端点，默认使用 Brave 官方 Web Search |
 

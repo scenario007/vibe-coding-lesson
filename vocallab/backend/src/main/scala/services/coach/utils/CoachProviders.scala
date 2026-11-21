@@ -20,8 +20,9 @@ private[coach] object CoachProviders:
   private lazy val client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()
   private val userAgent = "VocalLab/2.0"
   private def setting(key: String): Option[String] = sys.env.get(key).map(_.trim).filter(_.nonEmpty)
-  def model: Option[String] = Some(setting("VOCALLAB_AI_MODEL").getOrElse("deepseek-v4.1-flash"))
-  private def base = Some(setting("VOCALLAB_AI_BASE_URL").getOrElse("https://tokenhub.tencentmaas.com/v1"))
+  private def fallbackModel = setting("VOCALLAB_AI_MODEL").getOrElse("deepseek-v4.1-flash")
+  private def fallbackBase = setting("VOCALLAB_AI_BASE_URL").getOrElse("https://tokenhub.tencentmaas.com/v1")
+  private def deepSeekTextBase = setting("VOCALLAB_DEEPSEEK_TEXT_URL").getOrElse("https://api.deepseek.com")
   private def deepSeekBase = setting("VOCALLAB_DEEPSEEK_BASE_URL").getOrElse("https://api.deepseek.com/anthropic/v1")
   private def braveEndpoint = setting("VOCALLAB_SEARCH_URL").getOrElse("https://api.search.brave.com/res/v1/web/search")
   def searchProvider(config: AppConfig): IO[String] =
@@ -34,8 +35,15 @@ private[coach] object CoachProviders:
       case "brave" => braveEndpoint
       case _ => "offline"
     }
-  def aiAvailable(config: AppConfig): IO[Boolean] = CoachCredentials.key(config, "ai").map(_.nonEmpty)
-  def identity: String = s"${base.getOrElse("")}/${model.getOrElse("")}"
+  private def textProvider(config: AppConfig): IO[(Option[String], String, String, Boolean)] =
+    CoachCredentials.key(config, "deepseek").flatMap {
+      case Some(key) => IO.pure((Some(key), deepSeekTextBase, "deepseek-flash", true))
+      case None => CoachCredentials.key(config, "ai").map(key => (key, fallbackBase, fallbackModel, false))
+    }
+
+  def aiAvailable(config: AppConfig): IO[Boolean] = textProvider(config).map(_._1.nonEmpty)
+  def model(config: AppConfig): IO[Option[String]] = textProvider(config).map(p => p._1.map(_ => p._3))
+  def identity(config: AppConfig): IO[String] = textProvider(config).map(p => s"${p._2}/${p._3}")
 
   private def number(key: String, default: Int, min: Int, max: Int): Int =
     setting(key).flatMap(_.toIntOption).filter(n => n >= min && n <= max).getOrElse(default)
@@ -59,16 +67,15 @@ private[coach] object CoachProviders:
 
   def generate[A: Decoder](config: AppConfig, id: UUID, stage: String, instructions: String, context: Json): IO[A] =
     val invalid = ApiError(Status.BadGateway, s"AI 返回的${stage}格式无效。")
-    CoachCredentials.key(config, "ai").flatMap { credential =>
-      (credential, base, model) match
-        case (Some(key), Some(url), Some(name)) =>
+    textProvider(config).flatMap {
+        case (Some(key), url, name, official) =>
           val seconds = number("VOCALLAB_AI_TIMEOUT_SECONDS", 24, 5, 40)
           val maxTokens = number("VOCALLAB_AI_MAX_TOKENS", 3000, 512, 6000)
           val tokenHubDeepSeek = Try(URI.create(url)).toOption.exists(uri =>
             uri.getHost == "tokenhub.tencentmaas.com" && name.startsWith("deepseek-"))
-          val jsonMode = setting("VOCALLAB_AI_JSON_MODE").fold(tokenHubDeepSeek)(_ == "true")
+          val jsonMode = setting("VOCALLAB_AI_JSON_MODE").fold(official || tokenHubDeepSeek)(_ == "true")
           val format = Option.when(jsonMode)("response_format" -> Json.obj("type" -> Json.fromString("json_object")))
-          val thinking = Option.when(tokenHubDeepSeek)("thinking" -> Json.obj("type" -> Json.fromString("disabled")))
+          val thinking = Option.when(official || tokenHubDeepSeek)("thinking" -> Json.obj("type" -> Json.fromString("disabled")))
           val body = Json.obj("model" -> Json.fromString(name), "max_tokens" -> Json.fromInt(maxTokens),
             "messages" -> Json.arr(
               Json.obj("role" -> Json.fromString("system"), "content" -> Json.fromString(

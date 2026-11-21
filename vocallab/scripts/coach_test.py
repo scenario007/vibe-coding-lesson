@@ -73,11 +73,18 @@ class FixtureProvider(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             self.deepseek_search(body)
             return
-        if self.path != "/v1/chat/completions" or self.headers.get("Authorization") != "Bearer fixture-ai":
+        official = self.path == "/official/chat/completions"
+        expected_key = "fixture-deepseek" if official else "fixture-ai"
+        if self.path not in ("/official/chat/completions", "/v1/chat/completions") or self.headers.get("Authorization") != f"Bearer {expected_key}":
             self.send_json({}, 404)
             return
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         self.counters["ai"] += 1
+        if official:
+            assert body["model"] == "deepseek-flash"
+            assert body["thinking"] == {"type": "disabled"}
+            assert body["response_format"] == {"type": "json_object"}
+            self.counters["official_text"] += 1
         instructions, raw = [message["content"] for message in body["messages"]]
         data = json.loads(raw)
         assert "/.local/" not in raw and ".wav" not in raw
@@ -186,6 +193,7 @@ class CoachIntegration(unittest.TestCase):
     def test_ai_selects_tools_cites_evidence_and_can_ask(self):
         self.invoke("adjustalignment", manualOffset=.85)
         self.artist = "测试-" + uuid4().hex[:8]
+        start = stats()
         first = self.analyze("高音练习", deep=True)
         session = first["session"]
         self.assertEqual(session["plan"]["tools"][0]["tool"], "high_notes")
@@ -193,6 +201,11 @@ class CoachIntegration(unittest.TestCase):
         self.assertEqual(session["sources"][0]["url"], "https://example.com/research")
         self.assertTrue(session["report"]["priorities"])
         native = first["searchProvider"] == "deepseek"
+        if native:
+            self.assertEqual(first["model"], "deepseek-flash")
+            self.assertEqual(session["model"], "deepseek-flash")
+            self.assertEqual(stats()["official_text"] - start.get("official_text", 0), 3)
+            self.assertEqual(stats()["native"] - start.get("native", 0), 1)
         self.assertEqual(first["usage"]["textCalls"], 4 if native else 3)
         self.assertEqual(first["usage"]["inputTokens"], 74 if native else 54)
         self.assertEqual(first["usage"]["outputTokens"], 23 if native else 18)

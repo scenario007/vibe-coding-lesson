@@ -30,12 +30,13 @@ private[coach] object CoachWorkflow:
       catalog: Vector[ToolDefinition]): IO[CoachView] =
     for
       ai <- CoachProviders.aiAvailable(config)
+      model <- CoachProviders.model(config)
       search <- CoachProviders.searchProvider(config)
       overrides <- Vector("ai", "deepseek", "search").traverse(kind => CoachCredentials.overrideKey(config, kind)
         .map(key => Option.when(key.nonEmpty)(kind)))
       usage <- CoachBilling.summary(config, report.analysisId)
     yield CoachView(session, session.exists(_.revision != CoachStore.revision(report)),
-      ai, search != "none", catalog, CoachProviders.model, search, overrides.flatten.toSet, usage)
+      ai, search != "none", catalog, model, search, overrides.flatten.toSet, usage)
 
   def get(config: AppConfig, report: AnalysisReport): IO[CoachView] =
     (CoachStore.load(config, report), CoachStore.catalog(config)).tupled.flatMap((session, catalog) =>
@@ -164,7 +165,8 @@ private[coach] object CoachWorkflow:
     for
       catalog <- CoachStore.catalog(config)
       search <- CoachProviders.searchIdentity(config)
-      provider = Option.when(input.deep)(CoachProviders.identity + "|" + search)
+      textProvider <- CoachProviders.identity(config)
+      provider = Option.when(input.deep)(textProvider + "|" + search)
       _ <- check(song.title.length <= 160 && song.artist.length <= 120 && song.version.length <= 120 &&
         song.notes.length <= 600 && (!input.deep || song.title.nonEmpty), "请填写有效的歌曲名称及版本信息。")
       _ <- check(validTools(input.extraTools, toolIds(catalog), 2) &&
@@ -197,6 +199,7 @@ private[coach] object CoachWorkflow:
     val manual = sameSong.toVector.flatMap(_.difficulties.filter(_.manual)).take(8)
     for
       ai <- CoachProviders.aiAvailable(config)
+      model <- CoachProviders.model(config)
       _ <- IO.raiseWhen(deep && !ai)(ApiError(Status.ServiceUnavailable, "请先配置 AI 文本服务。"))
       researched <- if deep then CoachStore.research(config, report, song) else IO.pure(ResearchResult(Vector.empty, "local"))
       plan <- drafts(config, report, song, researched.sources, localTools, catalog, deep)
@@ -212,7 +215,7 @@ private[coach] object CoachWorkflow:
       measured <- measurements(config, report, marked, input.highThreshold)
       initial = CoachSession(CoachStore.revision(report), if deep then "ai" else "local", song, researched.sources,
         researched.status, completePlan, detected.candidates, marked, measured.observations,
-        detected.runs ++ measured.runs, None, Vector.empty, Option.when(deep)(CoachProviders.model).flatten,
+        detected.runs ++ measured.runs, None, Vector.empty, model.filter(_ => deep),
         (sourceStatus(researched.status) ++ decision._2 ++ Option.when(marked.isEmpty)("没有达到测量条件的难点候选。"))
           .distinct, input.extraTools, input.highThreshold, provider)
       // Preserve usable DSP results if the external synthesis fails.
